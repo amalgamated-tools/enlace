@@ -527,15 +527,15 @@ func (m *mockAuthTokenService) GenerateTokensForUser(userID string, isAdmin bool
 
 // mockOIDCService implements OIDCServiceInterface for testing.
 type mockOIDCService struct {
-	isEnabledFn           func() bool
-	generateStateFn       func() (string, error)
+	isEnabledFn            func() bool
+	generateStateFn        func() (string, error)
 	generateCodeVerifierFn func() (string, error)
-	getAuthURLFn          func(state, codeVerifier string) string
-	getLinkAuthURLFn      func(state, codeVerifier string) string
-	exchangeCodeFn        func(ctx context.Context, code, codeVerifier string) (*handler.OIDCUserInfo, error)
-	findOrCreateFn        func(ctx context.Context, info *handler.OIDCUserInfo) (*handler.OIDCUser, error)
-	linkOIDCFn            func(ctx context.Context, userID string, info *handler.OIDCUserInfo) error
-	unlinkOIDCFn          func(ctx context.Context, userID string) error
+	getAuthURLFn           func(state, codeVerifier string) string
+	getLinkAuthURLFn       func(state, codeVerifier string) string
+	exchangeCodeFn         func(ctx context.Context, code, codeVerifier string) (*handler.OIDCUserInfo, error)
+	findOrCreateFn         func(ctx context.Context, info *handler.OIDCUserInfo) (*handler.OIDCUser, error)
+	linkOIDCFn             func(ctx context.Context, userID string, info *handler.OIDCUserInfo) error
+	unlinkOIDCFn           func(ctx context.Context, userID string) error
 }
 
 func (m *mockOIDCService) IsEnabled() bool {

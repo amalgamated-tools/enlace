@@ -26,11 +26,11 @@ var testJWTSecret = []byte("test-secret-key-for-testing-only")
 
 // mockPublicShareService implements PublicShareServiceInterface for testing.
 type mockPublicShareService struct {
-	getBySlugFn             func(ctx context.Context, slug string) (*model.Share, error)
-	getByIDFn               func(ctx context.Context, id string) (*model.Share, error)
-	verifyPasswordFn        func(ctx context.Context, id string, password string) bool
-	validateAccessFn        func(ctx context.Context, share *model.Share) error
-	incrementViewCountFn    func(ctx context.Context, id string) error
+	getBySlugFn              func(ctx context.Context, slug string) (*model.Share, error)
+	getByIDFn                func(ctx context.Context, id string) (*model.Share, error)
+	verifyPasswordFn         func(ctx context.Context, id string, password string) bool
+	validateAccessFn         func(ctx context.Context, share *model.Share) error
+	incrementViewCountFn     func(ctx context.Context, id string) error
 	incrementDownloadCountFn func(ctx context.Context, id string) error
 }
 

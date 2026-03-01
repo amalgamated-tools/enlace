@@ -1,0 +1,32 @@
+version: "2"
+linters:
+  enable:
+    - forbidigo
+  settings:
+    forbidigo:
+      forbid:
+        - pattern: ^log\.Print.*$
+          msg: use log/slog instead of log.Print
+        - pattern: ^log\.Fatal.*$
+          msg: use log/slog instead of log.Fatal
+        - pattern: ^log\.Panic.*$
+          msg: use log/slog instead of log.Panic
+      analyze-types: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

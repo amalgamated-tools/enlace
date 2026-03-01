@@ -26,8 +26,8 @@ type UserServiceInterface interface {
 
 // mockUserService implements UserServiceInterface for testing.
 type mockUserService struct {
-	getUserFn       func(ctx context.Context, userID string) (*model.User, error)
-	updateProfileFn func(ctx context.Context, userID, displayName, email string) (*model.User, error)
+	getUserFn        func(ctx context.Context, userID string) (*model.User, error)
+	updateProfileFn  func(ctx context.Context, userID, displayName, email string) (*model.User, error)
 	updatePasswordFn func(ctx context.Context, userID, oldPassword, newPassword string) error
 }
 

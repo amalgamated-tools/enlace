@@ -8,8 +8,8 @@ type User struct {
 	PasswordHash string
 	DisplayName  string
 	IsAdmin      bool
-	OIDCSubject  string    // OIDC "sub" claim
-	OIDCIssuer   string    // OIDC issuer URL
+	OIDCSubject  string // OIDC "sub" claim
+	OIDCIssuer   string // OIDC issuer URL
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
