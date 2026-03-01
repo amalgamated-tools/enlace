@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { push } from 'svelte-spa-router';
-  import { Button, ShareCard, Modal } from '../lib/components';
-  import { auth, isAuthenticated, toast } from '../lib/stores';
-  import { sharesApi, type Share } from '../lib/api';
+  import { onMount } from "svelte";
+  import { push } from "svelte-spa-router";
+  import { Button, ShareCard, Modal } from "../lib/components";
+  import { auth, isAuthenticated, toast } from "../lib/stores";
+  import { sharesApi, type Share } from "../lib/api";
 
   let shares: Share[] = [];
   let loading = true;
@@ -12,7 +12,7 @@
   let deleting = false;
 
   $: if ($auth.initialized && !$isAuthenticated) {
-    push('/login');
+    push("/login");
   }
 
   onMount(async () => {
@@ -26,7 +26,8 @@
     try {
       shares = await sharesApi.list();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load shares';
+      const message =
+        err instanceof Error ? err.message : "Failed to load shares";
       toast.error(message);
     } finally {
       loading = false;
@@ -45,11 +46,12 @@
     try {
       await sharesApi.delete(shareToDelete.id);
       shares = shares.filter((s) => s.id !== shareToDelete!.id);
-      toast.success('Share deleted');
+      toast.success("Share deleted");
       deleteModal = false;
       shareToDelete = null;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete share';
+      const message =
+        err instanceof Error ? err.message : "Failed to delete share";
       toast.error(message);
     } finally {
       deleting = false;
@@ -59,7 +61,7 @@
 
 <div class="flex items-center justify-between mb-6">
   <h2 class="text-lg font-semibold text-slate-900">Your Shares</h2>
-  <Button on:click={() => push('/shares/new')}>New Share</Button>
+  <Button on:click={() => push("/shares/new")}>New Share</Button>
 </div>
 
 {#if loading}
@@ -69,8 +71,12 @@
 {:else if shares.length === 0}
   <div class="bg-white rounded-xl border border-slate-200 p-12 text-center">
     <div class="max-w-xs mx-auto">
-      <p class="text-sm text-slate-500 mb-4">You haven't created any shares yet</p>
-      <Button on:click={() => push('/shares/new')}>Create your first share</Button>
+      <p class="text-sm text-slate-500 mb-4">
+        You haven't created any shares yet
+      </p>
+      <Button on:click={() => push("/shares/new")}
+        >Create your first share</Button
+      >
     </div>
   </div>
 {:else}
@@ -90,12 +96,21 @@
   </div>
 {/if}
 
-<Modal open={deleteModal} title="Delete Share" on:close={() => (deleteModal = false)}>
+<Modal
+  open={deleteModal}
+  title="Delete Share"
+  on:close={() => (deleteModal = false)}
+>
   <p class="text-sm text-slate-600 mb-5">
-    Are you sure you want to delete "{shareToDelete?.name}"? This action cannot be undone.
+    Are you sure you want to delete "{shareToDelete?.name}"? This action cannot
+    be undone.
   </p>
   <div class="flex gap-2 justify-end">
-    <Button variant="secondary" on:click={() => (deleteModal = false)}>Cancel</Button>
-    <Button variant="danger" loading={deleting} on:click={handleDelete}>Delete</Button>
+    <Button variant="secondary" on:click={() => (deleteModal = false)}
+      >Cancel</Button
+    >
+    <Button variant="danger" loading={deleting} on:click={handleDelete}
+      >Delete</Button
+    >
   </div>
 </Modal>

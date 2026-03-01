@@ -1,4 +1,4 @@
-const API_BASE = '/api/v1';
+const API_BASE = "/api/v1";
 
 interface ApiResponse<T> {
   success: boolean;
@@ -11,26 +11,26 @@ class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public fields?: Record<string, string>
+    public fields?: Record<string, string>,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem("access_token");
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -42,9 +42,9 @@ async function request<T>(
 
   if (!response.ok || !data.success) {
     throw new ApiError(
-      data.error || 'Request failed',
+      data.error || "Request failed",
       response.status,
-      data.fields
+      data.fields,
     );
   }
 
@@ -54,13 +54,12 @@ async function request<T>(
 export const api = {
   get: <T>(endpoint: string) => request<T>(endpoint),
   post: <T>(endpoint: string, body: unknown) =>
-    request<T>(endpoint, { method: 'POST', body: JSON.stringify(body) }),
+    request<T>(endpoint, { method: "POST", body: JSON.stringify(body) }),
   patch: <T>(endpoint: string, body: unknown) =>
-    request<T>(endpoint, { method: 'PATCH', body: JSON.stringify(body) }),
+    request<T>(endpoint, { method: "PATCH", body: JSON.stringify(body) }),
   put: <T>(endpoint: string, body: unknown) =>
-    request<T>(endpoint, { method: 'PUT', body: JSON.stringify(body) }),
-  delete: <T>(endpoint: string) =>
-    request<T>(endpoint, { method: 'DELETE' }),
+    request<T>(endpoint, { method: "PUT", body: JSON.stringify(body) }),
+  delete: <T>(endpoint: string) => request<T>(endpoint, { method: "DELETE" }),
 };
 
 export { ApiError };

@@ -1,24 +1,24 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { push, querystring } from 'svelte-spa-router';
-  import { Button, Input } from '../lib/components';
-  import { auth, isAuthenticated, toast } from '../lib/stores';
-  import { getOIDCConfig, getOIDCLoginURL } from '../lib/api';
+  import { onMount } from "svelte";
+  import { push, querystring } from "svelte-spa-router";
+  import { Button, Input } from "../lib/components";
+  import { auth, isAuthenticated, toast } from "../lib/stores";
+  import { getOIDCConfig, getOIDCLoginURL } from "../lib/api";
 
-  let email = '';
-  let password = '';
+  let email = "";
+  let password = "";
   let loading = false;
   let errors: Record<string, string> = {};
   let oidcEnabled = false;
 
   $: if ($isAuthenticated) {
-    push('/');
+    push("/");
   }
 
   onMount(async () => {
     // Check for error query param (e.g., from failed OIDC login)
     const params = new URLSearchParams($querystring);
-    const error = params.get('error');
+    const error = params.get("error");
     if (error) {
       toast.error(decodeURIComponent(error));
     }
@@ -41,10 +41,10 @@
     errors = {};
 
     if (!email.trim()) {
-      errors = { ...errors, email: 'Email is required' };
+      errors = { ...errors, email: "Email is required" };
     }
     if (!password) {
-      errors = { ...errors, password: 'Password is required' };
+      errors = { ...errors, password: "Password is required" };
     }
 
     if (Object.keys(errors).length > 0) {
@@ -54,10 +54,10 @@
     loading = true;
     try {
       await auth.login(email, password);
-      toast.success('Logged in successfully');
-      push('/');
+      toast.success("Logged in successfully");
+      push("/");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login failed';
+      const message = err instanceof Error ? err.message : "Login failed";
       toast.error(message);
     } finally {
       loading = false;
@@ -79,8 +79,16 @@
           on:click={handleOIDCLogin}
           class="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors mb-6"
         >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
+          <svg
+            class="w-5 h-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"
+            />
           </svg>
           Sign in with SSO
         </button>
@@ -90,7 +98,9 @@
             <div class="w-full border-t border-slate-200"></div>
           </div>
           <div class="relative flex justify-center text-xs uppercase">
-            <span class="bg-white px-2 text-slate-400">Or continue with email</span>
+            <span class="bg-white px-2 text-slate-400"
+              >Or continue with email</span
+            >
           </div>
         </div>
       {/if}
@@ -117,14 +127,16 @@
         />
 
         <Button type="submit" {loading} disabled={loading}>
-          {loading ? 'Signing in...' : 'Sign in'}
+          {loading ? "Signing in..." : "Sign in"}
         </Button>
       </form>
     </div>
 
     <p class="mt-6 text-center text-sm text-slate-500">
       Don't have an account?
-      <a href="#/register" class="text-slate-900 font-medium hover:underline">Register</a>
+      <a href="#/register" class="text-slate-900 font-medium hover:underline"
+        >Register</a
+      >
     </p>
   </div>
 </div>

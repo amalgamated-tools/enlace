@@ -1,17 +1,17 @@
 <script lang="ts">
-  import { push } from 'svelte-spa-router';
-  import { Button, Input } from '../lib/components';
-  import { auth, isAuthenticated, toast } from '../lib/stores';
+  import { push } from "svelte-spa-router";
+  import { Button, Input } from "../lib/components";
+  import { auth, isAuthenticated, toast } from "../lib/stores";
 
-  let email = '';
-  let password = '';
-  let confirmPassword = '';
-  let displayName = '';
+  let email = "";
+  let password = "";
+  let confirmPassword = "";
+  let displayName = "";
   let loading = false;
   let errors: Record<string, string> = {};
 
   $: if ($isAuthenticated) {
-    push('/');
+    push("/");
   }
 
   async function handleSubmit(e: Event) {
@@ -19,18 +19,21 @@
     errors = {};
 
     if (!email.trim()) {
-      errors = { ...errors, email: 'Email is required' };
+      errors = { ...errors, email: "Email is required" };
     }
     if (!displayName.trim()) {
-      errors = { ...errors, displayName: 'Display name is required' };
+      errors = { ...errors, displayName: "Display name is required" };
     }
     if (!password) {
-      errors = { ...errors, password: 'Password is required' };
+      errors = { ...errors, password: "Password is required" };
     } else if (password.length < 8) {
-      errors = { ...errors, password: 'Password must be at least 8 characters' };
+      errors = {
+        ...errors,
+        password: "Password must be at least 8 characters",
+      };
     }
     if (password !== confirmPassword) {
-      errors = { ...errors, confirmPassword: 'Passwords do not match' };
+      errors = { ...errors, confirmPassword: "Passwords do not match" };
     }
 
     if (Object.keys(errors).length > 0) {
@@ -40,10 +43,11 @@
     loading = true;
     try {
       await auth.register(email, password, displayName);
-      toast.success('Account created successfully');
-      push('/');
+      toast.success("Account created successfully");
+      push("/");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Registration failed';
+      const message =
+        err instanceof Error ? err.message : "Registration failed";
       toast.error(message);
     } finally {
       loading = false;
@@ -101,14 +105,16 @@
         />
 
         <Button type="submit" {loading} disabled={loading}>
-          {loading ? 'Creating account...' : 'Create account'}
+          {loading ? "Creating account..." : "Create account"}
         </Button>
       </form>
     </div>
 
     <p class="mt-6 text-center text-sm text-slate-500">
       Already have an account?
-      <a href="#/login" class="text-slate-900 font-medium hover:underline">Sign in</a>
+      <a href="#/login" class="text-slate-900 font-medium hover:underline"
+        >Sign in</a
+      >
     </p>
   </div>
 </div>

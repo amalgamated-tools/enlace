@@ -1,13 +1,13 @@
 <script lang="ts">
-  export let type: 'text' | 'email' | 'password' | 'number' = 'text';
-  export let value = '';
-  export let placeholder = '';
-  export let label = '';
-  export let error = '';
+  export let type: "text" | "email" | "password" | "number" = "text";
+  export let value = "";
+  export let placeholder = "";
+  export let label = "";
+  export let error = "";
   export let disabled = false;
   export let required = false;
-  export let id = '';
-  export let autocomplete: AutoFill | '' = '';
+  export let id = "";
+  export let autocomplete: AutoFill | "" = "";
 
   const inputId = id || `input-${Math.random().toString(36).substring(2, 9)}`;
 </script>
@@ -27,7 +27,9 @@
     {required}
     autocomplete={autocomplete || undefined}
     bind:value
-    class="w-full px-3 py-2 text-sm bg-white border rounded-lg transition-colors duration-150 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 disabled:bg-slate-50 disabled:text-slate-400 {error ? 'border-red-400 focus:ring-red-500/10 focus:border-red-400' : 'border-slate-200'}"
+    class="w-full px-3 py-2 text-sm bg-white border rounded-lg transition-colors duration-150 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 disabled:bg-slate-50 disabled:text-slate-400 {error
+      ? 'border-red-400 focus:ring-red-500/10 focus:border-red-400'
+      : 'border-slate-200'}"
     on:input
     on:blur
   />

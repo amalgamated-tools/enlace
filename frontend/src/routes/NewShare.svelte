@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { push } from 'svelte-spa-router';
-  import { Button, Input, FileUploader } from '../lib/components';
-  import { auth, isAuthenticated, toast } from '../lib/stores';
-  import { sharesApi, filesApi } from '../lib/api';
+  import { push } from "svelte-spa-router";
+  import { Button, Input, FileUploader } from "../lib/components";
+  import { auth, isAuthenticated, toast } from "../lib/stores";
+  import { sharesApi, filesApi } from "../lib/api";
 
-  let name = '';
-  let description = '';
-  let slug = '';
-  let password = '';
-  let maxDownloads: string = '';
-  let maxViews: string = '';
-  let expiresAt = '';
+  let name = "";
+  let description = "";
+  let slug = "";
+  let password = "";
+  let maxDownloads: string = "";
+  let maxViews: string = "";
+  let expiresAt = "";
   let isReverseShare = false;
 
   let pendingFiles: File[] = [];
@@ -18,7 +18,7 @@
   let errors: Record<string, string> = {};
 
   $: if ($auth.initialized && !$isAuthenticated) {
-    push('/login');
+    push("/login");
   }
 
   function handleFileSelect(event: CustomEvent<File[]>) {
@@ -34,11 +34,11 @@
     errors = {};
 
     if (!name.trim()) {
-      errors = { ...errors, name: 'Name is required' };
+      errors = { ...errors, name: "Name is required" };
     }
 
     if (!isReverseShare && pendingFiles.length === 0) {
-      errors = { ...errors, files: 'Please add at least one file' };
+      errors = { ...errors, files: "Please add at least one file" };
     }
 
     if (Object.keys(errors).length > 0) {
@@ -62,10 +62,11 @@
         await filesApi.upload(share.id, pendingFiles);
       }
 
-      toast.success('Share created successfully');
+      toast.success("Share created successfully");
       push(`/shares/${share.id}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create share';
+      const message =
+        err instanceof Error ? err.message : "Failed to create share";
       toast.error(message);
     } finally {
       creating = false;
@@ -75,7 +76,10 @@
 
 <div>
   <div class="mb-6">
-    <a href="#/shares" class="text-sm text-slate-500 hover:text-slate-700 transition-colors">
+    <a
+      href="#/shares"
+      class="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+    >
       &larr; Back to shares
     </a>
   </div>
@@ -93,7 +97,10 @@
       />
 
       <div class="space-y-1.5">
-        <label for="new-share-description" class="block text-sm font-medium text-slate-700">Description</label>
+        <label
+          for="new-share-description"
+          class="block text-sm font-medium text-slate-700">Description</label
+        >
         <textarea
           id="new-share-description"
           bind:value={description}
@@ -133,7 +140,10 @@
       </div>
 
       <div class="space-y-1.5">
-        <label for="new-share-expires-at" class="block text-sm font-medium text-slate-700">Expires At</label>
+        <label
+          for="new-share-expires-at"
+          class="block text-sm font-medium text-slate-700">Expires At</label
+        >
         <input
           id="new-share-expires-at"
           type="date"
@@ -157,20 +167,38 @@
       {#if !isReverseShare}
         <div>
           <p class="text-sm font-medium text-slate-700 mb-2">
-            Files {#if errors.files}<span class="text-red-500">- {errors.files}</span>{/if}
+            Files {#if errors.files}<span class="text-red-500"
+                >- {errors.files}</span
+              >{/if}
           </p>
           <FileUploader on:files={handleFileSelect} />
           {#if pendingFiles.length > 0}
-            <ul class="mt-4 divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+            <ul
+              class="mt-4 divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden"
+            >
               {#each pendingFiles as file, index (index)}
                 <li class="flex items-center justify-between px-4 py-3">
                   <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                      <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    <div
+                      class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0"
+                    >
+                      <svg
+                        class="w-4 h-4 text-slate-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                        />
                       </svg>
                     </div>
-                    <span class="text-sm text-slate-700 truncate">{file.name}</span>
+                    <span class="text-sm text-slate-700 truncate"
+                      >{file.name}</span
+                    >
                   </div>
                   <button
                     type="button"
@@ -188,9 +216,11 @@
 
       <div class="flex gap-2 pt-2">
         <Button type="submit" loading={creating}>
-          {creating ? 'Creating...' : 'Create Share'}
+          {creating ? "Creating..." : "Create Share"}
         </Button>
-        <Button variant="secondary" on:click={() => push('/shares')}>Cancel</Button>
+        <Button variant="secondary" on:click={() => push("/shares")}
+          >Cancel</Button
+        >
       </div>
     </form>
   </div>

@@ -1,18 +1,18 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { push } from 'svelte-spa-router';
-  import { Button, Input, Modal } from '../../lib/components';
-  import { auth, isAuthenticated, isAdmin, toast } from '../../lib/stores';
-  import { api, type User } from '../../lib/api';
+  import { onMount } from "svelte";
+  import { push } from "svelte-spa-router";
+  import { Button, Input, Modal } from "../../lib/components";
+  import { auth, isAuthenticated, isAdmin, toast } from "../../lib/stores";
+  import { api, type User } from "../../lib/api";
 
   let users: User[] = [];
   let loading = true;
 
   let createModal = false;
   let creating = false;
-  let newEmail = '';
-  let newPassword = '';
-  let newDisplayName = '';
+  let newEmail = "";
+  let newPassword = "";
+  let newDisplayName = "";
   let newIsAdmin = false;
   let createErrors: Record<string, string> = {};
 
@@ -21,12 +21,12 @@
   let userToDelete: User | null = null;
 
   $: if ($auth.initialized && !$isAuthenticated) {
-    push('/login');
+    push("/login");
   }
 
   $: if ($auth.initialized && $isAuthenticated && !$isAdmin) {
-    toast.error('Access denied');
-    push('/');
+    toast.error("Access denied");
+    push("/");
   }
 
   onMount(async () => {
@@ -38,9 +38,10 @@
 
     loading = true;
     try {
-      users = await api.get<User[]>('/admin/users');
+      users = await api.get<User[]>("/admin/users");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load users';
+      const message =
+        err instanceof Error ? err.message : "Failed to load users";
       toast.error(message);
     } finally {
       loading = false;
@@ -48,9 +49,9 @@
   }
 
   function openCreateModal() {
-    newEmail = '';
-    newPassword = '';
-    newDisplayName = '';
+    newEmail = "";
+    newPassword = "";
+    newDisplayName = "";
     newIsAdmin = false;
     createErrors = {};
     createModal = true;
@@ -61,15 +62,21 @@
     createErrors = {};
 
     if (!newEmail.trim()) {
-      createErrors = { ...createErrors, email: 'Email is required' };
+      createErrors = { ...createErrors, email: "Email is required" };
     }
     if (!newDisplayName.trim()) {
-      createErrors = { ...createErrors, displayName: 'Display name is required' };
+      createErrors = {
+        ...createErrors,
+        displayName: "Display name is required",
+      };
     }
     if (!newPassword) {
-      createErrors = { ...createErrors, password: 'Password is required' };
+      createErrors = { ...createErrors, password: "Password is required" };
     } else if (newPassword.length < 8) {
-      createErrors = { ...createErrors, password: 'Password must be at least 8 characters' };
+      createErrors = {
+        ...createErrors,
+        password: "Password must be at least 8 characters",
+      };
     }
 
     if (Object.keys(createErrors).length > 0) {
@@ -78,7 +85,7 @@
 
     creating = true;
     try {
-      const user = await api.post<User>('/admin/users', {
+      const user = await api.post<User>("/admin/users", {
         email: newEmail.trim(),
         password: newPassword,
         display_name: newDisplayName.trim(),
@@ -86,9 +93,10 @@
       });
       users = [...users, user];
       createModal = false;
-      toast.success('User created');
+      toast.success("User created");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create user';
+      const message =
+        err instanceof Error ? err.message : "Failed to create user";
       toast.error(message);
     } finally {
       creating = false;
@@ -109,9 +117,10 @@
       users = users.filter((u) => u.id !== userToDelete!.id);
       deleteModal = false;
       userToDelete = null;
-      toast.success('User deleted');
+      toast.success("User deleted");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete user';
+      const message =
+        err instanceof Error ? err.message : "Failed to delete user";
       toast.error(message);
     } finally {
       deleting = false;
@@ -124,9 +133,12 @@
         is_admin: !user.is_admin,
       });
       users = users.map((u) => (u.id === user.id ? updated : u));
-      toast.success(`${user.display_name} ${updated.is_admin ? 'is now' : 'is no longer'} an admin`);
+      toast.success(
+        `${user.display_name} ${updated.is_admin ? "is now" : "is no longer"} an admin`,
+      );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update user';
+      const message =
+        err instanceof Error ? err.message : "Failed to update user";
       toast.error(message);
     }
   }
@@ -146,16 +158,24 @@
     <table class="min-w-full divide-y divide-slate-100">
       <thead>
         <tr class="bg-slate-50">
-          <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+          >
             User
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+          >
             Email
           </th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+          >
             Role
           </th>
-          <th class="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">
+          <th
+            class="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider"
+          >
             Actions
           </th>
         </tr>
@@ -164,7 +184,9 @@
         {#each users as user (user.id)}
           <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4 whitespace-nowrap">
-              <span class="text-sm font-medium text-slate-900">{user.display_name}</span>
+              <span class="text-sm font-medium text-slate-900"
+                >{user.display_name}</span
+              >
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
               {user.email}
@@ -175,7 +197,7 @@
                   ? 'bg-slate-900 text-white'
                   : 'bg-slate-100 text-slate-600'}"
               >
-                {user.is_admin ? 'Admin' : 'User'}
+                {user.is_admin ? "Admin" : "User"}
               </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-xs">
@@ -184,7 +206,7 @@
                   class="text-slate-500 hover:text-slate-700 transition-colors mr-3"
                   on:click={() => toggleAdmin(user)}
                 >
-                  {user.is_admin ? 'Remove Admin' : 'Make Admin'}
+                  {user.is_admin ? "Remove Admin" : "Make Admin"}
                 </button>
                 <button
                   class="text-red-500 hover:text-red-700 transition-colors"
@@ -199,7 +221,10 @@
           </tr>
         {:else}
           <tr>
-            <td colspan="4" class="px-6 py-8 text-center text-sm text-slate-400">
+            <td
+              colspan="4"
+              class="px-6 py-8 text-center text-sm text-slate-400"
+            >
               No users found
             </td>
           </tr>
@@ -209,7 +234,11 @@
   </div>
 {/if}
 
-<Modal open={createModal} title="Create User" on:close={() => (createModal = false)}>
+<Modal
+  open={createModal}
+  title="Create User"
+  on:close={() => (createModal = false)}
+>
   <form on:submit={handleCreateUser} class="space-y-4">
     <Input
       label="Display Name"
@@ -242,21 +271,34 @@
         bind:checked={newIsAdmin}
         class="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900/20"
       />
-      <label for="newIsAdmin" class="text-sm text-slate-600">Admin privileges</label>
+      <label for="newIsAdmin" class="text-sm text-slate-600"
+        >Admin privileges</label
+      >
     </div>
     <div class="flex gap-2 justify-end pt-2">
-      <Button variant="secondary" on:click={() => (createModal = false)}>Cancel</Button>
+      <Button variant="secondary" on:click={() => (createModal = false)}
+        >Cancel</Button
+      >
       <Button type="submit" loading={creating}>Create</Button>
     </div>
   </form>
 </Modal>
 
-<Modal open={deleteModal} title="Delete User" on:close={() => (deleteModal = false)}>
+<Modal
+  open={deleteModal}
+  title="Delete User"
+  on:close={() => (deleteModal = false)}
+>
   <p class="text-sm text-slate-600 mb-5">
-    Are you sure you want to delete "{userToDelete?.display_name}"? This action cannot be undone.
+    Are you sure you want to delete "{userToDelete?.display_name}"? This action
+    cannot be undone.
   </p>
   <div class="flex gap-2 justify-end">
-    <Button variant="secondary" on:click={() => (deleteModal = false)}>Cancel</Button>
-    <Button variant="danger" loading={deleting} on:click={handleDeleteUser}>Delete</Button>
+    <Button variant="secondary" on:click={() => (deleteModal = false)}
+      >Cancel</Button
+    >
+    <Button variant="danger" loading={deleting} on:click={handleDeleteUser}
+      >Delete</Button
+    >
   </div>
 </Modal>

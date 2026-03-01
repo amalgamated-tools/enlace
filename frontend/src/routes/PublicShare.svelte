@@ -1,20 +1,20 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { Button, Input, FileUploader, FileList } from '../lib/components';
-  import { toast } from '../lib/stores';
-  import type { Share, FileInfo } from '../lib/api';
+  import { onMount } from "svelte";
+  import { Button, Input, FileUploader, FileList } from "../lib/components";
+  import { toast } from "../lib/stores";
+  import type { Share, FileInfo } from "../lib/api";
 
-  export let params: { slug: string } = { slug: '' };
+  export let params: { slug: string } = { slug: "" };
 
   let share: Share | null = null;
   let files: FileInfo[] = [];
   let loading = true;
-  let error = '';
+  let error = "";
 
   let passwordRequired = false;
-  let password = '';
+  let password = "";
   let verifying = false;
-  let shareToken = '';
+  let shareToken = "";
 
   let uploading = false;
 
@@ -26,23 +26,23 @@
     if (!params.slug) return;
 
     loading = true;
-    error = '';
+    error = "";
     try {
       const headers: Record<string, string> = {};
       if (shareToken) {
-        headers['X-Share-Token'] = shareToken;
+        headers["X-Share-Token"] = shareToken;
       }
       const response = await fetch(`/s/${params.slug}`, { headers });
       const data = await response.json();
 
-      if (response.status === 401 && data.error?.includes('password')) {
+      if (response.status === 401 && data.error?.includes("password")) {
         passwordRequired = true;
         loading = false;
         return;
       }
 
       if (!response.ok || !data.success) {
-        error = data.error || 'Share not found';
+        error = data.error || "Share not found";
         loading = false;
         return;
       }
@@ -50,7 +50,7 @@
       share = data.data.share;
       files = data.data.files || [];
     } catch {
-      error = 'Failed to load share';
+      error = "Failed to load share";
     } finally {
       loading = false;
     }
@@ -60,21 +60,21 @@
     e.preventDefault();
 
     if (!password) {
-      toast.error('Please enter the password');
+      toast.error("Please enter the password");
       return;
     }
 
     verifying = true;
     try {
       const response = await fetch(`/s/${params.slug}/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        toast.error(data.error || 'Invalid password');
+        toast.error(data.error || "Invalid password");
         return;
       }
 
@@ -82,7 +82,7 @@
       passwordRequired = false;
       await loadShare();
     } catch {
-      toast.error('Failed to verify password');
+      toast.error("Failed to verify password");
     } finally {
       verifying = false;
     }
@@ -94,23 +94,23 @@
     uploading = true;
     try {
       const formData = new FormData();
-      event.detail.forEach((file) => formData.append('files', file));
+      event.detail.forEach((file) => formData.append("files", file));
 
       const response = await fetch(`/s/${params.slug}/upload`, {
-        method: 'POST',
+        method: "POST",
         body: formData,
       });
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        toast.error(data.error || 'Upload failed');
+        toast.error(data.error || "Upload failed");
         return;
       }
 
       files = [...files, ...data.data];
       toast.success(`${event.detail.length} file(s) uploaded`);
     } catch {
-      toast.error('Upload failed');
+      toast.error("Upload failed");
     } finally {
       uploading = false;
     }
@@ -123,7 +123,7 @@
       const url = shareToken
         ? `/s/${params.slug}/files/${file.id}?token=${encodeURIComponent(shareToken)}`
         : `/s/${params.slug}/files/${file.id}`;
-      window.open(url, '_blank');
+      window.open(url, "_blank");
     }
   }
 
@@ -135,16 +135,18 @@
   }
 
   function formatSize(bytes: number): string {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   }
 </script>
 
 <div class="min-h-screen bg-slate-50">
   <header class="bg-white border-b border-slate-200">
     <div class="max-w-6xl mx-auto px-6 h-14 flex items-center">
-      <span class="text-base font-semibold text-slate-900 tracking-tight">Sharer</span>
+      <span class="text-base font-semibold text-slate-900 tracking-tight"
+        >Sharer</span
+      >
     </div>
   </header>
 
@@ -161,14 +163,30 @@
         </p>
       </div>
     {:else if passwordRequired}
-      <div class="bg-white rounded-xl border border-slate-200 p-8 max-w-sm mx-auto">
+      <div
+        class="bg-white rounded-xl border border-slate-200 p-8 max-w-sm mx-auto"
+      >
         <div class="text-center mb-6">
-          <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mx-auto mb-3">
-            <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+          <div
+            class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mx-auto mb-3"
+          >
+            <svg
+              class="w-5 h-5 text-slate-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+              />
             </svg>
           </div>
-          <h2 class="text-base font-semibold text-slate-900">Password Required</h2>
+          <h2 class="text-base font-semibold text-slate-900">
+            Password Required
+          </h2>
           <p class="text-sm text-slate-500 mt-1">
             This share is password protected.
           </p>
@@ -183,7 +201,7 @@
             required
           />
           <Button type="submit" loading={verifying}>
-            {verifying ? 'Verifying...' : 'Continue'}
+            {verifying ? "Verifying..." : "Continue"}
           </Button>
         </form>
       </div>
@@ -203,7 +221,9 @@
 
         {#if share.is_reverse_share}
           <div class="p-6 border-b border-slate-100">
-            <h3 class="text-sm font-semibold text-slate-900 mb-4">Upload Files</h3>
+            <h3 class="text-sm font-semibold text-slate-900 mb-4">
+              Upload Files
+            </h3>
             <FileUploader on:files={handleFileUpload} disabled={uploading} />
             {#if uploading}
               <p class="text-xs text-slate-400 mt-2">Uploading...</p>
@@ -215,25 +235,49 @@
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-sm font-semibold text-slate-900">Files</h3>
             {#if files.length > 0 && !share.is_reverse_share}
-              <Button size="sm" variant="secondary" on:click={downloadAll}>Download All</Button>
+              <Button size="sm" variant="secondary" on:click={downloadAll}
+                >Download All</Button
+              >
             {/if}
           </div>
 
           {#if files.length === 0}
-            <p class="text-sm text-slate-400 text-center py-6">No files available</p>
+            <p class="text-sm text-slate-400 text-center py-6">
+              No files available
+            </p>
           {:else}
-            <ul class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+            <ul
+              class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden"
+            >
               {#each files as file (file.id)}
-                <li class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors">
+                <li
+                  class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+                >
                   <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                      <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    <div
+                      class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0"
+                    >
+                      <svg
+                        class="w-4 h-4 text-slate-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                        />
                       </svg>
                     </div>
                     <div class="min-w-0">
-                      <p class="text-sm font-medium text-slate-700 truncate">{file.name}</p>
-                      <p class="text-xs text-slate-400">{formatSize(file.size)}</p>
+                      <p class="text-sm font-medium text-slate-700 truncate">
+                        {file.name}
+                      </p>
+                      <p class="text-xs text-slate-400">
+                        {formatSize(file.size)}
+                      </p>
                     </div>
                   </div>
                   {#if !share.is_reverse_share}
