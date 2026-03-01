@@ -1,6 +1,6 @@
-db/sharer.db
+db/enlace.db
 # Binaries
-/sharer
+/enlace
 *.exe
 
 # IDE

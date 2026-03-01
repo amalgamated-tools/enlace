@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	sharer "github.com/amalgamated-tools/sharer"
-	"github.com/amalgamated-tools/sharer/internal/config"
-	"github.com/amalgamated-tools/sharer/internal/database"
-	"github.com/amalgamated-tools/sharer/internal/handler"
-	"github.com/amalgamated-tools/sharer/internal/repository"
-	"github.com/amalgamated-tools/sharer/internal/service"
-	"github.com/amalgamated-tools/sharer/internal/storage"
+	enlace "github.com/amalgamated-tools/enlace"
+	"github.com/amalgamated-tools/enlace/internal/config"
+	"github.com/amalgamated-tools/enlace/internal/database"
+	"github.com/amalgamated-tools/enlace/internal/handler"
+	"github.com/amalgamated-tools/enlace/internal/repository"
+	"github.com/amalgamated-tools/enlace/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 func main() {
@@ -72,7 +72,7 @@ func run() error {
 	}
 
 	// Get embedded frontend
-	frontendFS, err := sharer.FrontendFS()
+	frontendFS, err := enlace.FrontendFS()
 	if err != nil {
 		slog.Warn("failed to load embedded frontend", "error", err)
 	}
@@ -103,7 +103,7 @@ func run() error {
 
 	// Start server in goroutine
 	go func() {
-		slog.Info("Sharer starting", "url", fmt.Sprintf("http://localhost:%d", cfg.Port))
+		slog.Info("Enlace starting", "url", fmt.Sprintf("http://localhost:%d", cfg.Port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Server error", "error", err)
 		}

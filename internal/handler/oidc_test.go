@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amalgamated-tools/sharer/internal/handler"
-	"github.com/amalgamated-tools/sharer/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/handler"
+	"github.com/amalgamated-tools/enlace/internal/middleware"
 )
 
 func TestOIDCHandler_Config_Disabled(t *testing.T) {

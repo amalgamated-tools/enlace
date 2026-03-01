@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	intMiddleware "github.com/amalgamated-tools/sharer/internal/middleware"
-	"github.com/amalgamated-tools/sharer/internal/repository"
-	"github.com/amalgamated-tools/sharer/internal/service"
-	"github.com/amalgamated-tools/sharer/internal/storage"
+	intMiddleware "github.com/amalgamated-tools/enlace/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/repository"
+	"github.com/amalgamated-tools/enlace/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 // RouterConfig contains all dependencies required to create the router.

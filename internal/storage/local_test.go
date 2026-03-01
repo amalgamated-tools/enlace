@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/amalgamated-tools/sharer/internal/storage"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 func TestLocalStorage_PutAndGet(t *testing.T) {
