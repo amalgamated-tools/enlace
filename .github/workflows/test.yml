@@ -56,7 +56,7 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: dist
-          path: internal/server/dist
+          path: frontend/dist
 
   go-tests:
     needs: frontend-tests
@@ -68,7 +68,7 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: dist
-          path: internal/server/dist
+          path: frontend/dist
 
       - name: Set up Go
         uses: actions/setup-go@v6.2.0
