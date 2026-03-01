@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api } from "./client";
 
 export interface Share {
   id: string;
@@ -28,9 +28,9 @@ export interface CreateShareInput {
 }
 
 export const sharesApi = {
-  list: () => api.get<Share[]>('/shares'),
+  list: () => api.get<Share[]>("/shares"),
   get: (id: string) => api.get<Share>(`/shares/${id}`),
-  create: (input: CreateShareInput) => api.post<Share>('/shares', input),
+  create: (input: CreateShareInput) => api.post<Share>("/shares", input),
   update: (id: string, input: Partial<CreateShareInput>) =>
     api.patch<Share>(`/shares/${id}`, input),
   delete: (id: string) => api.delete<void>(`/shares/${id}`),

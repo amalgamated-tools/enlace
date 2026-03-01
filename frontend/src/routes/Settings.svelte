@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { push, querystring } from 'svelte-spa-router';
-  import { Button, Input } from '../lib/components';
-  import { auth, isAuthenticated, toast } from '../lib/stores';
-  import { api, getOIDCConfig, getOIDCLinkURL } from '../lib/api';
+  import { onMount } from "svelte";
+  import { push, querystring } from "svelte-spa-router";
+  import { Button, Input } from "../lib/components";
+  import { auth, isAuthenticated, toast } from "../lib/stores";
+  import { api, getOIDCConfig, getOIDCLinkURL } from "../lib/api";
 
-  let displayName = '';
-  let currentPassword = '';
-  let newPassword = '';
-  let confirmPassword = '';
+  let displayName = "";
+  let currentPassword = "";
+  let newPassword = "";
+  let confirmPassword = "";
 
   let savingProfile = false;
   let savingPassword = false;
@@ -21,10 +21,10 @@
   onMount(async () => {
     // Check for oidc=linked query param (from successful OIDC linking)
     const params = new URLSearchParams($querystring);
-    if (params.get('oidc') === 'linked') {
-      toast.success('SSO account linked successfully');
+    if (params.get("oidc") === "linked") {
+      toast.success("SSO account linked successfully");
       // Remove query param from URL
-      push('/settings');
+      push("/settings");
     }
 
     // Fetch OIDC config
@@ -44,11 +44,12 @@
   async function handleUnlinkOIDC() {
     unlinkingOIDC = true;
     try {
-      await api.delete('/me/oidc');
-      toast.success('OIDC account unlinked');
+      await api.delete("/me/oidc");
+      toast.success("OIDC account unlinked");
       auth.init(); // Refresh user data
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to unlink OIDC';
+      const message =
+        err instanceof Error ? err.message : "Failed to unlink OIDC";
       toast.error(message);
     } finally {
       unlinkingOIDC = false;
@@ -56,7 +57,7 @@
   }
 
   $: if ($auth.initialized && !$isAuthenticated) {
-    push('/login');
+    push("/login");
   }
 
   $: if ($auth.user) {
@@ -68,19 +69,28 @@
     profileErrors = {};
 
     if (!displayName.trim()) {
-      profileErrors = { ...profileErrors, displayName: 'Display name is required' };
+      profileErrors = {
+        ...profileErrors,
+        displayName: "Display name is required",
+      };
       return;
     }
 
     savingProfile = true;
     try {
-      const updated = await api.patch<{ display_name: string; email: string; id: string; is_admin: boolean }>('/me', {
+      const updated = await api.patch<{
+        display_name: string;
+        email: string;
+        id: string;
+        is_admin: boolean;
+      }>("/me", {
         display_name: displayName.trim(),
       });
       auth.setUser({ ...updated, display_name: updated.display_name });
-      toast.success('Profile updated');
+      toast.success("Profile updated");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update profile';
+      const message =
+        err instanceof Error ? err.message : "Failed to update profile";
       toast.error(message);
     } finally {
       savingProfile = false;
@@ -92,15 +102,27 @@
     passwordErrors = {};
 
     if (!currentPassword) {
-      passwordErrors = { ...passwordErrors, currentPassword: 'Current password is required' };
+      passwordErrors = {
+        ...passwordErrors,
+        currentPassword: "Current password is required",
+      };
     }
     if (!newPassword) {
-      passwordErrors = { ...passwordErrors, newPassword: 'New password is required' };
+      passwordErrors = {
+        ...passwordErrors,
+        newPassword: "New password is required",
+      };
     } else if (newPassword.length < 8) {
-      passwordErrors = { ...passwordErrors, newPassword: 'Password must be at least 8 characters' };
+      passwordErrors = {
+        ...passwordErrors,
+        newPassword: "Password must be at least 8 characters",
+      };
     }
     if (newPassword !== confirmPassword) {
-      passwordErrors = { ...passwordErrors, confirmPassword: 'Passwords do not match' };
+      passwordErrors = {
+        ...passwordErrors,
+        confirmPassword: "Passwords do not match",
+      };
     }
 
     if (Object.keys(passwordErrors).length > 0) {
@@ -109,16 +131,17 @@
 
     savingPassword = true;
     try {
-      await api.post<void>('/me/password', {
+      await api.post<void>("/me/password", {
         current_password: currentPassword,
         new_password: newPassword,
       });
-      currentPassword = '';
-      newPassword = '';
-      confirmPassword = '';
-      toast.success('Password changed');
+      currentPassword = "";
+      newPassword = "";
+      confirmPassword = "";
+      toast.success("Password changed");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to change password';
+      const message =
+        err instanceof Error ? err.message : "Failed to change password";
       toast.error(message);
     } finally {
       savingPassword = false;
@@ -138,7 +161,7 @@
         <Input
           type="email"
           label="Email"
-          value={$auth.user?.email || ''}
+          value={$auth.user?.email || ""}
           autocomplete="email"
           disabled
         />
@@ -150,7 +173,7 @@
           required
         />
         <Button type="submit" loading={savingProfile}>
-          {savingProfile ? 'Saving...' : 'Update Profile'}
+          {savingProfile ? "Saving..." : "Update Profile"}
         </Button>
       </form>
     </div>
@@ -188,7 +211,7 @@
           required
         />
         <Button type="submit" loading={savingPassword}>
-          {savingPassword ? 'Changing...' : 'Change Password'}
+          {savingPassword ? "Changing..." : "Change Password"}
         </Button>
       </form>
     </div>
@@ -210,7 +233,7 @@
               on:click={handleUnlinkOIDC}
               loading={unlinkingOIDC}
             >
-              {unlinkingOIDC ? 'Unlinking...' : 'Unlink SSO Account'}
+              {unlinkingOIDC ? "Unlinking..." : "Unlink SSO Account"}
             </Button>
           {:else}
             <p class="text-xs text-slate-400">

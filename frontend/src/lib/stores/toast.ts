@@ -1,6 +1,6 @@
-import { writable } from 'svelte/store';
+import { writable } from "svelte/store";
 
-export type ToastType = 'success' | 'error' | 'info' | 'warning';
+export type ToastType = "success" | "error" | "info" | "warning";
 
 export interface Toast {
   id: string;
@@ -26,10 +26,10 @@ const createToastStore = () => {
 
   return {
     subscribe,
-    success: (message: string) => show('success', message),
-    error: (message: string) => show('error', message),
-    info: (message: string) => show('info', message),
-    warning: (message: string) => show('warning', message),
+    success: (message: string) => show("success", message),
+    error: (message: string) => show("error", message),
+    info: (message: string) => show("info", message),
+    warning: (message: string) => show("warning", message),
     dismiss: (id: string) => {
       update((toasts) => toasts.filter((t) => t.id !== id));
     },

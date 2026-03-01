@@ -1,11 +1,17 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { push } from 'svelte-spa-router';
-  import { Button, Input, FileUploader, FileList, Modal } from '../lib/components';
-  import { auth, isAuthenticated, toast } from '../lib/stores';
-  import { sharesApi, filesApi, type Share, type FileInfo } from '../lib/api';
+  import { onMount } from "svelte";
+  import { push } from "svelte-spa-router";
+  import {
+    Button,
+    Input,
+    FileUploader,
+    FileList,
+    Modal,
+  } from "../lib/components";
+  import { auth, isAuthenticated, toast } from "../lib/stores";
+  import { sharesApi, filesApi, type Share, type FileInfo } from "../lib/api";
 
-  export let params: { id: string } = { id: '' };
+  export let params: { id: string } = { id: "" };
 
   let share: Share | null = null;
   let files: FileInfo[] = [];
@@ -14,21 +20,21 @@
   let uploading = false;
 
   let editMode = false;
-  let editName = '';
-  let editDescription = '';
-  let editPassword = '';
-  let editMaxDownloads = '';
-  let editMaxViews = '';
-  let editExpiresAt = '';
+  let editName = "";
+  let editDescription = "";
+  let editPassword = "";
+  let editMaxDownloads = "";
+  let editMaxViews = "";
+  let editExpiresAt = "";
 
   let deleteModal = false;
   let deleting = false;
 
   $: if ($auth.initialized && !$isAuthenticated) {
-    push('/login');
+    push("/login");
   }
 
-  $: shareUrl = share ? `${window.location.origin}/#/s/${share.slug}` : '';
+  $: shareUrl = share ? `${window.location.origin}/#/s/${share.slug}` : "";
 
   onMount(async () => {
     await loadShare();
@@ -43,22 +49,29 @@
       share = shareData;
 
       editName = shareData.name;
-      editDescription = shareData.description || '';
-      editMaxDownloads = shareData.max_downloads ? String(shareData.max_downloads) : '';
-      editMaxViews = shareData.max_views ? String(shareData.max_views) : '';
-      editExpiresAt = shareData.expires_at ? shareData.expires_at.split('T')[0] : '';
+      editDescription = shareData.description || "";
+      editMaxDownloads = shareData.max_downloads
+        ? String(shareData.max_downloads)
+        : "";
+      editMaxViews = shareData.max_views ? String(shareData.max_views) : "";
+      editExpiresAt = shareData.expires_at
+        ? shareData.expires_at.split("T")[0]
+        : "";
 
       const response = await fetch(`/api/v1/shares/${params.id}/files`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
       });
       const data = await response.json();
       if (data.success) {
         files = data.data || [];
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load share';
+      const message =
+        err instanceof Error ? err.message : "Failed to load share";
       toast.error(message);
-      push('/shares');
+      push("/shares");
     } finally {
       loading = false;
     }
@@ -73,16 +86,19 @@
         name: editName,
         description: editDescription || undefined,
         password: editPassword || undefined,
-        max_downloads: editMaxDownloads ? parseInt(editMaxDownloads, 10) : undefined,
+        max_downloads: editMaxDownloads
+          ? parseInt(editMaxDownloads, 10)
+          : undefined,
         max_views: editMaxViews ? parseInt(editMaxViews, 10) : undefined,
         expires_at: editExpiresAt || undefined,
       });
       share = updated;
-      editPassword = '';
+      editPassword = "";
       editMode = false;
-      toast.success('Share updated');
+      toast.success("Share updated");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update share';
+      const message =
+        err instanceof Error ? err.message : "Failed to update share";
       toast.error(message);
     } finally {
       saving = false;
@@ -98,7 +114,7 @@
       files = [...files, ...newFiles];
       toast.success(`${event.detail.length} file(s) uploaded`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Upload failed';
+      const message = err instanceof Error ? err.message : "Upload failed";
       toast.error(message);
     } finally {
       uploading = false;
@@ -109,9 +125,10 @@
     try {
       await filesApi.delete(event.detail);
       files = files.filter((f) => f.id !== event.detail);
-      toast.success('File deleted');
+      toast.success("File deleted");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete file';
+      const message =
+        err instanceof Error ? err.message : "Failed to delete file";
       toast.error(message);
     }
   }
@@ -122,10 +139,11 @@
     deleting = true;
     try {
       await sharesApi.delete(share.id);
-      toast.success('Share deleted');
-      push('/shares');
+      toast.success("Share deleted");
+      push("/shares");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete share';
+      const message =
+        err instanceof Error ? err.message : "Failed to delete share";
       toast.error(message);
     } finally {
       deleting = false;
@@ -134,7 +152,7 @@
 
   function copyShareLink() {
     navigator.clipboard.writeText(shareUrl);
-    toast.success('Link copied to clipboard');
+    toast.success("Link copied to clipboard");
   }
 </script>
 
@@ -145,7 +163,10 @@
     </div>
   {:else if share}
     <div class="mb-6">
-      <a href="#/shares" class="text-sm text-slate-500 hover:text-slate-700 transition-colors">
+      <a
+        href="#/shares"
+        class="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+      >
         &larr; Back to shares
       </a>
     </div>
@@ -157,7 +178,11 @@
           <div class="space-y-5">
             <Input label="Name" bind:value={editName} required />
             <div class="space-y-1.5">
-              <label for="edit-description" class="block text-sm font-medium text-slate-700">Description</label>
+              <label
+                for="edit-description"
+                class="block text-sm font-medium text-slate-700"
+                >Description</label
+              >
               <textarea
                 id="edit-description"
                 bind:value={editDescription}
@@ -186,7 +211,11 @@
               placeholder="Unlimited"
             />
             <div class="space-y-1.5">
-              <label for="edit-expires-at" class="block text-sm font-medium text-slate-700">Expires At</label>
+              <label
+                for="edit-expires-at"
+                class="block text-sm font-medium text-slate-700"
+                >Expires At</label
+              >
               <input
                 id="edit-expires-at"
                 type="date"
@@ -196,7 +225,9 @@
             </div>
             <div class="flex gap-2">
               <Button on:click={handleSave} loading={saving}>Save</Button>
-              <Button variant="secondary" on:click={() => (editMode = false)}>Cancel</Button>
+              <Button variant="secondary" on:click={() => (editMode = false)}
+                >Cancel</Button
+              >
             </div>
           </div>
         {:else}
@@ -206,12 +237,24 @@
               {#if share.description}
                 <p class="text-sm text-slate-500 mt-1">{share.description}</p>
               {/if}
-              <div class="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-slate-400">
+              <div
+                class="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-slate-400"
+              >
                 <span class="font-mono">/{share.slug}</span>
                 {#if share.has_password}
                   <span class="inline-flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    <svg
+                      class="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                      />
                     </svg>
                     Protected
                   </span>
@@ -221,16 +264,38 @@
                 {/if}
               </div>
               <div class="flex gap-4 mt-2 text-xs text-slate-400">
-                <span>{share.view_count} view{share.view_count !== 1 ? 's' : ''}{share.max_views ? ` / ${share.max_views}` : ''}</span>
-                <span>{share.download_count} download{share.download_count !== 1 ? 's' : ''}{share.max_downloads ? ` / ${share.max_downloads}` : ''}</span>
+                <span
+                  >{share.view_count} view{share.view_count !== 1
+                    ? "s"
+                    : ""}{share.max_views ? ` / ${share.max_views}` : ""}</span
+                >
+                <span
+                  >{share.download_count} download{share.download_count !== 1
+                    ? "s"
+                    : ""}{share.max_downloads
+                    ? ` / ${share.max_downloads}`
+                    : ""}</span
+                >
                 {#if share.expires_at}
-                  <span>Expires {new Date(share.expires_at).toLocaleDateString()}</span>
+                  <span
+                    >Expires {new Date(
+                      share.expires_at,
+                    ).toLocaleDateString()}</span
+                  >
                 {/if}
               </div>
             </div>
             <div class="flex gap-2 flex-shrink-0 ml-4">
-              <Button variant="secondary" size="sm" on:click={() => (editMode = true)}>Edit</Button>
-              <Button variant="danger" size="sm" on:click={() => (deleteModal = true)}>Delete</Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                on:click={() => (editMode = true)}>Edit</Button
+              >
+              <Button
+                variant="danger"
+                size="sm"
+                on:click={() => (deleteModal = true)}>Delete</Button
+              >
             </div>
           </div>
         {/if}
@@ -238,7 +303,11 @@
 
       <!-- Share link -->
       <div class="px-6 py-4 border-t border-slate-100">
-        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Share Link</p>
+        <p
+          class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2"
+        >
+          Share Link
+        </p>
         <div class="flex gap-2">
           <input
             type="text"
@@ -247,7 +316,9 @@
             autocomplete="off"
             class="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-600"
           />
-          <Button variant="secondary" size="sm" on:click={copyShareLink}>Copy</Button>
+          <Button variant="secondary" size="sm" on:click={copyShareLink}
+            >Copy</Button
+          >
         </div>
       </div>
     </div>
@@ -270,12 +341,21 @@
   {/if}
 </div>
 
-<Modal open={deleteModal} title="Delete Share" on:close={() => (deleteModal = false)}>
+<Modal
+  open={deleteModal}
+  title="Delete Share"
+  on:close={() => (deleteModal = false)}
+>
   <p class="text-sm text-slate-600 mb-5">
-    Are you sure you want to delete "{share?.name}"? This action cannot be undone.
+    Are you sure you want to delete "{share?.name}"? This action cannot be
+    undone.
   </p>
   <div class="flex gap-2 justify-end">
-    <Button variant="secondary" on:click={() => (deleteModal = false)}>Cancel</Button>
-    <Button variant="danger" loading={deleting} on:click={handleDeleteShare}>Delete</Button>
+    <Button variant="secondary" on:click={() => (deleteModal = false)}
+      >Cancel</Button
+    >
+    <Button variant="danger" loading={deleting} on:click={handleDeleteShare}
+      >Delete</Button
+    >
   </div>
 </Modal>
