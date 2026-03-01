@@ -10,7 +10,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
 - **Storage backends** — local filesystem or any S3-compatible object store
 - **Admin panel** — manage users from the UI
-- **Rate limiting** — IP-based rate limiting on API endpoints
+- **Rate limiting** — IP-based rate limiting middleware available (login: 5 req/min, register: 3 req/min, general API: 60 req/min)
 - **Embeds frontend** — single binary ships the compiled Svelte app
 
 ## Quick Start (Docker)
@@ -58,7 +58,9 @@ All settings are read from environment variables (or a `.env` file when running 
 | `S3_REGION` | — | AWS/compatible region |
 | `S3_PATH_PREFIX` | — | Optional key prefix inside the bucket |
 
-### SMTP (optional)
+### SMTP (reserved for future use)
+
+The following variables are accepted by the configuration loader and are reserved for upcoming email-notification features. No emails are sent in the current release.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -119,6 +121,38 @@ All authenticated endpoints require an `Authorization: Bearer <access_token>` he
 | `GET` | `/s/{slug}/files/{fileId}` | — | Download a file |
 | `GET` | `/s/{slug}/files/{fileId}/preview` | — | Preview a file |
 | `POST` | `/s/{slug}/upload` | — | Upload to a reverse share |
+
+## API Response Format
+
+Every JSON response uses a standard envelope:
+
+```json
+{ "success": true, "data": { ... } }
+{ "success": false, "error": "human-readable message" }
+```
+
+List endpoints that support pagination include a `meta` object:
+
+```json
+{
+  "success": true,
+  "data": [...],
+  "meta": { "total": 42, "page": 1, "per_page": 20 }
+}
+```
+
+Validation errors return HTTP 400 and include a `fields` map:
+
+```json
+{
+  "success": false,
+  "error": "validation failed",
+  "fields": {
+    "email": "email is required",
+    "password": "password must be at least 8 characters"
+  }
+}
+```
 
 ## Development
 
