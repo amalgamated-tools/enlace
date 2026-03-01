@@ -9,14 +9,19 @@
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@tailwindcss/postcss": "^4.2.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/svelte": "^5.3.1",
     "@tsconfig/svelte": "^5.0.6",
     "@types/node": "^24.10.1",
     "autoprefixer": "^10.4.27",
+    "jsdom": "^28.1.0",
     "postcss": "^8.5.6",
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.0",
@@ -24,7 +29,8 @@
     "svelte-check": "^4.3.4",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "svelte-spa-router": "^4.0.1"
