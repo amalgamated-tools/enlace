@@ -1,0 +1,125 @@
+.PHONY: all build run test clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs help
+
+# Default target
+all: build
+
+# Build the Go binary with embedded frontend
+build: frontend-build
+	@echo "Building sharer..."
+	go build -o sharer ./cmd/sharer
+
+# Build without frontend (for faster iteration during backend development)
+build-backend:
+	@echo "Building backend only..."
+	go build -o sharer ./cmd/sharer
+
+# Run the application locally
+run: build
+	JWT_SECRET=dev-secret ./sharer
+
+# Run backend only (assumes frontend is already built)
+run-backend:
+	JWT_SECRET=dev-secret go run ./cmd/sharer
+
+# Live reload development (air + pnpm dev via Procfile.dev)
+dev: frontend-install
+	mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+	goreman -f Procfile.dev start || overmind start -f Procfile.dev
+
+# Run all tests
+test:
+	go test ./... -v
+
+# Run tests with coverage
+test-coverage:
+	go test ./... -cover -coverprofile=coverage.out
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report: coverage.html"
+
+# Clean build artifacts
+clean:
+	rm -f sharer coverage.out coverage.html db/sharer.db
+	rm -rf frontend/dist
+	rm -rf frontend/node_modules
+	rm -rf uploads
+
+# Frontend development server
+frontend-dev:
+	cd frontend && pnpm dev
+
+frontend-install:
+	cd frontend && pnpm install
+
+# Build frontend for production
+frontend-build: frontend-install
+	cd frontend && pnpm build
+
+# Build Docker image
+docker-build:
+	docker build -t sharer:latest .
+
+# Run Docker container
+docker-run:
+	docker run -p 8080:8080 -e JWT_SECRET=dev-secret sharer:latest
+
+# Run with docker-compose
+docker-up:
+	docker-compose up -d
+
+# Stop docker-compose
+docker-down:
+	docker-compose down
+
+# View docker-compose logs
+docker-logs:
+	docker-compose logs -f
+
+# Lint Go code
+lint:
+	go vet ./...
+
+# Format Go code
+fmt:
+	go fmt ./...
+
+# Install development dependencies
+dev-setup:
+	cd frontend && pnpm install
+	go mod download
+
+# Start rustfs (S3-compatible storage) for development
+rustfs:
+	docker-compose -f docker-compose-dev.yml up -d rustfs
+
+# Stop rustfs
+rustfs-stop:
+	docker-compose -f docker-compose-dev.yml stop rustfs
+
+# View rustfs logs
+rustfs-logs:
+	docker-compose -f docker-compose-dev.yml logs -f rustfs
+
+# Help
+help:
+	@echo "Available targets:"
+	@echo "  build          - Build the application with frontend"
+	@echo "  build-backend  - Build backend only (faster)"
+	@echo "  run            - Build and run the application"
+	@echo "  run-backend    - Run backend with go run"
+	@echo "  dev            - Live reload dev (air + pnpm dev)"
+	@echo "  test           - Run all tests"
+	@echo "  test-coverage  - Run tests with coverage report"
+	@echo "  clean          - Remove build artifacts"
+	@echo "  frontend-dev   - Start frontend dev server"
+	@echo "  frontend-build - Build frontend for production"
+	@echo "  docker-build   - Build Docker image"
+	@echo "  docker-run     - Run Docker container"
+	@echo "  docker-up      - Start with docker-compose"
+	@echo "  docker-down    - Stop docker-compose"
+	@echo "  docker-logs    - View docker-compose logs"
+	@echo "  rustfs         - Start rustfs S3 storage (dev)"
+	@echo "  rustfs-stop    - Stop rustfs"
+	@echo "  rustfs-logs    - View rustfs logs"
+	@echo "  lint           - Run Go linter"
+	@echo "  fmt            - Format Go code"
+	@echo "  dev-setup      - Install development dependencies"

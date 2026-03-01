@@ -1,0 +1,522 @@
+package handler
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/amalgamated-tools/sharer/internal/model"
+	"github.com/amalgamated-tools/sharer/internal/service"
+)
+
+// Share access token expiration (1 hour).
+const shareAccessTokenExpiry = time.Hour
+
+// ShareAccessClaims represents the JWT claims for share access tokens.
+type ShareAccessClaims struct {
+	ShareID string `json:"share_id"`
+	jwt.RegisteredClaims
+}
+
+// PublicShareServiceInterface defines the interface for share service operations needed by PublicHandler.
+type PublicShareServiceInterface interface {
+	GetBySlug(ctx context.Context, slug string) (*model.Share, error)
+	GetByID(ctx context.Context, id string) (*model.Share, error)
+	VerifyPassword(ctx context.Context, id string, password string) bool
+	ValidateAccess(ctx context.Context, share *model.Share) error
+	IncrementViewCount(ctx context.Context, id string) error
+	IncrementDownloadCount(ctx context.Context, id string) error
+}
+
+// PublicFileServiceInterface defines the interface for file service operations needed by PublicHandler.
+type PublicFileServiceInterface interface {
+	ListByShare(ctx context.Context, shareID string) ([]*model.File, error)
+	GetByID(ctx context.Context, id string) (*model.File, error)
+	GetContent(ctx context.Context, id string) (io.ReadCloser, *model.File, error)
+	Upload(ctx context.Context, input service.UploadInput) (*model.File, error)
+}
+
+// PublicHandler handles public share-related HTTP requests (no auth required).
+type PublicHandler struct {
+	shareService PublicShareServiceInterface
+	fileService  PublicFileServiceInterface
+	jwtSecret    []byte
+	maxFileSize  int64
+}
+
+// PublicHandlerOption configures a PublicHandler.
+type PublicHandlerOption func(*PublicHandler)
+
+// WithPublicMaxFileSize sets the maximum file size for public uploads.
+func WithPublicMaxFileSize(size int64) PublicHandlerOption {
+	return func(h *PublicHandler) {
+		h.maxFileSize = size
+	}
+}
+
+// NewPublicHandler creates a new PublicHandler instance.
+func NewPublicHandler(
+	shareService PublicShareServiceInterface,
+	fileService PublicFileServiceInterface,
+	jwtSecret []byte,
+	opts ...PublicHandlerOption,
+) *PublicHandler {
+	h := &PublicHandler{
+		shareService: shareService,
+		fileService:  fileService,
+		jwtSecret:    jwtSecret,
+		maxFileSize:  DefaultMaxFileSize,
+	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
+}
+
+// publicShareResponse represents a share in public API responses.
+type publicShareResponse struct {
+	ID             string  `json:"id"`
+	Slug           string  `json:"slug"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description"`
+	HasPassword    bool    `json:"has_password"`
+	ExpiresAt      *string `json:"expires_at,omitempty"`
+	MaxDownloads   *int    `json:"max_downloads,omitempty"`
+	DownloadCount  int     `json:"download_count"`
+	MaxViews       *int    `json:"max_views,omitempty"`
+	ViewCount      int     `json:"view_count"`
+	IsReverseShare bool    `json:"is_reverse_share"`
+	CreatedAt      string  `json:"created_at"`
+}
+
+// publicFileResponse represents a file in public API responses.
+type publicFileResponse struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Size     int64  `json:"size"`
+	MimeType string `json:"mime_type"`
+}
+
+// shareDetailsResponse combines share info with files.
+type shareDetailsResponse struct {
+	Share publicShareResponse  `json:"share"`
+	Files []publicFileResponse `json:"files"`
+}
+
+// verifyPasswordRequest represents the request body for password verification.
+type verifyPasswordRequest struct {
+	Password string `json:"password"`
+}
+
+// verifyPasswordResponse represents the response for successful password verification.
+type verifyPasswordResponse struct {
+	Token string `json:"token"`
+}
+
+// ViewShare handles GET /s/{slug} - retrieves share details and files.
+func (h *PublicHandler) ViewShare(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	if slug == "" {
+		Error(w, http.StatusBadRequest, "slug is required")
+		return
+	}
+
+	share, err := h.shareService.GetBySlug(r.Context(), slug)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+
+	// Validate share access (expiry, limits)
+	if err := h.shareService.ValidateAccess(r.Context(), share); err != nil {
+		h.handleAccessError(w, err)
+		return
+	}
+
+	// Check password protection
+	if share.HasPassword() {
+		if err := h.validateShareToken(r, share.ID); err != nil {
+			Error(w, http.StatusUnauthorized, "password verification required")
+			return
+		}
+	}
+
+	// Increment view count
+	if err := h.shareService.IncrementViewCount(r.Context(), share.ID); err != nil {
+		// Log but don't fail - viewing should still work
+	}
+
+	// Get files for the share
+	files, err := h.fileService.ListByShare(r.Context(), share.ID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to retrieve files")
+		return
+	}
+
+	// Build response
+	response := shareDetailsResponse{
+		Share: h.toPublicShareResponse(share),
+		Files: h.toPublicFileResponseList(files),
+	}
+
+	Success(w, http.StatusOK, response)
+}
+
+// VerifyPassword handles POST /s/{slug}/verify - verifies share password.
+func (h *PublicHandler) VerifyPassword(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	if slug == "" {
+		Error(w, http.StatusBadRequest, "slug is required")
+		return
+	}
+
+	share, err := h.shareService.GetBySlug(r.Context(), slug)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+
+	// Validate share access (expiry, limits)
+	if err := h.shareService.ValidateAccess(r.Context(), share); err != nil {
+		h.handleAccessError(w, err)
+		return
+	}
+
+	// Check if share has a password
+	if !share.HasPassword() {
+		Error(w, http.StatusBadRequest, "share does not require password")
+		return
+	}
+
+	// Parse request
+	var req verifyPasswordRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Validate password
+	if req.Password == "" {
+		ValidationError(w, map[string]string{"password": "password is required"})
+		return
+	}
+
+	// Verify password
+	if !h.shareService.VerifyPassword(r.Context(), share.ID, req.Password) {
+		Error(w, http.StatusUnauthorized, "invalid password")
+		return
+	}
+
+	// Generate access token
+	token, err := h.generateShareAccessToken(share.ID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to generate access token")
+		return
+	}
+
+	Success(w, http.StatusOK, verifyPasswordResponse{Token: token})
+}
+
+// DownloadFile handles GET /s/{slug}/files/{fileId} - downloads a file.
+func (h *PublicHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
+	h.serveFile(w, r, "attachment")
+}
+
+// PreviewFile handles GET /s/{slug}/files/{fileId}/preview - previews a file.
+func (h *PublicHandler) PreviewFile(w http.ResponseWriter, r *http.Request) {
+	h.serveFile(w, r, "inline")
+}
+
+// serveFile handles file serving for both download and preview.
+func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, disposition string) {
+	slug := chi.URLParam(r, "slug")
+	fileID := chi.URLParam(r, "fileId")
+
+	if slug == "" {
+		Error(w, http.StatusBadRequest, "slug is required")
+		return
+	}
+	if fileID == "" {
+		Error(w, http.StatusBadRequest, "file ID is required")
+		return
+	}
+
+	// Get share
+	share, err := h.shareService.GetBySlug(r.Context(), slug)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+
+	// Validate share access
+	if err := h.shareService.ValidateAccess(r.Context(), share); err != nil {
+		h.handleAccessError(w, err)
+		return
+	}
+
+	// Check password protection
+	if share.HasPassword() {
+		if err := h.validateShareToken(r, share.ID); err != nil {
+			Error(w, http.StatusUnauthorized, "password verification required")
+			return
+		}
+	}
+
+	// Get file metadata
+	file, err := h.fileService.GetByID(r.Context(), fileID)
+	if err != nil {
+		if errors.Is(err, service.ErrFileNotFound) {
+			Error(w, http.StatusNotFound, "file not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve file")
+		return
+	}
+
+	// Verify file belongs to this share
+	if file.ShareID != share.ID {
+		Error(w, http.StatusNotFound, "file not found")
+		return
+	}
+
+	// Increment download count
+	if err := h.shareService.IncrementDownloadCount(r.Context(), share.ID); err != nil {
+		// Log but don't fail - download should still work
+	}
+
+	// Get file content
+	content, _, err := h.fileService.GetContent(r.Context(), fileID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to retrieve file content")
+		return
+	}
+	defer func() { _ = content.Close() }()
+
+	// Set headers
+	w.Header().Set("Content-Type", file.MimeType)
+	w.Header().Set("Content-Length", strconv.FormatInt(file.Size, 10))
+	w.Header().Set("Content-Disposition", disposition+"; filename=\""+file.Name+"\"")
+
+	// Stream content
+	if _, err := io.Copy(w, content); err != nil {
+		// Response already started, can't send error
+		return
+	}
+}
+
+// UploadToReverseShare handles POST /s/{slug}/upload - uploads files to a reverse share.
+func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	if slug == "" {
+		Error(w, http.StatusBadRequest, "slug is required")
+		return
+	}
+
+	// Get share
+	share, err := h.shareService.GetBySlug(r.Context(), slug)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+
+	// Validate share access
+	if err := h.shareService.ValidateAccess(r.Context(), share); err != nil {
+		h.handleAccessError(w, err)
+		return
+	}
+
+	// Verify share is a reverse share
+	if !share.IsReverseShare {
+		Error(w, http.StatusForbidden, "share does not accept uploads")
+		return
+	}
+
+	// Parse multipart form
+	if err := r.ParseMultipartForm(DefaultMaxMemory); err != nil {
+		Error(w, http.StatusBadRequest, "failed to parse multipart form")
+		return
+	}
+
+	// Get files from form
+	files := r.MultipartForm.File["files"]
+	if len(files) == 0 {
+		Error(w, http.StatusBadRequest, "no files provided")
+		return
+	}
+
+	// Upload each file
+	uploadedFiles := make([]publicFileResponse, 0, len(files))
+	for _, fileHeader := range files {
+		// Check file size
+		if fileHeader.Size > h.maxFileSize {
+			Error(w, http.StatusBadRequest, "file exceeds maximum size limit")
+			return
+		}
+
+		// Open file
+		file, err := fileHeader.Open()
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "failed to read uploaded file")
+			return
+		}
+
+		// Upload file (no uploader ID for public uploads)
+		input := service.UploadInput{
+			ShareID:    share.ID,
+			UploaderID: "", // Anonymous upload
+			Filename:   fileHeader.Filename,
+			Content:    file,
+			Size:       fileHeader.Size,
+		}
+
+		uploadedFile, err := h.fileService.Upload(r.Context(), input)
+		// Close file after upload attempt
+		_ = file.Close()
+
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "failed to upload file")
+			return
+		}
+
+		uploadedFiles = append(uploadedFiles, publicFileResponse{
+			ID:       uploadedFile.ID,
+			Name:     uploadedFile.Name,
+			Size:     uploadedFile.Size,
+			MimeType: uploadedFile.MimeType,
+		})
+	}
+
+	Success(w, http.StatusCreated, uploadedFiles)
+}
+
+// generateShareAccessToken creates a JWT for accessing password-protected shares.
+func (h *PublicHandler) generateShareAccessToken(shareID string) (string, error) {
+	now := time.Now()
+	claims := &ShareAccessClaims{
+		ShareID: shareID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(now.Add(shareAccessTokenExpiry)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(h.jwtSecret)
+}
+
+// validateShareToken validates the share access token from header or query parameter.
+// It checks the X-Share-Token header first, then falls back to the ?token= query parameter.
+// The query parameter fallback is needed for browser-initiated downloads (window.open, etc.)
+// where custom headers cannot be set.
+func (h *PublicHandler) validateShareToken(r *http.Request, expectedShareID string) error {
+	tokenStr := r.Header.Get("X-Share-Token")
+	if tokenStr == "" {
+		tokenStr = r.URL.Query().Get("token")
+	}
+	if tokenStr == "" {
+		return errors.New("share token required")
+	}
+
+	token, err := jwt.ParseWithClaims(tokenStr, &ShareAccessClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("invalid signing method")
+		}
+		return h.jwtSecret, nil
+	})
+
+	if err != nil {
+		return errors.New("invalid token")
+	}
+
+	claims, ok := token.Claims.(*ShareAccessClaims)
+	if !ok || !token.Valid {
+		return errors.New("invalid token claims")
+	}
+
+	if claims.ShareID != expectedShareID {
+		return errors.New("token does not match share")
+	}
+
+	return nil
+}
+
+// handleAccessError maps access validation errors to HTTP responses.
+func (h *PublicHandler) handleAccessError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, service.ErrShareExpired):
+		Error(w, http.StatusGone, "share has expired")
+	case errors.Is(err, service.ErrDownloadLimit):
+		Error(w, http.StatusGone, "download limit reached")
+	case errors.Is(err, service.ErrViewLimit):
+		Error(w, http.StatusGone, "view limit reached")
+	default:
+		Error(w, http.StatusInternalServerError, "access validation failed")
+	}
+}
+
+// toPublicShareResponse converts a model.Share to publicShareResponse.
+func (h *PublicHandler) toPublicShareResponse(share *model.Share) publicShareResponse {
+	resp := publicShareResponse{
+		ID:             share.ID,
+		Slug:           share.Slug,
+		Name:           share.Name,
+		Description:    share.Description,
+		HasPassword:    share.HasPassword(),
+		DownloadCount:  share.DownloadCount,
+		ViewCount:      share.ViewCount,
+		IsReverseShare: share.IsReverseShare,
+		CreatedAt:      share.CreatedAt.Format(time.RFC3339),
+	}
+
+	if share.ExpiresAt != nil {
+		formatted := share.ExpiresAt.Format(time.RFC3339)
+		resp.ExpiresAt = &formatted
+	}
+
+	if share.MaxDownloads != nil {
+		resp.MaxDownloads = share.MaxDownloads
+	}
+
+	if share.MaxViews != nil {
+		resp.MaxViews = share.MaxViews
+	}
+
+	return resp
+}
+
+// toPublicFileResponseList converts a slice of model.File to publicFileResponse slice.
+func (h *PublicHandler) toPublicFileResponseList(files []*model.File) []publicFileResponse {
+	result := make([]publicFileResponse, len(files))
+	for i, file := range files {
+		result[i] = publicFileResponse{
+			ID:       file.ID,
+			Name:     file.Name,
+			Size:     file.Size,
+			MimeType: file.MimeType,
+		}
+	}
+	return result
+}
