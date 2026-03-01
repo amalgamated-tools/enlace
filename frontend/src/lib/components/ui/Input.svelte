@@ -7,7 +7,7 @@
   export let disabled = false;
   export let required = false;
   export let id = '';
-  export let autocomplete = '';
+  export let autocomplete: AutoFill | '' = '';
 
   const inputId = id || `input-${Math.random().toString(36).substring(2, 9)}`;
 </script>
