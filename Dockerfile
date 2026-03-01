@@ -1,5 +1,5 @@
 # Build frontend
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend
 
 WORKDIR /app/frontend
 
@@ -19,8 +19,8 @@ COPY frontend/ ./
 RUN pnpm build
 
 # Build Go binary
-FROM golang:1.22-alpine AS go-builder
-
+FROM golang:1.25-alpine AS backend
+ARG VERSION=dev
 WORKDIR /app
 
 # Install build dependencies
@@ -39,10 +39,10 @@ COPY . .
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /sharer ./cmd/sharer
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s -X main.version=${VERSION}" -o /sharer ./cmd/sharer
 
 # Runtime image
-FROM alpine:3.19
+FROM alpine:3.21
 
 WORKDIR /app
 

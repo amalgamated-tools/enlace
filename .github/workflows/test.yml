@@ -1,0 +1,94 @@
+name: Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  # Required: allow read access to the content for analysis.
+  contents: read
+  # Optional: allow read access to pull requests. Use with `only-new-issues` option.
+  pull-requests: read
+
+jobs:
+  frontend-tests:
+    runs-on: ubuntu-latest
+    name: Frontend Build & Check
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Check TypeScript
+        working-directory: ./frontend
+        run: pnpm run check
+
+      - name: Check formatting
+        working-directory: ./frontend
+        run: |
+          pnpm run format --check || {
+            echo "Frontend files are not formatted. Please run 'pnpm run format'"
+            exit 1
+          }
+
+      - name: Run frontend tests
+        working-directory: ./frontend
+        run: pnpm run test
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: pnpm run build
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist
+          path: internal/server/dist
+
+  go-tests:
+    needs: frontend-tests
+    runs-on: ubuntu-latest
+    name: Go Tests
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: internal/server/dist
+
+      - name: Set up Go
+        uses: actions/setup-go@v6.2.0
+        with:
+          go-version: stable
+      
+      - run: go version
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.9
+
+      - name: Run Go tests
+        run: go test -v ./...
+
+      - name: Check Go formatting
+        run: |
+          if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
+            echo "Go files are not formatted. Please run 'go fmt ./...'"
+            gofmt -d .
+            exit 1
+          fi
