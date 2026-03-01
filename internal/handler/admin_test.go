@@ -20,12 +20,12 @@ import (
 
 // mockUserRepository implements handler.UserRepositoryInterface for testing.
 type mockUserRepository struct {
-	listFn       func(ctx context.Context) ([]*model.User, error)
-	createFn     func(ctx context.Context, user *model.User) error
-	getByIDFn    func(ctx context.Context, id string) (*model.User, error)
-	getByEmailFn func(ctx context.Context, email string) (*model.User, error)
-	updateFn     func(ctx context.Context, user *model.User) error
-	deleteFn     func(ctx context.Context, id string) error
+	listFn        func(ctx context.Context) ([]*model.User, error)
+	createFn      func(ctx context.Context, user *model.User) error
+	getByIDFn     func(ctx context.Context, id string) (*model.User, error)
+	getByEmailFn  func(ctx context.Context, email string) (*model.User, error)
+	updateFn      func(ctx context.Context, user *model.User) error
+	deleteFn      func(ctx context.Context, id string) error
 	emailExistsFn func(ctx context.Context, email string) (bool, error)
 }
 
