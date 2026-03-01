@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 
-	"github.com/amalgamated-tools/sharer/internal/config"
-	"github.com/amalgamated-tools/sharer/internal/model"
-	"github.com/amalgamated-tools/sharer/internal/repository"
+	"github.com/amalgamated-tools/enlace/internal/config"
+	"github.com/amalgamated-tools/enlace/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/repository"
 )
 
 // OIDC errors

@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/amalgamated-tools/sharer/internal/model"
-	"github.com/amalgamated-tools/sharer/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
 // AuthServiceInterface defines the interface for auth service operations.

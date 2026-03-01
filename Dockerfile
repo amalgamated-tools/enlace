@@ -39,7 +39,7 @@ COPY . .
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s -X main.version=${VERSION}" -o /sharer ./cmd/sharer
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s -X main.version=${VERSION}" -o /enlace ./cmd/enlace
 
 # Runtime image
 FROM alpine:3.21
@@ -53,7 +53,7 @@ RUN apk add --no-cache ca-certificates tzdata
 RUN adduser -D -g '' appuser
 
 # Copy binary
-COPY --from=go-builder /sharer /app/sharer
+COPY --from=go-builder /enlace /app/enlace
 
 # Create directories for data
 RUN mkdir -p /app/data /app/uploads && \
@@ -67,7 +67,7 @@ EXPOSE 8080
 
 # Default environment variables
 ENV PORT=8080 \
-    DATABASE_PATH=/app/data/sharer.db \
+    DATABASE_PATH=/app/data/enlace.db \
     STORAGE_TYPE=local \
     STORAGE_LOCAL_PATH=/app/uploads
 
@@ -76,4 +76,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Run the binary
-ENTRYPOINT ["/app/sharer"]
+ENTRYPOINT ["/app/enlace"]

@@ -35,7 +35,7 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		Port:             getEnvInt("PORT", 8080),
-		DatabasePath:     getEnv("DATABASE_PATH", "./sharer.db"),
+		DatabasePath:     getEnv("DATABASE_PATH", "./enlace.db"),
 		JWTSecret:        getEnv("JWT_SECRET", ""),
 		BaseURL:          getEnv("BASE_URL", "http://localhost:8080"),
 		StorageType:      getEnv("STORAGE_TYPE", "local"),
