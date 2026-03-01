@@ -183,8 +183,8 @@ func detectMimeType(filename string) string {
 		".tif":  "image/tiff",
 
 		// Documents
-		".pdf": "application/pdf",
-		".doc": "application/msword",
+		".pdf":  "application/pdf",
+		".doc":  "application/msword",
 		".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 		".xls":  "application/vnd.ms-excel",
 		".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
