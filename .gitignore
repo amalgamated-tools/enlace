@@ -1,0 +1,22 @@
+db/sharer.db
+# Binaries
+/sharer
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Test coverage
+coverage.out
+
+uploads/
+.env
+
+# Air live reload
+tmp/
+rustfs/

@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Build artifacts
+sharer
+*.exe
+
+# Data files
+*.db
+uploads/
+
+# Node modules (frontend has its own)
+node_modules/
+
+# Test files
+*_test.go
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Development files
+.env
+.env.*
+docker-compose.override.yml
+
+# Claude files
+.claude/
