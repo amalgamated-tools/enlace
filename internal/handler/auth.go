@@ -260,7 +260,7 @@ func (h *AuthHandler) handleServiceError(w http.ResponseWriter, err error) {
 
 // getUserByToken is a helper to get user details after login.
 // This is a simplified approach - in production, you might decode the JWT directly.
-func (h *AuthHandler) getUserByToken(ctx context.Context, accessToken string) (*model.User, error) {
+func (h *AuthHandler) getUserByToken(_ctx context.Context, _accessToken string) (*model.User, error) {
 	// Since we have a token that was just generated, we can decode it to get the user ID
 	// However, to avoid duplicating JWT logic here, we'll use GetUser with a decoded userID
 	// This is a workaround since we don't have direct token parsing in the handler
