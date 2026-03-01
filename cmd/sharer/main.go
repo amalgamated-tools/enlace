@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -65,16 +65,16 @@ func run() error {
 		var err error
 		oidcService, err = service.NewOIDCService(cfg, userRepo)
 		if err != nil {
-			log.Printf("Warning: failed to initialize OIDC: %v", err)
+			slog.Warn("failed to initialize OIDC", "error", err)
 		} else {
-			log.Println("OIDC authentication enabled")
+			slog.Info("OIDC authentication enabled")
 		}
 	}
 
 	// Get embedded frontend
 	frontendFS, err := sharer.FrontendFS()
 	if err != nil {
-		log.Printf("Warning: failed to load embedded frontend: %v", err)
+		slog.Warn("failed to load embedded frontend", "error", err)
 	}
 
 	// Initialize router
@@ -103,9 +103,9 @@ func run() error {
 
 	// Start server in goroutine
 	go func() {
-		log.Printf("Sharer starting on http://localhost:%d", cfg.Port)
+		slog.Info("Sharer starting", "url", fmt.Sprintf("http://localhost:%d", cfg.Port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("Server error: %v", err)
+			slog.Error("Server error", "error", err)
 		}
 	}()
 
@@ -114,7 +114,7 @@ func run() error {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	slog.Info("Shutting down server...")
 
 	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -124,7 +124,7 @@ func run() error {
 		return fmt.Errorf("server forced to shutdown: %w", err)
 	}
 
-	log.Println("Server stopped")
+	slog.Info("Server stopped")
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -153,7 +154,7 @@ func (h *PublicHandler) ViewShare(w http.ResponseWriter, r *http.Request) {
 
 	// Increment view count
 	if err := h.shareService.IncrementViewCount(r.Context(), share.ID); err != nil {
-		// Log but don't fail - viewing should still work
+		slog.Warn("failed to increment view count", "share_id", share.ID, "error", err)
 	}
 
 	// Get files for the share
@@ -299,7 +300,7 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 
 	// Increment download count
 	if err := h.shareService.IncrementDownloadCount(r.Context(), share.ID); err != nil {
-		// Log but don't fail - download should still work
+		slog.Warn("failed to increment download count", "share_id", share.ID, "error", err)
 	}
 
 	// Get file content

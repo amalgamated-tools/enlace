@@ -377,7 +377,7 @@ func (h *ShareHandler) validateUpdateRequest(req updateShareRequest) map[string]
 // isValidSlug checks if a string is a valid URL slug.
 func isValidSlug(s string) bool {
 	for _, c := range s {
-		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+		if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' {
 			return false
 		}
 	}
