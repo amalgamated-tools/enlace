@@ -25,6 +25,15 @@ docker run -d \
 
 Open <http://localhost:8080> and register your first user.
 
+> **Admin access:** The registration endpoint creates regular (non-admin) users. To grant your first user admin privileges, update the database directly after registering:
+>
+> ```bash
+> sqlite3 /path/to/sharer.db \
+>   "UPDATE users SET is_admin = 1 WHERE email = 'you@example.com';"
+> ```
+>
+> Once you have one admin user you can create additional admin users through the Admin panel without touching the database.
+
 ### Docker Compose
 
 ```bash
@@ -84,6 +93,47 @@ See [OIDC.md](OIDC.md) for provider-specific setup guides.
 ## API
 
 All authenticated endpoints require an `Authorization: Bearer <access_token>` header.
+
+### Response envelope
+
+Every API response is wrapped in a standard JSON envelope:
+
+```json
+{ "success": true, "data": { ... } }
+```
+
+On errors, `data` is omitted and an `error` field is present instead:
+
+```json
+{ "success": false, "error": "description" }
+```
+
+Validation failures return HTTP 400 with a `fields` map:
+
+```json
+{ "success": false, "error": "validation failed", "fields": { "email": "invalid email format" } }
+```
+
+### JWT tokens
+
+| Token | Lifetime |
+|---|---|
+| Access token | 15 minutes |
+| Refresh token | 7 days |
+
+Use `POST /api/v1/auth/refresh` with the refresh token to obtain a new pair before the access token expires.
+
+### Rate limiting
+
+Requests exceeding the limit receive HTTP 429 with `{"error":"rate limit exceeded"}`.
+
+| Endpoint group | Limit |
+|---|---|
+| `POST /api/v1/auth/login` | 5 requests / minute |
+| `POST /api/v1/auth/register` | 3 requests / minute |
+| All other API endpoints | 60 requests / minute |
+
+### Endpoints
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
