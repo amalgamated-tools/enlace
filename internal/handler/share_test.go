@@ -62,18 +62,6 @@ func (m *mockShareService) ListByCreator(ctx context.Context, creatorID string) 
 	return nil, errors.New("not implemented")
 }
 
-// mockFileService implements FileServiceInterface for testing.
-type mockFileService struct {
-	listByShareFn func(ctx context.Context, shareID string) ([]*model.File, error)
-}
-
-func (m *mockFileService) ListByShare(ctx context.Context, shareID string) ([]*model.File, error) {
-	if m.listByShareFn != nil {
-		return m.listByShareFn(ctx, shareID)
-	}
-	return nil, errors.New("not implemented")
-}
-
 // withUserContext adds a user ID to the request context.
 func withUserContext(r *http.Request, userID string) *http.Request {
 	ctx := context.WithValue(r.Context(), middleware.UserIDKey, userID)
