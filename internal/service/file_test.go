@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amalgamated-tools/sharer/internal/database"
-	"github.com/amalgamated-tools/sharer/internal/model"
-	"github.com/amalgamated-tools/sharer/internal/repository"
-	"github.com/amalgamated-tools/sharer/internal/service"
-	"github.com/amalgamated-tools/sharer/internal/storage"
+	"github.com/amalgamated-tools/enlace/internal/database"
+	"github.com/amalgamated-tools/enlace/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/repository"
+	"github.com/amalgamated-tools/enlace/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 // testStorage implements storage.Storage for testing.

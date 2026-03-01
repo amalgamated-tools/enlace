@@ -1,4 +1,4 @@
-module github.com/amalgamated-tools/sharer
+module github.com/amalgamated-tools/enlace
 
 go 1.25.2
 

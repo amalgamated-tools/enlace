@@ -9,9 +9,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/amalgamated-tools/sharer/internal/middleware"
-	"github.com/amalgamated-tools/sharer/internal/model"
-	"github.com/amalgamated-tools/sharer/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
 // ShareServiceInterface defines the interface for share service operations.

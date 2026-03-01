@@ -9,7 +9,7 @@
 *.swo
 
 # Build artifacts
-sharer
+enlace
 *.exe
 
 # Data files

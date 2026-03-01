@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/amalgamated-tools/sharer/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/middleware"
 )
 
 const (
