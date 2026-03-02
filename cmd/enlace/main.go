@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -43,7 +44,6 @@ var version = "dev"
 // @description Share access token for password-protected shares
 func main() {
 	otel.SetupLogger(version)
-	slog.Info("enlace", slog.String("version", version))
 	cancelCtx, cancelAll := context.WithCancel(context.Background())
 
 	if err := realMain(cancelCtx); err != nil {
@@ -54,6 +54,25 @@ func main() {
 
 // This is the real main function. That's why it's called realMain.
 func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The newctx context comes from the StartTracer function, so it's already wrapped.
+	flagSet := flag.NewFlagSet("enlace", flag.ExitOnError)
+
+	var (
+		port    int
+		showVer bool
+	)
+	flagSet.IntVar(&port, "port", 0, "port number to run http server on")
+	flagSet.BoolVar(&showVer, "version", false, "show version and exit")
+
+	err := flagSet.Parse(os.Args[1:])
+	if err != nil {
+		return err
+	}
+
+	if showVer {
+		fmt.Println(otel.Version)
+		os.Exit(0)
+	}
+	slog.Info("enlace", slog.String("version", version))
 	cfg := config.Load()
 
 	// Validate required config
