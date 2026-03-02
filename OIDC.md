@@ -24,6 +24,8 @@ Enlace supports OpenID Connect (OIDC) for Single Sign-On (SSO). This allows user
 
 Existing users can also link/unlink their OIDC identity from the **Settings** page.
 
+> **Important:** You cannot unlink an OIDC identity from an account that has no local password — doing so would lock you out entirely. Before unlinking, make sure your account has a local password set. You can set one via the Settings page or the `PUT /api/v1/me/password` endpoint. The `has_password` field in `GET /api/v1/me` shows whether your account has a password.
+
 > **Note:** The OIDC provider must return an `email` claim. If it does not, authentication will fail.
 
 ## General Setup
