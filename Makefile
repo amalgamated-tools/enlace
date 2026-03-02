@@ -38,7 +38,7 @@ test-coverage:
 
 # Clean build artifacts
 clean:
-	rm -f enlace coverage.out coverage.html db/enlace.db
+	rm -f enlace coverage.out coverage.html db/enlace.db ./enlace.db
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
 	rm -rf uploads
