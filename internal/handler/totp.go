@@ -361,7 +361,7 @@ func (h *TOTPHandler) Verify(w http.ResponseWriter, r *http.Request) {
 	Success(w, http.StatusOK, loginResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
-		User:         userResponse{ID: claims.UserID},
+		User:         &userResponse{ID: claims.UserID},
 	})
 }
 
@@ -425,6 +425,6 @@ func (h *TOTPHandler) Recovery(w http.ResponseWriter, r *http.Request) {
 	Success(w, http.StatusOK, loginResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
-		User:         userResponse{ID: claims.UserID},
+		User:         &userResponse{ID: claims.UserID},
 	})
 }

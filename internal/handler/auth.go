@@ -185,7 +185,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			Success(w, http.StatusOK, loginResponse{
 				AccessToken:  tokens.AccessToken,
 				RefreshToken: tokens.RefreshToken,
-				User: userResponse{
+				User: &userResponse{
 					ID:          user.ID,
 					Email:       user.Email,
 					DisplayName: user.DisplayName,
@@ -199,7 +199,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	Success(w, http.StatusOK, loginResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
-		User: userResponse{
+		User: &userResponse{
 			ID:          user.ID,
 			Email:       user.Email,
 			DisplayName: user.DisplayName,
