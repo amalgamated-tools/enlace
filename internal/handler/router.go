@@ -7,7 +7,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 
+	_ "github.com/amalgamated-tools/enlace/docs"
 	intMiddleware "github.com/amalgamated-tools/enlace/internal/middleware"
 	"github.com/amalgamated-tools/enlace/internal/repository"
 	"github.com/amalgamated-tools/enlace/internal/service"
@@ -38,6 +41,9 @@ type RouterConfig struct {
 
 	// Frontend filesystem (embedded)
 	FrontendFS fs.FS
+
+	// Swagger/API docs
+	SwaggerEnabled bool
 }
 
 // NewRouter creates a new Chi router with all routes configured.
@@ -52,6 +58,16 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 	// Set a timeout for requests
 	r.Use(middleware.Timeout(60 * 1000000000)) // 60 seconds in nanoseconds
+
+	// CORS middleware
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Share-Token"},
+		ExposedHeaders:   []string{"Content-Disposition"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}))
 
 	// Health check endpoint (always accessible)
 	r.Get("/health", healthHandler)
@@ -143,6 +159,13 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		r.Post("/upload", publicHandler.UploadToReverseShare)
 	})
 
+	// Swagger UI (API documentation)
+	if cfg.SwaggerEnabled {
+		r.Get("/swagger/*", httpSwagger.Handler(
+			httpSwagger.URL("/swagger/doc.json"),
+		))
+	}
+
 	// Serve frontend (catch-all)
 	if cfg.FrontendFS != nil {
 		frontendHandler, err := NewFrontendHandler(cfg.FrontendFS)
@@ -155,6 +178,12 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 }
 
 // healthHandler returns the health status of the service.
+//
+//	@Summary	Health check
+//	@Tags		system
+//	@Produce	json
+//	@Success	200	{object}	APIResponse
+//	@Router		/health [get]
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	Success(w, http.StatusOK, map[string]string{
 		"status": "ok",

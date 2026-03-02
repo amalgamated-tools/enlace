@@ -71,6 +71,17 @@ type adminUserResponse struct {
 var adminEmailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 
 // ListUsers handles GET /api/v1/admin/users - lists all users.
+//
+//	@Summary		List all users
+//	@Description	Requires admin role.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	APIResponse{data=[]adminUserResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		403	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/admin/users [get]
 func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userRepo.List(r.Context())
 	if err != nil {
@@ -88,6 +99,21 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateUser handles POST /api/v1/admin/users - creates a new user.
+//
+//	@Summary		Create a user
+//	@Description	Requires admin role.
+//	@Tags			admin
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		createUserRequest				true	"User details"
+//	@Success		201		{object}	APIResponse{data=adminUserResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		403		{object}	APIResponse
+//	@Failure		409		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/admin/users [post]
 func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req createUserRequest
 	if err := DecodeJSON(r, &req); err != nil {
@@ -138,6 +164,19 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetUser handles GET /api/v1/admin/users/{id} - retrieves a specific user.
+//
+//	@Summary		Get a user
+//	@Description	Requires admin role.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string							true	"User ID (UUID)"
+//	@Success		200	{object}	APIResponse{data=adminUserResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		403	{object}	APIResponse
+//	@Failure		404	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/admin/users/{id} [get]
 func (h *AdminHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	userID := chi.URLParam(r, "id")
 	if userID == "" {
@@ -159,6 +198,23 @@ func (h *AdminHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateUser handles PATCH /api/v1/admin/users/{id} - updates an existing user.
+//
+//	@Summary		Update a user
+//	@Description	Requires admin role.
+//	@Tags			admin
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string							true	"User ID (UUID)"
+//	@Param			body	body		updateUserRequest				true	"Fields to update"
+//	@Success		200		{object}	APIResponse{data=adminUserResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		403		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		409		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/admin/users/{id} [patch]
 func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	userID := chi.URLParam(r, "id")
 	if userID == "" {
@@ -249,6 +305,19 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteUser handles DELETE /api/v1/admin/users/{id} - deletes a user.
+//
+//	@Summary		Delete a user
+//	@Description	Requires admin role.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string		true	"User ID (UUID)"
+//	@Success		200	{object}	APIResponse
+//	@Failure		401	{object}	APIResponse
+//	@Failure		403	{object}	APIResponse
+//	@Failure		404	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/admin/users/{id} [delete]
 func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userID := chi.URLParam(r, "id")
 	if userID == "" {

@@ -30,6 +30,8 @@ type Config struct {
 	OIDCClientSecret string
 	OIDCRedirectURL  string
 	OIDCScopes       string
+	// Swagger/API docs
+	SwaggerEnabled bool
 }
 
 func Load() *Config {
@@ -57,6 +59,7 @@ func Load() *Config {
 		OIDCClientSecret: getEnv("OIDC_CLIENT_SECRET", ""),
 		OIDCRedirectURL:  getEnv("OIDC_REDIRECT_URL", ""),
 		OIDCScopes:       getEnv("OIDC_SCOPES", "openid email profile"),
+		SwaggerEnabled:   getEnvBool("SWAGGER_ENABLED", true),
 	}
 }
 

@@ -1,10 +1,10 @@
-.PHONY: all build run test clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs help
+.PHONY: all build run test clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs swagger swagger-fmt help
 
 # Default target
 all: build
 
 # Build the Go binary with embedded frontend
-build: frontend-build
+build: frontend-build swagger
 	@echo "Building enlace..."
 	go build -o enlace ./cmd/enlace
 
@@ -82,6 +82,14 @@ lint:
 fmt:
 	go fmt ./...
 
+# Generate OpenAPI/Swagger docs
+swagger:
+	swag init -g cmd/enlace/main.go -o docs --parseDependency --parseInternal
+
+# Format swagger annotations
+swagger-fmt:
+	swag fmt
+
 # Install development dependencies
 dev-setup:
 	cd frontend && pnpm install
@@ -122,4 +130,6 @@ help:
 	@echo "  rustfs-logs    - View rustfs logs"
 	@echo "  lint           - Run Go linter"
 	@echo "  fmt            - Format Go code"
+	@echo "  swagger        - Generate OpenAPI/Swagger docs"
+	@echo "  swagger-fmt    - Format swagger annotations"
 	@echo "  dev-setup      - Install development dependencies"
