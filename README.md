@@ -205,12 +205,14 @@ Response `data` fields:
 | `oidc_linked` | bool | Whether an OIDC identity is linked |
 | `has_password` | bool | Whether the account has a local password set |
 
-**`PATCH /api/v1/me`** — update the current user's profile (all fields optional).
+**`PATCH /api/v1/me`** — update the current user's profile (all fields optional). Returns the updated profile (same shape as `GET /api/v1/me`).
 
 | Field | Type | Description |
 |---|---|---|
 | `display_name` | string | New display name |
 | `email` | string | New email address |
+
+> **Note:** Omitting a field leaves it unchanged. Returns HTTP 409 if the new email is already taken.
 
 **`PUT /api/v1/me/password`** — change the current user's password.
 
@@ -308,7 +310,7 @@ File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
 | `PUT` | `/api/v1/me/password` | ✔ | Change password |
 | `GET` | `/api/v1/me/oidc/link` | ✔ | Start OIDC link flow |
 | `GET` | `/api/v1/me/oidc/callback` | ✔ | OIDC link callback |
-| `DELETE` | `/api/v1/me/oidc` | ✔ | Unlink OIDC identity |
+| `DELETE` | `/api/v1/me/oidc` | ✔ | Unlink OIDC identity (requires a local password to be set) |
 | `GET` | `/api/v1/admin/users` | ✔ admin | List all users |
 | `POST` | `/api/v1/admin/users` | ✔ admin | Create a user |
 | `GET` | `/api/v1/admin/users/{id}` | ✔ admin | Get a user |
