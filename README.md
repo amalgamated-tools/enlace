@@ -71,6 +71,25 @@ The following variables are accepted by the configuration loader and are reserve
 | `SMTP_PASS` | — | SMTP password |
 | `SMTP_FROM` | `noreply@example.com` | Sender address |
 
+### Logging
+
+| Variable | Default | Description |
+|---|---|---|
+| `LOG_FORMAT` | `json` | Log output format: `json` or any other value for plain text |
+| `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, or `error`. `debug` also enables source location in log lines |
+
+### Telemetry
+
+Enlace includes **opt-in** anonymous telemetry. It is **disabled by default** and only activates when `TELEMETRY_ENABLED=true` is explicitly set.
+
+When enabled, a single anonymous ping is sent on first startup. The payload contains only: application name, a random install ID, version string, OS, and CPU architecture. No personal data, file contents, or IP addresses are collected. The install ID is stored in `DATA_DIR/install_id` so subsequent startups do not re-send.
+
+| Variable | Default | Description |
+|---|---|---|
+| `TELEMETRY_ENABLED` | `false` | Set to `true` to enable anonymous telemetry |
+| `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Override the telemetry collection endpoint |
+| `DATA_DIR` | `./data` | Directory used to persist the install ID file |
+
 ### OIDC / SSO (optional)
 
 | Variable | Default | Description |
@@ -213,7 +232,7 @@ Validation errors return HTTP 400 and include a `fields` map:
 
 ### Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - Node.js 22+ with [pnpm](https://pnpm.io/)
 - [Air](https://github.com/air-verse/air) (live reload) and [goreman](https://github.com/mattn/goreman) (optional, for `make dev`)
 
