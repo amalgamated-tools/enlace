@@ -61,7 +61,7 @@ func Load() *Config {
 		OIDCClientSecret: getEnv("OIDC_CLIENT_SECRET", ""),
 		OIDCRedirectURL:  getEnv("OIDC_REDIRECT_URL", ""),
 		OIDCScopes:       getEnv("OIDC_SCOPES", "openid email profile"),
-		SwaggerEnabled:   getEnvBool("SWAGGER_ENABLED", true),
+		SwaggerEnabled:   getEnvBool("SWAGGER_ENABLED", false),
 		CORSOrigins:      getEnv("CORS_ORIGINS", ""),
 	}
 }
