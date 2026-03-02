@@ -68,6 +68,7 @@ EXPOSE 8080
 # Default environment variables
 ENV PORT=8080 \
     DATABASE_PATH=/app/data/enlace.db \
+    DATA_DIR=/app/data \
     STORAGE_TYPE=local \
     STORAGE_LOCAL_PATH=/app/uploads
 
