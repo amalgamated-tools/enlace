@@ -230,7 +230,7 @@ Validation errors return HTTP 400 and include a `fields` map:
 
 ### Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - Node.js 22+ with [pnpm](https://pnpm.io/)
 - [Air](https://github.com/air-verse/air) (live reload) and [goreman](https://github.com/mattn/goreman) (optional, for `make dev`)
 
