@@ -23,7 +23,7 @@ import (
 var version = "dev"
 
 func main() {
-	otel.SetupLogger()
+	otel.SetupLogger(version)
 	slog.Info("enlace", slog.String("version", version))
 	cancelCtx, cancelAll := context.WithCancel(context.Background())
 
