@@ -10,7 +10,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
 - **Storage backends** — local filesystem or any S3-compatible object store
 - **Admin panel** — manage users from the UI
-- **Rate limiting** — IP-based rate limiting middleware included (not applied by default; see `internal/middleware/ratelimit.go` for `LoginRateLimiter`, `RegisterRateLimiter`, and `APIRateLimiter` helpers)
+- **Rate limiting** — IP-based rate limiting middleware included (not applied by default). Pre-built helpers in `internal/middleware/ratelimit.go`: `LoginRateLimiter` (5 req/min), `RegisterRateLimiter` (3 req/min), and `APIRateLimiter` (60 req/min).
 - **Embeds frontend** — single binary ships the compiled Svelte app
 
 ## Quick Start (Docker)
@@ -223,7 +223,8 @@ Full validation error example:
 
 - Go 1.26+
 - Node.js 22+ with [pnpm](https://pnpm.io/)
-- [Air](https://github.com/air-verse/air) (live reload) and [goreman](https://github.com/mattn/goreman) (optional, for `make dev`)
+- [Air](https://github.com/air-verse/air) for live reload of the Go backend
+- [goreman](https://github.com/mattn/goreman) or [overmind](https://github.com/DarthSim/overmind) to run the `Procfile.dev` (optional; only needed for `make dev`)
 
 ### Getting started
 
@@ -245,7 +246,7 @@ make build-backend  # backend only, faster iteration
 make test           # go test ./...
 make test-coverage  # test + HTML coverage report
 make lint           # go vet ./... (CI also runs golangci-lint v2)
-make fmt            # gofmt
+make fmt            # gofmt + Prettier (formats Go and frontend code)
 make clean          # remove build artifacts
 ```
 
