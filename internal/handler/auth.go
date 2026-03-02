@@ -64,12 +64,12 @@ type userResponse struct {
 
 // loginResponse represents the response data for successful login.
 type loginResponse struct {
-	AccessToken      string       `json:"access_token,omitempty"`
-	RefreshToken     string       `json:"refresh_token,omitempty"`
-	User             userResponse `json:"user,omitempty"`
-	Requires2FA      bool         `json:"requires_2fa,omitempty"`
-	Requires2FASetup bool         `json:"requires_2fa_setup,omitempty"`
-	PendingToken     string       `json:"pending_token,omitempty"`
+	AccessToken      string        `json:"access_token,omitempty"`
+	RefreshToken     string        `json:"refresh_token,omitempty"`
+	User             *userResponse `json:"user,omitempty"`
+	Requires2FA      bool          `json:"requires_2fa,omitempty"`
+	Requires2FASetup bool          `json:"requires_2fa_setup,omitempty"`
+	PendingToken     string        `json:"pending_token,omitempty"`
 }
 
 // tokenResponse represents the response data for token refresh.
