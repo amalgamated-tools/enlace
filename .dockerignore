@@ -23,7 +23,6 @@ node_modules/
 *_test.go
 
 # Documentation
-docs/
 *.md
 !README.md
 
