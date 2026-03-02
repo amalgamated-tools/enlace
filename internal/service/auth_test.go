@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/amalgamated-tools/enlace/internal/database"
+	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/repository"
 	"github.com/amalgamated-tools/enlace/internal/service"
 )
@@ -505,6 +506,61 @@ func TestAuthService_UpdateProfile_BothFields(t *testing.T) {
 	}
 	if updated.Email != "updated@example.com" {
 		t.Errorf("expected email 'updated@example.com', got %s", updated.Email)
+	}
+}
+
+func TestAuthService_UpdateProfile_OIDCFieldsPreserved(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	svc := service.NewAuthService(userRepo, []byte("test-secret-key-for-jwt-signing"))
+
+	ctx := context.Background()
+
+	// Create a user with OIDC fields set
+	oidcUser := &model.User{
+		ID:          "oidc-user-id",
+		Email:       "oidc@example.com",
+		DisplayName: "OIDC User",
+		OIDCSubject: "subject-123",
+		OIDCIssuer:  "https://issuer.example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	if err := userRepo.Create(ctx, oidcUser); err != nil {
+		t.Fatalf("failed to create OIDC user: %v", err)
+	}
+
+	// Update the profile display name
+	updated, err := svc.UpdateProfile(ctx, oidcUser.ID, "New OIDC Name", "")
+	if err != nil {
+		t.Fatalf("failed to update profile: %v", err)
+	}
+
+	if updated.DisplayName != "New OIDC Name" {
+		t.Errorf("expected display name 'New OIDC Name', got %s", updated.DisplayName)
+	}
+	if updated.OIDCSubject != "subject-123" {
+		t.Errorf("expected OIDCSubject 'subject-123', got %s", updated.OIDCSubject)
+	}
+	if updated.OIDCIssuer != "https://issuer.example.com" {
+		t.Errorf("expected OIDCIssuer 'https://issuer.example.com', got %s", updated.OIDCIssuer)
+	}
+
+	// Verify persistence by re-fetching
+	fetched, err := userRepo.GetByID(ctx, oidcUser.ID)
+	if err != nil {
+		t.Fatalf("failed to fetch user: %v", err)
+	}
+	if fetched.OIDCSubject != "subject-123" {
+		t.Errorf("persisted OIDCSubject: expected 'subject-123', got %s", fetched.OIDCSubject)
+	}
+	if fetched.OIDCIssuer != "https://issuer.example.com" {
+		t.Errorf("persisted OIDCIssuer: expected 'https://issuer.example.com', got %s", fetched.OIDCIssuer)
 	}
 }
 

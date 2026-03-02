@@ -178,6 +178,8 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID, displayName, em
 		PasswordHash: user.PasswordHash,
 		DisplayName:  user.DisplayName,
 		IsAdmin:      user.IsAdmin,
+		OIDCSubject:  user.OIDCSubject,
+		OIDCIssuer:   user.OIDCIssuer,
 		CreatedAt:    user.CreatedAt,
 		UpdatedAt:    user.UpdatedAt,
 	}
