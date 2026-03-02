@@ -127,7 +127,17 @@ func (s *EmailService) ListRecipients(ctx context.Context, shareID string) ([]*m
 	return s.recipientRepo.ListByShare(ctx, shareID)
 }
 
+// sanitizeHeaderValue removes CR and LF characters to prevent SMTP header injection.
+func sanitizeHeaderValue(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", "")
+	return s
+}
+
 func (s *EmailService) sendMultipartEmail(to, shareName string, data emailTemplateData) error {
+	to = sanitizeHeaderValue(to)
+	shareName = sanitizeHeaderValue(shareName)
+
 	var body bytes.Buffer
 
 	writer := multipart.NewWriter(&body)
