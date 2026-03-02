@@ -75,7 +75,7 @@ The following variables are accepted by the configuration loader and are reserve
 
 | Variable | Default | Description |
 |---|---|---|
-| `LOG_FORMAT` | `json` | Log output format: `json` or `text` |
+| `LOG_FORMAT` | `json` | Log output format: `json` or `text`; any other value is treated as `text` |
 | `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, or `error`. Setting `debug` also adds source location to each log line |
 
 ### Telemetry
