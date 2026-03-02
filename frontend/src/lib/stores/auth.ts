@@ -7,6 +7,14 @@ interface AuthState {
   initialized: boolean;
 }
 
+export interface LoginResult {
+  success: boolean;
+  requires2FA?: boolean;
+  requires2FASetup?: boolean;
+  pendingToken?: string;
+  user?: User;
+}
+
 const createAuthStore = () => {
   const { subscribe, set, update } = writable<AuthState>({
     user: null,
@@ -64,14 +72,37 @@ const createAuthStore = () => {
       }
     },
 
-    async login(email: string, password: string) {
+    async login(email: string, password: string): Promise<LoginResult> {
       update((s) => ({ ...s, loading: true }));
       try {
         const response = await authApi.login(email, password);
-        localStorage.setItem("access_token", response.access_token);
-        localStorage.setItem("refresh_token", response.refresh_token);
-        set({ user: response.user, loading: false, initialized: true });
-        return response.user;
+
+        if (response.requires_2fa && response.pending_token) {
+          update((s) => ({ ...s, loading: false }));
+          return {
+            success: false,
+            requires2FA: true,
+            pendingToken: response.pending_token,
+          };
+        }
+
+        if (response.access_token) {
+          localStorage.setItem("access_token", response.access_token);
+          localStorage.setItem("refresh_token", response.refresh_token!);
+          set({
+            user: response.user!,
+            loading: false,
+            initialized: true,
+          });
+
+          return {
+            success: true,
+            requires2FASetup: response.requires_2fa_setup,
+            user: response.user!,
+          };
+        }
+
+        throw new Error("Unexpected login response");
       } catch (error) {
         update((s) => ({ ...s, loading: false }));
         throw error;

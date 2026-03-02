@@ -10,9 +10,12 @@ export interface User {
 }
 
 export interface LoginResponse {
-  access_token: string;
-  refresh_token: string;
-  user: User;
+  access_token?: string;
+  refresh_token?: string;
+  user?: User;
+  requires_2fa?: boolean;
+  requires_2fa_setup?: boolean;
+  pending_token?: string;
 }
 
 export interface TokenResponse {

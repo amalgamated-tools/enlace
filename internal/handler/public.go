@@ -126,7 +126,7 @@ type verifyPasswordResponse struct {
 //	@Description	Returns share details and files. Requires X-Share-Token for password-protected shares.
 //	@Tags			public
 //	@Produce		json
-//	@Param			slug	path		string								true	"Share slug"
+//	@Param			slug	path		string	true	"Share slug"
 //	@Success		200		{object}	APIResponse{data=shareDetailsResponse}
 //	@Failure		401		{object}	APIResponse
 //	@Failure		404		{object}	APIResponse
@@ -192,8 +192,8 @@ func (h *PublicHandler) ViewShare(w http.ResponseWriter, r *http.Request) {
 //	@Tags			public
 //	@Accept			json
 //	@Produce		json
-//	@Param			slug	path		string									true	"Share slug"
-//	@Param			body	body		verifyPasswordRequest					true	"Password"
+//	@Param			slug	path		string					true	"Share slug"
+//	@Param			body	body		verifyPasswordRequest	true	"Password"
 //	@Success		200		{object}	APIResponse{data=verifyPasswordResponse}
 //	@Failure		400		{object}	APIResponse
 //	@Failure		401		{object}	APIResponse
@@ -385,8 +385,8 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 //	@Tags			public
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Param			slug	path		string								true	"Share slug"
-//	@Param			files	formData	file								true	"Files to upload"
+//	@Param			slug	path		string	true	"Share slug"
+//	@Param			files	formData	file	true	"Files to upload"
 //	@Success		201		{object}	APIResponse{data=[]publicFileResponse}
 //	@Failure		400		{object}	APIResponse
 //	@Failure		403		{object}	APIResponse
