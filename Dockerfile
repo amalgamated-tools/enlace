@@ -36,7 +36,7 @@ RUN go mod download
 COPY . .
 
 # Copy built frontend from previous stage
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend /app/frontend/dist ./frontend/dist
 
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s -X main.version=${VERSION}" -o /enlace ./cmd/enlace
@@ -53,7 +53,7 @@ RUN apk add --no-cache ca-certificates tzdata
 RUN adduser -D -g '' appuser
 
 # Copy binary
-COPY --from=go-builder /enlace /app/enlace
+COPY --from=backend /enlace /app/enlace
 
 # Create directories for data
 RUN mkdir -p /app/data /app/uploads && \
