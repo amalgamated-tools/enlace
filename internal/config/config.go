@@ -32,6 +32,8 @@ type Config struct {
 	OIDCScopes       string
 	// Swagger/API docs
 	SwaggerEnabled bool
+	// CORS
+	CORSOrigins string
 }
 
 func Load() *Config {
@@ -60,6 +62,7 @@ func Load() *Config {
 		OIDCRedirectURL:  getEnv("OIDC_REDIRECT_URL", ""),
 		OIDCScopes:       getEnv("OIDC_SCOPES", "openid email profile"),
 		SwaggerEnabled:   getEnvBool("SWAGGER_ENABLED", true),
+		CORSOrigins:      getEnv("CORS_ORIGINS", ""),
 	}
 }
 
