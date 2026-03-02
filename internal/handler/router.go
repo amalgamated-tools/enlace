@@ -44,6 +44,9 @@ type RouterConfig struct {
 
 	// Swagger/API docs
 	SwaggerEnabled bool
+
+	// CORS allowed origins (comma-separated). Defaults to BaseURL if empty.
+	CORSOrigins []string
 }
 
 // NewRouter creates a new Chi router with all routes configured.
@@ -60,8 +63,12 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	r.Use(middleware.Timeout(60 * 1000000000)) // 60 seconds in nanoseconds
 
 	// CORS middleware
+	allowedOrigins := cfg.CORSOrigins
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{cfg.BaseURL}
+	}
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Share-Token"},
 		ExposedHeaders:   []string{"Content-Disposition"},

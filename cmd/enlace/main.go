@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -102,6 +103,16 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		slog.Warn("failed to load embedded frontend", "error", err)
 	}
 
+	// Parse CORS origins
+	var corsOrigins []string
+	if cfg.CORSOrigins != "" {
+		for _, o := range strings.Split(cfg.CORSOrigins, ",") {
+			if trimmed := strings.TrimSpace(o); trimmed != "" {
+				corsOrigins = append(corsOrigins, trimmed)
+			}
+		}
+	}
+
 	// Initialize router
 	router := handler.NewRouter(handler.RouterConfig{
 		AuthService:    authService,
@@ -116,6 +127,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		OIDCService:    oidcService,
 		FrontendFS:     frontendFS,
 		SwaggerEnabled: cfg.SwaggerEnabled,
+		CORSOrigins:    corsOrigins,
 	})
 
 	// Create server
