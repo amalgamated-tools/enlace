@@ -157,11 +157,70 @@ Full validation error example:
 { "email": "user@example.com", "password": "secret" }
 ```
 
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "access_token": "<jwt>",
+    "refresh_token": "<token>",
+    "user": { "id": "<uuid>", "email": "user@example.com", "display_name": "Alice" }
+  }
+}
+```
+
 **`POST /api/v1/auth/refresh`** — returns new `access_token` and `refresh_token`.
 
 ```json
 { "refresh_token": "<token>" }
 ```
+
+### User profile endpoints
+
+**`GET /api/v1/me`** — returns the current user's profile.
+
+Response `data` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | User UUID |
+| `email` | string | Email address |
+| `display_name` | string | Display name |
+| `is_admin` | bool | Whether the user has admin privileges |
+| `oidc_linked` | bool | Whether an OIDC identity is linked |
+| `has_password` | bool | Whether the account has a local password set |
+
+**`PATCH /api/v1/me`** — update the current user's profile (all fields optional).
+
+| Field | Type | Description |
+|---|---|---|
+| `display_name` | string | New display name |
+| `email` | string | New email address |
+
+**`PUT /api/v1/me/password`** — change the current user's password.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `old_password` | string | ✔ | Current password |
+| `new_password` | string | ✔ | New password (min 8 characters) |
+
+### Admin user endpoints
+
+All admin endpoints require authentication with an account that has `is_admin: true`.
+
+**`POST /api/v1/admin/users`** — create a user.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | string | ✔ | Email address |
+| `password` | string | ✔ | Initial password |
+| `display_name` | string | ✔ | Display name |
+| `is_admin` | bool | | Grant admin privileges |
+
+**`PATCH /api/v1/admin/users/{id}`** accepts the same fields (all optional). Omitted fields are unchanged.
+
+Admin user responses include `id`, `email`, `display_name`, `is_admin`, `created_at`, and `updated_at`.
 
 ### Share endpoints
 
@@ -179,6 +238,35 @@ Full validation error example:
 | `is_reverse_share` | bool | | Allow others to upload files to this share |
 
 **`PATCH /api/v1/shares/{id}`** accepts the same fields (all optional). Use `"clear_password": true` or `"clear_expiry": true` to remove those constraints.
+
+Share responses include the following fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Share UUID |
+| `slug` | string | URL slug used in public links |
+| `name` | string | Display name |
+| `description` | string | Optional description |
+| `has_password` | bool | Whether the share requires a password |
+| `expires_at` | string (RFC3339) | Expiry timestamp, omitted if not set |
+| `max_downloads` | int | Download limit, omitted if not set |
+| `download_count` | int | Number of times files have been downloaded |
+| `max_views` | int | View limit, omitted if not set |
+| `view_count` | int | Number of times the share has been viewed |
+| `is_reverse_share` | bool | Whether others can upload to this share |
+| `created_at` | string (RFC3339) | Creation timestamp |
+| `updated_at` | string (RFC3339) | Last-updated timestamp |
+
+### File object
+
+File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | File UUID |
+| `name` | string | Original filename |
+| `size` | int | File size in bytes |
+| `mime_type` | string | Detected MIME type |
 
 ### Endpoint reference
 
