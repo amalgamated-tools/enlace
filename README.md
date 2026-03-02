@@ -289,9 +289,11 @@ internal/
   handler/         # HTTP handlers and router (chi)
   middleware/       # auth and rate-limiting middleware
   model/           # domain types (Share, File, User)
+  otel/            # structured logging setup (slog)
   repository/      # data-access layer
   service/         # business logic
   storage/         # Storage interface + local & S3 implementations
+  telemetry/       # anonymous opt-in telemetry
 frontend/          # Svelte + TypeScript + Vite app
 ```
 
