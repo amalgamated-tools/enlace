@@ -10,7 +10,17 @@ import (
 
 var Version = "dev"
 
-func SetupLogger() {
+func SetupLogger(v string) {
+	if v != "" {
+		Version = v
+	}
+	// Fall back to build info if version wasn't provided
+	if Version == "dev" {
+		info, ok := debug.ReadBuildInfo()
+		if ok && info.Main.Version != "" {
+			Version = info.Main.Version
+		}
+	}
 	format := "json"
 	level := slog.LevelInfo
 	addSource := false
@@ -42,14 +52,6 @@ func SetupLogger() {
 		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{AddSource: addSource, Level: level}))
 	} else {
 		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: addSource, Level: level}))
-	}
-
-	// Try to get version from build info
-	info, ok := debug.ReadBuildInfo()
-	if ok {
-		if info.Main.Version != "" {
-			Version = info.Main.Version
-		}
 	}
 
 	logger = logger.With(slog.String("version", Version))
