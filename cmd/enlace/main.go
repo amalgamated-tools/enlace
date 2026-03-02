@@ -108,11 +108,12 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	// Initialize recipient repository and email service
 	recipientRepo := repository.NewRecipientRepository(db.DB())
 	emailService := service.NewEmailService(service.SMTPConfig{
-		Host: cfg.SMTPHost,
-		Port: cfg.SMTPPort,
-		User: cfg.SMTPUser,
-		Pass: cfg.SMTPPass,
-		From: cfg.SMTPFrom,
+		Host:      cfg.SMTPHost,
+		Port:      cfg.SMTPPort,
+		User:      cfg.SMTPUser,
+		Pass:      cfg.SMTPPass,
+		From:      cfg.SMTPFrom,
+		TLSPolicy: cfg.SMTPTLSPolicy,
 	}, recipientRepo, cfg.BaseURL)
 
 	// Initialize OIDC service (optional, based on config)

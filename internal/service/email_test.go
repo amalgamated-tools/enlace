@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/smtp"
 	"strings"
 	"testing"
+
+	mail "github.com/wneessen/go-mail"
 
 	"github.com/amalgamated-tools/enlace/internal/database"
 	"github.com/amalgamated-tools/enlace/internal/model"
@@ -20,8 +21,15 @@ var configuredSMTP = service.SMTPConfig{
 	From: "noreply@example.com",
 }
 
-func noopSendMail(string, smtp.Auth, string, []string, []byte) error {
-	return nil
+// stubSender implements service.MailSender for testing.
+type stubSender struct {
+	sentMsgs []*mail.Msg
+	err      error
+}
+
+func (s *stubSender) DialAndSendWithContext(_ context.Context, msgs ...*mail.Msg) error {
+	s.sentMsgs = append(s.sentMsgs, msgs...)
+	return s.err
 }
 
 type emailTestEnv struct {
@@ -51,7 +59,7 @@ func setupEmailService(t *testing.T, cfg service.SMTPConfig) *emailTestEnv {
 
 func TestEmailService_IsConfigured(t *testing.T) {
 	t.Run("configured when host, port, and from are set", func(t *testing.T) {
-		env := setupEmailService(t, service.SMTPConfig{Host: "smtp.example.com", Port: 587, From: "noreply@example.com"})
+		env := setupEmailService(t, configuredSMTP)
 		defer env.cleanup()
 
 		if !env.svc.IsConfigured() {
@@ -117,11 +125,8 @@ func TestEmailService_SendShareNotification_SkipsEmptyEmails(t *testing.T) {
 	env := setupEmailService(t, configuredSMTP)
 	defer env.cleanup()
 
-	sendCalled := false
-	env.svc.SetSendMailFunc(func(string, smtp.Auth, string, []string, []byte) error {
-		sendCalled = true
-		return nil
-	})
+	stub := &stubSender{}
+	env.svc.SetSender(stub)
 
 	ctx := context.Background()
 	share := &model.Share{
@@ -135,8 +140,8 @@ func TestEmailService_SendShareNotification_SkipsEmptyEmails(t *testing.T) {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 
-	if sendCalled {
-		t.Error("expected sendMail not to be called for empty emails")
+	if len(stub.sentMsgs) != 0 {
+		t.Errorf("expected 0 messages sent for empty emails, got %d", len(stub.sentMsgs))
 	}
 
 	recipients, err := env.recipientRepo.ListByShare(ctx, "share-123")
@@ -152,7 +157,8 @@ func TestEmailService_SendShareNotification_RecordsRecipients(t *testing.T) {
 	env := setupEmailService(t, configuredSMTP)
 	defer env.cleanup()
 
-	env.svc.SetSendMailFunc(noopSendMail)
+	stub := &stubSender{}
+	env.svc.SetSender(stub)
 
 	ctx := context.Background()
 
@@ -168,6 +174,10 @@ func TestEmailService_SendShareNotification_RecordsRecipients(t *testing.T) {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 
+	if len(stub.sentMsgs) != 2 {
+		t.Errorf("expected 2 messages sent, got %d", len(stub.sentMsgs))
+	}
+
 	recipients, err := env.recipientRepo.ListByShare(ctx, "share-rec")
 	if err != nil {
 		t.Fatalf("failed to list recipients: %v", err)
@@ -181,9 +191,8 @@ func TestEmailService_SendShareNotification_ReturnsErrorOnFailure(t *testing.T) 
 	env := setupEmailService(t, configuredSMTP)
 	defer env.cleanup()
 
-	env.svc.SetSendMailFunc(func(string, smtp.Auth, string, []string, []byte) error {
-		return fmt.Errorf("connection refused")
-	})
+	stub := &stubSender{err: fmt.Errorf("connection refused")}
+	env.svc.SetSender(stub)
 
 	ctx := context.Background()
 	share := &model.Share{ID: "share-fail", Slug: "fail-test", Name: "Fail Test"}
@@ -204,6 +213,51 @@ func TestEmailService_SendShareNotification_ReturnsErrorOnFailure(t *testing.T) 
 	}
 	if len(recipients) != 0 {
 		t.Errorf("expected 0 recipients for failed sends, got %d", len(recipients))
+	}
+}
+
+func TestEmailService_SendShareNotification_MessageContent(t *testing.T) {
+	env := setupEmailService(t, configuredSMTP)
+	defer env.cleanup()
+
+	stub := &stubSender{}
+	env.svc.SetSender(stub)
+
+	ctx := context.Background()
+
+	shareRepo := repository.NewShareRepository(env.db)
+	share := &model.Share{ID: "share-content", Slug: "content-test", Name: "Content Test"}
+	if err := shareRepo.Create(ctx, share); err != nil {
+		t.Fatalf("failed to create share: %v", err)
+	}
+
+	err := env.svc.SendShareNotification(ctx, share, []string{"user@example.com"})
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	if len(stub.sentMsgs) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(stub.sentMsgs))
+	}
+
+	msg := stub.sentMsgs[0]
+
+	// Verify From address
+	fromAddrs := msg.GetFrom()
+	if len(fromAddrs) != 1 || fromAddrs[0].Address != "noreply@example.com" {
+		t.Errorf("expected From to be noreply@example.com, got %v", fromAddrs)
+	}
+
+	// Verify To address
+	toAddrs := msg.GetTo()
+	if len(toAddrs) != 1 || toAddrs[0].Address != "user@example.com" {
+		t.Errorf("expected To to be user@example.com, got %v", toAddrs)
+	}
+
+	// Verify Subject
+	subjects := msg.GetGenHeader(mail.HeaderSubject)
+	if len(subjects) != 1 || subjects[0] != "Content Test has been shared with you on Enlace" {
+		t.Errorf("unexpected Subject: %v", subjects)
 	}
 }
 

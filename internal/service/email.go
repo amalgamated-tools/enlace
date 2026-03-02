@@ -6,13 +6,11 @@ import (
 	"fmt"
 	htmltemplate "html/template"
 	"log/slog"
-	"mime/multipart"
-	"net/smtp"
-	"net/textproto"
 	"strings"
 	texttemplate "text/template"
 
 	"github.com/google/uuid"
+	mail "github.com/wneessen/go-mail"
 
 	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/repository"
@@ -20,42 +18,79 @@ import (
 
 // SMTPConfig holds SMTP connection settings.
 type SMTPConfig struct {
-	Host string
-	Port int
-	User string
-	Pass string
-	From string
+	Host      string
+	Port      int
+	User      string
+	Pass      string
+	From      string
+	TLSPolicy string
 }
 
-// SendMailFunc is the function signature for sending mail (matches smtp.SendMail).
-type SendMailFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+// MailSender abstracts the go-mail client for testing.
+type MailSender interface {
+	DialAndSendWithContext(ctx context.Context, msgs ...*mail.Msg) error
+}
 
 // EmailService handles sending email notifications and tracking recipients.
 type EmailService struct {
 	cfg           SMTPConfig
 	recipientRepo *repository.RecipientRepository
 	baseURL       string
-	sendMailFn    SendMailFunc
+	sender        MailSender
 }
 
 // NewEmailService creates a new EmailService instance.
 func NewEmailService(cfg SMTPConfig, recipientRepo *repository.RecipientRepository, baseURL string) *EmailService {
-	return &EmailService{
+	svc := &EmailService{
 		cfg:           cfg,
 		recipientRepo: recipientRepo,
 		baseURL:       baseURL,
-		sendMailFn:    smtp.SendMail,
+	}
+
+	// Only create the mail client when SMTP is configured.
+	if cfg.Host != "" && cfg.Port > 0 && cfg.From != "" {
+		opts := []mail.Option{
+			mail.WithPort(cfg.Port),
+			mail.WithTLSPortPolicy(parseTLSPolicy(cfg.TLSPolicy)),
+		}
+		if cfg.User != "" || cfg.Pass != "" {
+			opts = append(opts,
+				mail.WithSMTPAuth(mail.SMTPAuthPlain),
+				mail.WithUsername(cfg.User),
+				mail.WithPassword(cfg.Pass),
+			)
+		}
+		client, err := mail.NewClient(cfg.Host, opts...)
+		if err != nil {
+			slog.Error("failed to create mail client", slog.Any("error", err))
+		} else {
+			svc.sender = client
+		}
+	}
+
+	return svc
+}
+
+// parseTLSPolicy converts a string TLS policy to a go-mail TLSPolicy.
+func parseTLSPolicy(policy string) mail.TLSPolicy {
+	switch strings.ToLower(policy) {
+	case "mandatory":
+		return mail.TLSMandatory
+	case "none", "notls":
+		return mail.NoTLS
+	default:
+		return mail.TLSOpportunistic
 	}
 }
 
-// SetSendMailFunc overrides the SMTP send function (for testing).
-func (s *EmailService) SetSendMailFunc(fn SendMailFunc) {
-	s.sendMailFn = fn
+// SetSender overrides the mail sender (for testing).
+func (s *EmailService) SetSender(sender MailSender) {
+	s.sender = sender
 }
 
 // IsConfigured returns true if SMTP has sufficient configuration to send mail.
 func (s *EmailService) IsConfigured() bool {
-	return s.cfg.Host != "" && s.cfg.Port > 0 && s.cfg.From != ""
+	return s.cfg.Host != "" && s.cfg.Port > 0 && s.cfg.From != "" && s.sender != nil
 }
 
 type emailTemplateData struct {
@@ -90,7 +125,7 @@ var htmlTmpl = htmltemplate.Must(htmltemplate.New("html").Parse(
 </html>`))
 
 // SendShareNotification sends notification emails for a share and records recipients.
-// It attempts delivery to all recipients and returns an error if any sends failed.
+// It batches all messages over a single SMTP connection and returns an error if any sends failed.
 func (s *EmailService) SendShareNotification(ctx context.Context, share *model.Share, recipients []string) error {
 	if !s.IsConfigured() {
 		slog.WarnContext(ctx, "SMTP not configured, skipping email notification")
@@ -105,17 +140,78 @@ func (s *EmailService) SendShareNotification(ctx context.Context, share *model.S
 		Link:        shareLink,
 	}
 
-	var failed []string
+	// Render templates once for all recipients.
+	var plainBuf, htmlBuf bytes.Buffer
+	if err := plainTextTmpl.Execute(&plainBuf, data); err != nil {
+		return fmt.Errorf("render plain text template: %w", err)
+	}
+	if err := htmlTmpl.Execute(&htmlBuf, data); err != nil {
+		return fmt.Errorf("render HTML template: %w", err)
+	}
+	plainBody := plainBuf.String()
+	htmlBody := htmlBuf.String()
+
+	// Build one message per valid recipient.
+	var msgs []*mail.Msg
+	var validEmails []string
 	for _, email := range recipients {
 		email = strings.TrimSpace(email)
 		if email == "" {
 			continue
 		}
+		m := mail.NewMsg()
+		if err := m.From(s.cfg.From); err != nil {
+			slog.ErrorContext(ctx, "invalid From address", slog.Any("error", err))
+			return fmt.Errorf("invalid From address: %w", err)
+		}
+		if err := m.To(email); err != nil {
+			slog.ErrorContext(ctx, "invalid To address", slog.String("to", email), slog.Any("error", err))
+			continue
+		}
+		m.Subject(fmt.Sprintf("%s has been shared with you on Enlace", share.Name))
+		m.SetDate()
+		m.SetMessageID()
+		m.SetBodyString(mail.TypeTextPlain, plainBody)
+		m.AddAlternativeString(mail.TypeTextHTML, htmlBody)
+		msgs = append(msgs, m)
+		validEmails = append(validEmails, email)
+	}
 
-		if err := s.sendMultipartEmail(email, share.Name, data); err != nil {
+	if len(msgs) == 0 {
+		return nil
+	}
+
+	// Send all messages over a single connection.
+	sendErr := s.sender.DialAndSendWithContext(ctx, msgs...)
+	if sendErr != nil {
+		slog.ErrorContext(ctx, "failed to send emails", slog.Any("error", sendErr))
+	}
+
+	// Determine if the failure was connection-level (no per-message errors set)
+	// vs per-message (individual messages have HasSendError).
+	connectionFailure := sendErr != nil
+	if connectionFailure {
+		for _, m := range msgs {
+			if m.HasSendError() {
+				connectionFailure = false
+				break
+			}
+		}
+	}
+
+	// Record successful sends and track failures.
+	var failed []string
+	for i, m := range msgs {
+		email := validEmails[i]
+
+		if connectionFailure || m.HasSendError() {
+			errDetail := m.SendError()
+			if errDetail == nil {
+				errDetail = sendErr
+			}
 			slog.ErrorContext(ctx, "failed to send email",
 				slog.String("to", email),
-				slog.Any("error", err))
+				slog.Any("error", errDetail))
 			failed = append(failed, email)
 			continue
 		}
@@ -143,69 +239,4 @@ func (s *EmailService) SendShareNotification(ctx context.Context, share *model.S
 // ListRecipients returns all recipients for a given share.
 func (s *EmailService) ListRecipients(ctx context.Context, shareID string) ([]*model.ShareRecipient, error) {
 	return s.recipientRepo.ListByShare(ctx, shareID)
-}
-
-// sanitizeHeaderValue removes CR and LF characters to prevent SMTP header injection.
-func sanitizeHeaderValue(s string) string {
-	s = strings.ReplaceAll(s, "\r", "")
-	s = strings.ReplaceAll(s, "\n", "")
-	return s
-}
-
-func (s *EmailService) sendMultipartEmail(to, shareName string, data emailTemplateData) error {
-	to = sanitizeHeaderValue(to)
-	shareName = sanitizeHeaderValue(shareName)
-	from := sanitizeHeaderValue(s.cfg.From)
-
-	var body bytes.Buffer
-
-	writer := multipart.NewWriter(&body)
-
-	// Write headers
-	var msg bytes.Buffer
-	fmt.Fprintf(&msg, "From: %s\r\n", from)
-	fmt.Fprintf(&msg, "To: %s\r\n", to)
-	fmt.Fprintf(&msg, "Subject: %q has been shared with you on Enlace\r\n", shareName)
-	fmt.Fprintf(&msg, "MIME-Version: 1.0\r\n")
-	fmt.Fprintf(&msg, "Content-Type: multipart/alternative; boundary=%s\r\n", writer.Boundary())
-	fmt.Fprintf(&msg, "\r\n")
-
-	// Plain text part
-	plainHeader := textproto.MIMEHeader{}
-	plainHeader.Set("Content-Type", "text/plain; charset=UTF-8")
-	plainPart, err := writer.CreatePart(plainHeader)
-	if err != nil {
-		return fmt.Errorf("failed to create plain text part: %w", err)
-	}
-	if err := plainTextTmpl.Execute(plainPart, data); err != nil {
-		return fmt.Errorf("failed to render plain text template: %w", err)
-	}
-
-	// HTML part
-	htmlHeader := textproto.MIMEHeader{}
-	htmlHeader.Set("Content-Type", "text/html; charset=UTF-8")
-	htmlPart, err := writer.CreatePart(htmlHeader)
-	if err != nil {
-		return fmt.Errorf("failed to create HTML part: %w", err)
-	}
-	if err := htmlTmpl.Execute(htmlPart, data); err != nil {
-		return fmt.Errorf("failed to render HTML template: %w", err)
-	}
-
-	if err := writer.Close(); err != nil {
-		return fmt.Errorf("failed to finalize MIME body: %w", err)
-	}
-
-	// Combine headers and body
-	if _, err := msg.Write(body.Bytes()); err != nil {
-		return fmt.Errorf("failed to write message body: %w", err)
-	}
-
-	addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
-	var auth smtp.Auth
-	if s.cfg.User != "" && s.cfg.Pass != "" {
-		auth = smtp.PlainAuth("", s.cfg.User, s.cfg.Pass, s.cfg.Host)
-	}
-
-	return s.sendMailFn(addr, auth, from, []string{to}, msg.Bytes())
 }
