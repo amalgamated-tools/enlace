@@ -47,6 +47,12 @@ type RouterConfig struct {
 
 	// CORS allowed origins (comma-separated). Defaults to BaseURL if empty.
 	CORSOrigins []string
+
+	// TOTP Service (optional, for 2FA)
+	TOTPService *service.TOTPService
+
+	// 2FA enforcement
+	Require2FA bool
 }
 
 // NewRouter creates a new Chi router with all routes configured.
@@ -80,13 +86,21 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	r.Get("/health", healthHandler)
 
 	// Create handlers
-	authHandler := NewAuthHandler(cfg.AuthService)
+	var totpServiceAdapter TOTPServiceInterface
+	if cfg.TOTPService != nil {
+		totpServiceAdapter = newTOTPServiceAdapter(cfg.TOTPService)
+	}
+	authHandler := NewAuthHandler(cfg.AuthService, totpServiceAdapter, cfg.Require2FA)
+	totpHandler := NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), cfg.Require2FA)
 	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService)
 	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService)
 	userHandler := NewUserHandler(cfg.AuthService)
 	adminHandler := NewAdminHandler(cfg.UserRepo)
 	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret))
 	oidcHandler := NewOIDCHandler(newOIDCServiceAdapter(cfg.OIDCService), newAuthTokenAdapter(cfg.AuthService), cfg.BaseURL)
+
+	// Rate limiters
+	tfaRateLimiter := intMiddleware.TFAVerifyRateLimiter()
 
 	// API v1 routes
 	r.Route("/api/v1", func(r chi.Router) {
@@ -96,6 +110,13 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 			r.Post("/login", authHandler.Login)
 			r.Post("/refresh", authHandler.Refresh)
 			r.Post("/logout", authHandler.Logout)
+
+			// 2FA verification routes (public, rate-limited)
+			r.Route("/2fa", func(r chi.Router) {
+				r.Use(tfaRateLimiter.Limit)
+				r.Post("/verify", totpHandler.Verify)
+				r.Post("/recovery", totpHandler.Recovery)
+			})
 
 			// OIDC routes
 			r.Route("/oidc", func(r chi.Router) {
@@ -140,6 +161,15 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 				r.Get("/link", oidcHandler.Link)
 				r.Get("/callback", oidcHandler.LinkCallback)
 				r.Delete("/", oidcHandler.Unlink)
+			})
+
+			// 2FA management routes
+			r.Route("/2fa", func(r chi.Router) {
+				r.Get("/status", totpHandler.GetStatus)
+				r.Post("/setup", totpHandler.BeginSetup)
+				r.Post("/confirm", totpHandler.ConfirmSetup)
+				r.Post("/disable", totpHandler.Disable)
+				r.Post("/recovery-codes", totpHandler.RegenerateRecoveryCodes)
 			})
 		})
 
@@ -294,4 +324,52 @@ func (a *authTokenAdapter) GenerateTokensForUser(userID string, isAdmin bool) (*
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
 	}, nil
+}
+
+// totpServiceAdapterImpl adapts *service.TOTPService to TOTPServiceInterface.
+type totpServiceAdapterImpl struct {
+	svc *service.TOTPService
+}
+
+func newTOTPServiceAdapter(svc *service.TOTPService) TOTPServiceInterface {
+	if svc == nil {
+		return nil
+	}
+	return &totpServiceAdapterImpl{svc: svc}
+}
+
+func (a *totpServiceAdapterImpl) BeginSetup(ctx context.Context, userID string) (string, string, string, error) {
+	return a.svc.BeginSetup(ctx, userID)
+}
+
+func (a *totpServiceAdapterImpl) ConfirmSetup(ctx context.Context, userID, code string) ([]string, error) {
+	return a.svc.ConfirmSetup(ctx, userID, code)
+}
+
+func (a *totpServiceAdapterImpl) Verify(ctx context.Context, userID, code string) error {
+	return a.svc.Verify(ctx, userID, code)
+}
+
+func (a *totpServiceAdapterImpl) VerifyRecoveryCode(ctx context.Context, userID, code string) error {
+	return a.svc.VerifyRecoveryCode(ctx, userID, code)
+}
+
+func (a *totpServiceAdapterImpl) Disable(ctx context.Context, userID string) error {
+	return a.svc.Disable(ctx, userID)
+}
+
+func (a *totpServiceAdapterImpl) RegenerateRecoveryCodes(ctx context.Context, userID string) ([]string, error) {
+	return a.svc.RegenerateRecoveryCodes(ctx, userID)
+}
+
+func (a *totpServiceAdapterImpl) GetStatus(ctx context.Context, userID string) (bool, error) {
+	return a.svc.GetStatus(ctx, userID)
+}
+
+func (a *totpServiceAdapterImpl) GeneratePendingToken(userID string, isAdmin bool) (string, error) {
+	return a.svc.GeneratePendingToken(userID, isAdmin)
+}
+
+func (a *totpServiceAdapterImpl) ValidatePendingToken(tokenStr string) (*service.Claims, error) {
+	return a.svc.ValidatePendingToken(tokenStr)
 }

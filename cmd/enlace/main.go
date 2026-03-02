@@ -26,22 +26,22 @@ import (
 
 var version = "dev"
 
-// @title           Enlace API
-// @version         1.0
-// @description     File sharing API with support for password-protected shares, expiring links, reverse shares, and admin user management.
+//	@title			Enlace API
+//	@version		1.0
+//	@description	File sharing API with support for password-protected shares, expiring links, reverse shares, and admin user management.
 
-// @host      localhost:8080
-// @BasePath  /
+//	@host		localhost:8080
+//	@BasePath	/
 
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
-// @description Enter your Bearer token: Bearer {token}
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Enter your Bearer token: Bearer {token}
 
-// @securityDefinitions.apikey ShareToken
-// @in header
-// @name X-Share-Token
-// @description Share access token for password-protected shares
+// @securityDefinitions.apikey	ShareToken
+// @in							header
+// @name						X-Share-Token
+// @description				Share access token for password-protected shares
 func main() {
 	otel.SetupLogger(version)
 	cancelCtx, cancelAll := context.WithCancel(context.Background())
@@ -98,12 +98,14 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	userRepo := repository.NewUserRepository(db.DB())
 	shareRepo := repository.NewShareRepository(db.DB())
 	fileRepo := repository.NewFileRepository(db.DB())
+	totpRepo := repository.NewTOTPRepository(db.DB())
 
 	// Initialize services
 	jwtSecret := []byte(cfg.JWTSecret)
 	authService := service.NewAuthService(userRepo, jwtSecret)
 	shareService := service.NewShareService(shareRepo, fileRepo, store)
 	fileService := service.NewFileService(fileRepo, shareRepo, store)
+	totpService := service.NewTOTPService(totpRepo, userRepo, jwtSecret)
 
 	// Initialize OIDC service (optional, based on config)
 	var oidcService *service.OIDCService
@@ -148,6 +150,8 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		FrontendFS:     frontendFS,
 		SwaggerEnabled: cfg.SwaggerEnabled,
 		CORSOrigins:    corsOrigins,
+		TOTPService:    totpService,
+		Require2FA:     cfg.Require2FA,
 	})
 
 	// Create server

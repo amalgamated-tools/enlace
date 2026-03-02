@@ -34,6 +34,8 @@ type Config struct {
 	SwaggerEnabled bool
 	// CORS
 	CORSOrigins string
+	// 2FA enforcement
+	Require2FA bool
 }
 
 func Load() *Config {
@@ -63,6 +65,7 @@ func Load() *Config {
 		OIDCScopes:       getEnv("OIDC_SCOPES", "openid email profile"),
 		SwaggerEnabled:   getEnvBool("SWAGGER_ENABLED", false),
 		CORSOrigins:      getEnv("CORS_ORIGINS", ""),
+		Require2FA:       getEnvBool("REQUIRE_2FA", false),
 	}
 }
 

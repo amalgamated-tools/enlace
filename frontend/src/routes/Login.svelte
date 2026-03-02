@@ -53,7 +53,21 @@
 
     loading = true;
     try {
-      await auth.login(email, password);
+      const result = await auth.login(email, password);
+
+      if (result.requires2FA && result.pendingToken) {
+        push(`/auth/2fa?token=${encodeURIComponent(result.pendingToken)}`);
+        return;
+      }
+
+      if (result.requires2FASetup) {
+        toast.info(
+          "Your administrator requires two-factor authentication. Please set it up now.",
+        );
+        push("/settings?setup2fa=true");
+        return;
+      }
+
       toast.success("Logged in successfully");
       push("/");
     } catch (err) {

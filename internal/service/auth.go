@@ -40,6 +40,7 @@ type TokenPair struct {
 type Claims struct {
 	UserID  string `json:"uid"`
 	IsAdmin bool   `json:"adm"`
+	TFA     bool   `json:"tfa,omitempty"` // true for pending 2FA tokens
 	jwt.RegisteredClaims
 }
 
@@ -151,6 +152,18 @@ func (s *AuthService) RefreshTokens(ctx context.Context, refreshToken string) (*
 // GetUser retrieves a user by their ID.
 func (s *AuthService) GetUser(ctx context.Context, userID string) (*model.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+// GetUserByEmail retrieves a user by their email address.
+func (s *AuthService) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return nil, ErrUserNotFound

@@ -123,7 +123,7 @@ func (h *ShareHandler) List(w http.ResponseWriter, r *http.Request) {
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		body	body		createShareRequest			true	"Share details"
+//	@Param		body	body		createShareRequest	true	"Share details"
 //	@Success	201		{object}	APIResponse{data=shareResponse}
 //	@Failure	400		{object}	ValidationErrorResponse
 //	@Failure	401		{object}	APIResponse
@@ -189,7 +189,7 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 //	@Tags		shares
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		id	path		string						true	"Share ID (UUID)"
+//	@Param		id	path		string	true	"Share ID (UUID)"
 //	@Success	200	{object}	APIResponse{data=shareResponse}
 //	@Failure	401	{object}	APIResponse
 //	@Failure	404	{object}	APIResponse
@@ -235,8 +235,8 @@ func (h *ShareHandler) Get(w http.ResponseWriter, r *http.Request) {
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		id		path		string						true	"Share ID (UUID)"
-//	@Param		body	body		updateShareRequest			true	"Fields to update"
+//	@Param		id		path		string				true	"Share ID (UUID)"
+//	@Param		body	body		updateShareRequest	true	"Fields to update"
 //	@Success	200		{object}	APIResponse{data=shareResponse}
 //	@Failure	400		{object}	ValidationErrorResponse
 //	@Failure	401		{object}	APIResponse
@@ -331,7 +331,7 @@ func (h *ShareHandler) Update(w http.ResponseWriter, r *http.Request) {
 //	@Tags		shares
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		id	path		string		true	"Share ID (UUID)"
+//	@Param		id	path		string	true	"Share ID (UUID)"
 //	@Success	200	{object}	APIResponse
 //	@Failure	401	{object}	APIResponse
 //	@Failure	404	{object}	APIResponse
