@@ -6,12 +6,12 @@ all: build
 # Build the Go binary with embedded frontend
 build: frontend-build
 	@echo "Building enlace..."
-	go build -o enlace ./cmd/enlace
+	go build -ldflags="-X main.version=$(git describe --tags --dirty --always)" -o enlace ./cmd/enlace
 
 # Build without frontend (for faster iteration during backend development)
 build-backend:
 	@echo "Building backend only..."
-	go build -o enlace ./cmd/enlace
+	go build -ldflags="-X main.version=$(git describe --tags --dirty --always)" -o enlace ./cmd/enlace
 
 # Run the application locally
 run: build
