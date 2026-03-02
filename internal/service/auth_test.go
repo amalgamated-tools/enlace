@@ -5,7 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/amalgamated-tools/enlace/internal/database"
+	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/repository"
 	"github.com/amalgamated-tools/enlace/internal/service"
 )
@@ -342,6 +345,56 @@ func TestAuthService_UpdatePassword_UserNotFound(t *testing.T) {
 	}
 }
 
+func TestAuthService_UpdatePassword_OIDCFieldsPreserved(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	svc := service.NewAuthService(userRepo, []byte("test-secret-key-for-jwt-signing"))
+
+	ctx := context.Background()
+
+	// Create a user with OIDC fields and a password
+	oidcUser := &model.User{
+		ID:          "oidc-pwd-user",
+		Email:       "oidc-pwd@example.com",
+		DisplayName: "OIDC Pwd User",
+		OIDCSubject: "subject-456",
+		OIDCIssuer:  "https://issuer.example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	// Set a password hash so UpdatePassword can verify the old password
+	hash, err := bcrypt.GenerateFromPassword([]byte("oldpassword"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("failed to hash password: %v", err)
+	}
+	oidcUser.PasswordHash = string(hash)
+	if err := userRepo.Create(ctx, oidcUser); err != nil {
+		t.Fatalf("failed to create OIDC user: %v", err)
+	}
+
+	// Update password
+	if err := svc.UpdatePassword(ctx, oidcUser.ID, "oldpassword", "newpassword"); err != nil {
+		t.Fatalf("failed to update password: %v", err)
+	}
+
+	// Verify OIDC fields are preserved
+	fetched, err := userRepo.GetByID(ctx, oidcUser.ID)
+	if err != nil {
+		t.Fatalf("failed to fetch user: %v", err)
+	}
+	if fetched.OIDCSubject != "subject-456" {
+		t.Errorf("expected OIDCSubject 'subject-456', got %s", fetched.OIDCSubject)
+	}
+	if fetched.OIDCIssuer != "https://issuer.example.com" {
+		t.Errorf("expected OIDCIssuer 'https://issuer.example.com', got %s", fetched.OIDCIssuer)
+	}
+}
+
 func TestAuthService_TokenClaimsContainAdminStatus(t *testing.T) {
 	db, err := database.New(":memory:")
 	if err != nil {
@@ -376,6 +429,190 @@ func TestAuthService_TokenClaimsContainAdminStatus(t *testing.T) {
 	}
 	if claims.IsAdmin != false {
 		t.Errorf("expected IsAdmin to be false, got %v", claims.IsAdmin)
+	}
+}
+
+func TestAuthService_UpdateProfile(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Register
+	user, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	// Update display name only
+	updated, err := svc.UpdateProfile(ctx, user.ID, "New Name", "")
+	if err != nil {
+		t.Fatalf("failed to update profile: %v", err)
+	}
+	if updated.DisplayName != "New Name" {
+		t.Errorf("expected display name 'New Name', got %s", updated.DisplayName)
+	}
+	if updated.Email != "test@example.com" {
+		t.Errorf("expected email to remain test@example.com, got %s", updated.Email)
+	}
+}
+
+func TestAuthService_UpdateProfile_EmailChange(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	user, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	// Update email
+	updated, err := svc.UpdateProfile(ctx, user.ID, "", "new@example.com")
+	if err != nil {
+		t.Fatalf("failed to update profile: %v", err)
+	}
+	if updated.Email != "new@example.com" {
+		t.Errorf("expected email 'new@example.com', got %s", updated.Email)
+	}
+	if updated.DisplayName != "Test User" {
+		t.Errorf("expected display name to remain 'Test User', got %s", updated.DisplayName)
+	}
+}
+
+func TestAuthService_UpdateProfile_EmailConflict(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Register two users
+	user1, err := svc.Register(ctx, "user1@example.com", "password123", "User 1")
+	if err != nil {
+		t.Fatalf("failed to register user1: %v", err)
+	}
+	_, err = svc.Register(ctx, "user2@example.com", "password123", "User 2")
+	if err != nil {
+		t.Fatalf("failed to register user2: %v", err)
+	}
+
+	// Try to change user1's email to user2's email
+	_, err = svc.UpdateProfile(ctx, user1.ID, "", "user2@example.com")
+	if err != service.ErrEmailExists {
+		t.Errorf("expected ErrEmailExists, got %v", err)
+	}
+}
+
+func TestAuthService_UpdateProfile_SameEmail(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	user, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	// Update with same email should succeed (no conflict)
+	updated, err := svc.UpdateProfile(ctx, user.ID, "", "test@example.com")
+	if err != nil {
+		t.Fatalf("failed to update profile with same email: %v", err)
+	}
+	if updated.Email != "test@example.com" {
+		t.Errorf("expected email 'test@example.com', got %s", updated.Email)
+	}
+}
+
+func TestAuthService_UpdateProfile_UserNotFound(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	_, err := svc.UpdateProfile(ctx, "nonexistent-id", "Name", "email@example.com")
+	if err != service.ErrUserNotFound {
+		t.Errorf("expected ErrUserNotFound, got %v", err)
+	}
+}
+
+func TestAuthService_UpdateProfile_BothFields(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	user, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	// Update both display name and email
+	updated, err := svc.UpdateProfile(ctx, user.ID, "Updated Name", "updated@example.com")
+	if err != nil {
+		t.Fatalf("failed to update profile: %v", err)
+	}
+	if updated.DisplayName != "Updated Name" {
+		t.Errorf("expected display name 'Updated Name', got %s", updated.DisplayName)
+	}
+	if updated.Email != "updated@example.com" {
+		t.Errorf("expected email 'updated@example.com', got %s", updated.Email)
+	}
+}
+
+func TestAuthService_UpdateProfile_OIDCFieldsPreserved(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	svc := service.NewAuthService(userRepo, []byte("test-secret-key-for-jwt-signing"))
+
+	ctx := context.Background()
+
+	// Create a user with OIDC fields set
+	oidcUser := &model.User{
+		ID:          "oidc-user-id",
+		Email:       "oidc@example.com",
+		DisplayName: "OIDC User",
+		OIDCSubject: "subject-123",
+		OIDCIssuer:  "https://issuer.example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	if err := userRepo.Create(ctx, oidcUser); err != nil {
+		t.Fatalf("failed to create OIDC user: %v", err)
+	}
+
+	// Update the profile display name
+	updated, err := svc.UpdateProfile(ctx, oidcUser.ID, "New OIDC Name", "")
+	if err != nil {
+		t.Fatalf("failed to update profile: %v", err)
+	}
+
+	if updated.DisplayName != "New OIDC Name" {
+		t.Errorf("expected display name 'New OIDC Name', got %s", updated.DisplayName)
+	}
+	if updated.OIDCSubject != "subject-123" {
+		t.Errorf("expected OIDCSubject 'subject-123', got %s", updated.OIDCSubject)
+	}
+	if updated.OIDCIssuer != "https://issuer.example.com" {
+		t.Errorf("expected OIDCIssuer 'https://issuer.example.com', got %s", updated.OIDCIssuer)
+	}
+
+	// Verify persistence by re-fetching
+	fetched, err := userRepo.GetByID(ctx, oidcUser.ID)
+	if err != nil {
+		t.Fatalf("failed to fetch user: %v", err)
+	}
+	if fetched.OIDCSubject != "subject-123" {
+		t.Errorf("persisted OIDCSubject: expected 'subject-123', got %s", fetched.OIDCSubject)
+	}
+	if fetched.OIDCIssuer != "https://issuer.example.com" {
+		t.Errorf("persisted OIDCIssuer: expected 'https://issuer.example.com', got %s", fetched.OIDCIssuer)
 	}
 }
 

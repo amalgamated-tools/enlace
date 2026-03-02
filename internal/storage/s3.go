@@ -22,6 +22,7 @@ type S3Storage struct {
 	client     *s3.Client
 	bucket     string
 	pathPrefix string
+	region     string
 }
 
 // S3Config holds the configuration for connecting to an S3 or S3-compatible service.
@@ -87,6 +88,7 @@ func NewS3Storage(ctx context.Context, cfg S3Config) (*S3Storage, error) {
 		client:     client,
 		bucket:     cfg.Bucket,
 		pathPrefix: cfg.PathPrefix,
+		region:     cfg.Region,
 	}, nil
 }
 
