@@ -379,6 +379,135 @@ func TestAuthService_TokenClaimsContainAdminStatus(t *testing.T) {
 	}
 }
 
+func TestAuthService_UpdateProfile(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Register
+	user, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	// Update display name only
+	updated, err := svc.UpdateProfile(ctx, user.ID, "New Name", "")
+	if err != nil {
+		t.Fatalf("failed to update profile: %v", err)
+	}
+	if updated.DisplayName != "New Name" {
+		t.Errorf("expected display name 'New Name', got %s", updated.DisplayName)
+	}
+	if updated.Email != "test@example.com" {
+		t.Errorf("expected email to remain test@example.com, got %s", updated.Email)
+	}
+}
+
+func TestAuthService_UpdateProfile_EmailChange(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	user, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	// Update email
+	updated, err := svc.UpdateProfile(ctx, user.ID, "", "new@example.com")
+	if err != nil {
+		t.Fatalf("failed to update profile: %v", err)
+	}
+	if updated.Email != "new@example.com" {
+		t.Errorf("expected email 'new@example.com', got %s", updated.Email)
+	}
+	if updated.DisplayName != "Test User" {
+		t.Errorf("expected display name to remain 'Test User', got %s", updated.DisplayName)
+	}
+}
+
+func TestAuthService_UpdateProfile_EmailConflict(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Register two users
+	user1, err := svc.Register(ctx, "user1@example.com", "password123", "User 1")
+	if err != nil {
+		t.Fatalf("failed to register user1: %v", err)
+	}
+	_, err = svc.Register(ctx, "user2@example.com", "password123", "User 2")
+	if err != nil {
+		t.Fatalf("failed to register user2: %v", err)
+	}
+
+	// Try to change user1's email to user2's email
+	_, err = svc.UpdateProfile(ctx, user1.ID, "", "user2@example.com")
+	if err != service.ErrEmailExists {
+		t.Errorf("expected ErrEmailExists, got %v", err)
+	}
+}
+
+func TestAuthService_UpdateProfile_SameEmail(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	user, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	// Update with same email should succeed (no conflict)
+	updated, err := svc.UpdateProfile(ctx, user.ID, "", "test@example.com")
+	if err != nil {
+		t.Fatalf("failed to update profile with same email: %v", err)
+	}
+	if updated.Email != "test@example.com" {
+		t.Errorf("expected email 'test@example.com', got %s", updated.Email)
+	}
+}
+
+func TestAuthService_UpdateProfile_UserNotFound(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	_, err := svc.UpdateProfile(ctx, "nonexistent-id", "Name", "email@example.com")
+	if err != service.ErrUserNotFound {
+		t.Errorf("expected ErrUserNotFound, got %v", err)
+	}
+}
+
+func TestAuthService_UpdateProfile_BothFields(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	user, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	// Update both display name and email
+	updated, err := svc.UpdateProfile(ctx, user.ID, "Updated Name", "updated@example.com")
+	if err != nil {
+		t.Fatalf("failed to update profile: %v", err)
+	}
+	if updated.DisplayName != "Updated Name" {
+		t.Errorf("expected display name 'Updated Name', got %s", updated.DisplayName)
+	}
+	if updated.Email != "updated@example.com" {
+		t.Errorf("expected email 'updated@example.com', got %s", updated.Email)
+	}
+}
+
 func TestAuthService_GenerateTokensForUser(t *testing.T) {
 	svc, cleanup := setupAuthService(t)
 	defer cleanup()
