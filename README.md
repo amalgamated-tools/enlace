@@ -75,20 +75,18 @@ The following variables are accepted by the configuration loader and are reserve
 
 | Variable | Default | Description |
 |---|---|---|
-| `LOG_FORMAT` | `json` | Log output format: `json` or any other value for plain text |
-| `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, or `error`. `debug` also enables source location in log lines |
+| `LOG_FORMAT` | `json` | Log output format: `json` or `text`; any other value is treated as `text` |
+| `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, or `error`. Setting `debug` also adds source location to each log line |
 
 ### Telemetry
 
-Enlace includes **opt-in** anonymous telemetry. It is **disabled by default** and only activates when `TELEMETRY_ENABLED=true` is explicitly set.
-
-When enabled, a single anonymous ping is sent on first startup. The payload contains only: application name, a random install ID, version string, OS, and CPU architecture. No personal data, file contents, or IP addresses are collected. The install ID is stored in `DATA_DIR/install_id` so subsequent startups do not re-send.
+Enlace collects **opt-in, anonymous** telemetry to help improve the project. Telemetry is **disabled by default** and only activates when `TELEMETRY_ENABLED=true` is explicitly set. When enabled, Enlace attempts to send a lightweight telemetry ping on startup; after a successful send, it writes an install ID file in `DATA_DIR` and will not send additional pings for that installation. If the request fails or the install ID file cannot be written, the ping will be retried on subsequent startups. Clearing or changing `DATA_DIR` causes Enlace to generate a new install ID and send telemetry again. The payload contains only: application name, a random install ID, version, OS, architecture, and timestamp — no user data, files, or IP addresses.
 
 | Variable | Default | Description |
 |---|---|---|
 | `TELEMETRY_ENABLED` | `false` | Set to `true` to enable anonymous telemetry |
-| `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Override the telemetry collection endpoint |
-| `DATA_DIR` | `./data` | Directory used to persist the install ID file |
+| `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Endpoint that receives the telemetry ping (override for self-hosted collection) |
+| `DATA_DIR` | `./data` | Directory used to store the install ID file that prevents duplicate telemetry pings |
 
 ### OIDC / SSO (optional)
 
