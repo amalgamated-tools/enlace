@@ -2,6 +2,8 @@ package service_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/amalgamated-tools/enlace/internal/config"
@@ -26,9 +28,14 @@ func TestNewOIDCService_Disabled(t *testing.T) {
 }
 
 func TestNewOIDCService_EnabledInvalidIssuer(t *testing.T) {
+	// Use a local httptest server that returns 404 for OIDC discovery,
+	// so the test fails deterministically without any external network access.
+	srv := httptest.NewServer(http.NotFoundHandler())
+	defer srv.Close()
+
 	cfg := &config.Config{
 		OIDCEnabled:   true,
-		OIDCIssuerURL: "http://invalid-issuer-that-does-not-exist.example.com",
+		OIDCIssuerURL: srv.URL,
 		OIDCClientID:  "client-id",
 	}
 
