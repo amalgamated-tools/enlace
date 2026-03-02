@@ -1404,3 +1404,59 @@ func TestShareHandler_ListRecipients_NilEmailService(t *testing.T) {
 		t.Errorf("expected 0 recipients, got %d", len(response.Data))
 	}
 }
+
+func TestShareHandler_SendNotification_InvalidEmail(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShare := &mockShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockEmail := &mockEmailService{isConfigured: true}
+
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
+	router := setupShareRouter(h)
+
+	body := `{"recipients": ["not-an-email"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares/"+shareID+"/notify", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestShareHandler_SendNotification_CRLFInjection(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShare := &mockShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockEmail := &mockEmailService{isConfigured: true}
+
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
+	router := setupShareRouter(h)
+
+	body := `{"recipients": ["evil@example.com\r\nBcc: victim@example.com"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares/"+shareID+"/notify", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}

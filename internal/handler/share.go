@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -161,6 +162,20 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate recipient emails if provided
+	var validRecipients []string
+	for _, email := range req.Recipients {
+		email = strings.TrimSpace(email)
+		if email == "" {
+			continue
+		}
+		if !validateEmail(email) {
+			ValidationError(w, map[string]string{"recipients": "invalid email address: " + email})
+			return
+		}
+		validRecipients = append(validRecipients, email)
+	}
+
 	// Parse expiry time if provided
 	var expiresAt *time.Time
 	if req.ExpiresAt != nil && *req.ExpiresAt != "" {
@@ -192,13 +207,13 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send email notifications in background (non-blocking)
-	if len(req.Recipients) > 0 && h.emailService != nil && h.emailService.IsConfigured() {
+	if len(validRecipients) > 0 && h.emailService != nil && h.emailService.IsConfigured() {
 		parentCtx := r.Context()
 		go func() {
 			ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)
 			defer cancel()
 
-			if err := h.emailService.SendShareNotification(ctx, share, req.Recipients); err != nil {
+			if err := h.emailService.SendShareNotification(ctx, share, validRecipients); err != nil {
 				slog.ErrorContext(ctx, "failed to send share notifications", slog.Any("error", err))
 			}
 		}()
@@ -525,6 +540,16 @@ type recipientResponse struct {
 	SentAt string `json:"sent_at" example:"2024-01-01T00:00:00Z"`
 }
 
+// validateEmail checks that an email address is valid using net/mail.ParseAddress
+// and rejects addresses containing CRLF characters that could enable header injection.
+func validateEmail(email string) bool {
+	if strings.ContainsAny(email, "\r\n") {
+		return false
+	}
+	_, err := mail.ParseAddress(email)
+	return err == nil
+}
+
 // SendNotification handles POST /api/v1/shares/{id}/notify - sends email notifications for a share.
 //
 //	@Summary	Send share notification emails
@@ -579,9 +604,14 @@ func (h *ShareHandler) SendNotification(w http.ResponseWriter, r *http.Request) 
 	var validRecipients []string
 	for _, email := range req.Recipients {
 		email = strings.TrimSpace(email)
-		if email != "" && strings.Contains(email, "@") {
-			validRecipients = append(validRecipients, email)
+		if email == "" {
+			continue
 		}
+		if !validateEmail(email) {
+			ValidationError(w, map[string]string{"recipients": "invalid email address: " + email})
+			return
+		}
+		validRecipients = append(validRecipients, email)
 	}
 
 	if len(validRecipients) == 0 {
