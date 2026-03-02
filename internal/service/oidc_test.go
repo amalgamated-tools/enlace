@@ -67,16 +67,7 @@ func TestOIDCService_FindOrCreateUser_ExistingOIDCUser(t *testing.T) {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	// Use FindOrCreateUser - should find existing user by OIDC identity
-	info := &service.OIDCUserInfo{
-		Subject:     "sub-123",
-		Email:       "oidc@example.com",
-		DisplayName: "OIDC User",
-		Issuer:      "https://issuer.example.com",
-	}
-
-	// We can't call FindOrCreateUser directly since OIDCService needs a real provider.
-	// But we can verify the user was created correctly via the repo.
+	// Verify user can be found by OIDC identity (used by FindOrCreateUser)
 	found, err := userRepo.GetByOIDC(ctx, "https://issuer.example.com", "sub-123")
 	if err != nil {
 		t.Fatalf("failed to find user by OIDC: %v", err)
@@ -84,7 +75,9 @@ func TestOIDCService_FindOrCreateUser_ExistingOIDCUser(t *testing.T) {
 	if found.ID != existingUser.ID {
 		t.Errorf("expected user ID %s, got %s", existingUser.ID, found.ID)
 	}
-	_ = info // used to verify the test scenario setup
+	if found.Email != "oidc@example.com" {
+		t.Errorf("expected email 'oidc@example.com', got %s", found.Email)
+	}
 }
 
 func TestOIDCService_UnlinkOIDC_RequiresPassword(t *testing.T) {
