@@ -136,3 +136,47 @@ func (r *TOTPRepository) DeleteRecoveryCodesByUser(ctx context.Context, userID s
 	_, err := r.db.ExecContext(ctx, `DELETE FROM user_recovery_codes WHERE user_id = ?`, userID)
 	return err
 }
+
+// EnableAndSaveRecoveryCodes atomically enables 2FA and stores recovery codes in a single transaction.
+// This prevents a state where 2FA is enabled but no recovery codes exist.
+func (r *TOTPRepository) EnableAndSaveRecoveryCodes(ctx context.Context, userID string, codes []*model.RecoveryCode) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	// Enable TOTP
+	now := time.Now()
+	result, err := tx.ExecContext(ctx,
+		`UPDATE user_totp SET enabled = 1, verified_at = ? WHERE user_id = ?`, now, userID,
+	)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ErrNotFound
+	}
+
+	// Delete any existing recovery codes
+	if _, err := tx.ExecContext(ctx, `DELETE FROM user_recovery_codes WHERE user_id = ?`, userID); err != nil {
+		return err
+	}
+
+	// Insert new recovery codes
+	stmt, err := tx.PrepareContext(ctx, `INSERT INTO user_recovery_codes (id, user_id, code_hash, created_at) VALUES (?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, code := range codes {
+		code.CreatedAt = now
+		if _, err := stmt.ExecContext(ctx, code.ID, code.UserID, code.CodeHash, code.CreatedAt); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}

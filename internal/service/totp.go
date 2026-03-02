@@ -127,19 +127,15 @@ func (s *TOTPService) ConfirmSetup(ctx context.Context, userID, code string) ([]
 		return nil, ErrInvalidTOTPCode
 	}
 
-	// Enable 2FA
-	if err := s.totpRepo.Enable(ctx, userID); err != nil {
-		return nil, fmt.Errorf("failed to enable 2FA: %w", err)
-	}
-
 	// Generate recovery codes
 	codes, plainCodes, err := s.generateRecoveryCodes(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate recovery codes: %w", err)
 	}
 
-	if err := s.totpRepo.SaveRecoveryCodes(ctx, codes); err != nil {
-		return nil, fmt.Errorf("failed to save recovery codes: %w", err)
+	// Atomically enable 2FA and save recovery codes
+	if err := s.totpRepo.EnableAndSaveRecoveryCodes(ctx, userID, codes); err != nil {
+		return nil, fmt.Errorf("failed to enable 2FA: %w", err)
 	}
 
 	return plainCodes, nil
@@ -361,31 +357,32 @@ func (s *TOTPService) encryptSecret(plaintext string) (string, error) {
 }
 
 // decryptSecret decrypts an AES-GCM encrypted TOTP secret.
-// If decryption fails, it returns the input as-is to handle legacy plaintext secrets.
+// If the input is not valid base64, it is treated as a legacy plaintext secret.
+// If base64 decoding succeeds but decryption fails, an error is returned
+// (indicating a corrupt ciphertext or wrong encryption key).
 func (s *TOTPService) decryptSecret(encoded string) (string, error) {
 	data, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
-		// Not base64 — likely a legacy plaintext secret
+		// Not base64 — legacy plaintext secret
 		return encoded, nil
 	}
 	key := deriveEncryptionKey(s.jwtSecret)
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return encoded, nil
+		return "", fmt.Errorf("failed to create cipher: %w", err)
 	}
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return encoded, nil
+		return "", fmt.Errorf("failed to create GCM: %w", err)
 	}
 	nonceSize := gcm.NonceSize()
 	if len(data) < nonceSize {
-		// Too short to be encrypted — legacy plaintext
+		// Too short to be a valid ciphertext — legacy plaintext
 		return encoded, nil
 	}
 	plaintext, err := gcm.Open(nil, data[:nonceSize], data[nonceSize:], nil)
 	if err != nil {
-		// Decryption failed — likely a legacy plaintext secret
-		return encoded, nil
+		return "", fmt.Errorf("failed to decrypt TOTP secret (wrong key or corrupt data): %w", err)
 	}
 	return string(plaintext), nil
 }
