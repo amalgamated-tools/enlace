@@ -62,4 +62,27 @@ describe("sharesApi", () => {
     await sharesApi.delete("1");
     expect(mockedApi.delete).toHaveBeenCalledWith("/shares/1");
   });
+
+  it("sendNotification calls POST /shares/:id/notify", async () => {
+    const response = { message: "Notifications sent" };
+    mockedApi.post.mockResolvedValueOnce(response);
+
+    const recipients = ["a@example.com", "b@example.com"];
+    const result = await sharesApi.sendNotification("1", recipients);
+    expect(result).toEqual(response);
+    expect(mockedApi.post).toHaveBeenCalledWith("/shares/1/notify", {
+      recipients,
+    });
+  });
+
+  it("getRecipients calls GET /shares/:id/recipients", async () => {
+    const recipients = [
+      { id: "r1", email: "a@example.com", sent_at: "2026-01-01T00:00:00Z" },
+    ];
+    mockedApi.get.mockResolvedValueOnce(recipients);
+
+    const result = await sharesApi.getRecipients("1");
+    expect(result).toEqual(recipients);
+    expect(mockedApi.get).toHaveBeenCalledWith("/shares/1/recipients");
+  });
 });
