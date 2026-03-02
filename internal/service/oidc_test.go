@@ -111,4 +111,3 @@ func TestOIDCService_UnlinkOIDC_RequiresPassword(t *testing.T) {
 		t.Error("expected user to have no password hash")
 	}
 }
-
