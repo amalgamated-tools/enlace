@@ -43,9 +43,9 @@ func NewEmailService(cfg SMTPConfig, recipientRepo *repository.RecipientReposito
 	}
 }
 
-// IsConfigured returns true if SMTP host is set.
+// IsConfigured returns true if SMTP has sufficient configuration to send mail.
 func (s *EmailService) IsConfigured() bool {
-	return s.cfg.Host != ""
+	return s.cfg.Host != "" && s.cfg.Port > 0 && s.cfg.From != ""
 }
 
 type emailTemplateData struct {

@@ -195,10 +195,13 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Send email notifications in background (non-blocking)
 	if len(req.Recipients) > 0 && h.emailService != nil && h.emailService.IsConfigured() {
+		parentCtx := r.Context()
 		go func() {
-			bgCtx := context.Background()
-			if err := h.emailService.SendShareNotification(bgCtx, share, req.Recipients); err != nil {
-				slog.ErrorContext(bgCtx, "failed to send share notifications", slog.Any("error", err))
+			ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)
+			defer cancel()
+
+			if err := h.emailService.SendShareNotification(ctx, share, req.Recipients); err != nil {
+				slog.ErrorContext(ctx, "failed to send share notifications", slog.Any("error", err))
 			}
 		}()
 	}
