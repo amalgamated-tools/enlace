@@ -10,7 +10,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
 - **Storage backends** — local filesystem or any S3-compatible object store
 - **Admin panel** — manage users from the UI
-- **Rate limiting** — IP-based rate limiting middleware available (login: 5 req/min, register: 3 req/min, general API: 60 req/min)
+- **Rate limiting** — IP-based rate limiting middleware included (not applied by default; see `internal/middleware/ratelimit.go` for `LoginRateLimiter`, `RegisterRateLimiter`, and `APIRateLimiter` helpers)
 - **Embeds frontend** — single binary ships the compiled Svelte app
 
 ## Quick Start (Docker)
@@ -120,6 +120,29 @@ Every endpoint returns a JSON object with the following envelope:
 { "success": false, "error": "validation failed", "fields": { "<field>": "<reason>" } }
 ```
 
+List endpoints that support pagination include a `meta` object:
+
+```json
+{
+  "success": true,
+  "data": [...],
+  "meta": { "total": 42, "page": 1, "per_page": 20 }
+}
+```
+
+Full validation error example:
+
+```json
+{
+  "success": false,
+  "error": "validation failed",
+  "fields": {
+    "email": "email is required",
+    "password": "password must be at least 8 characters"
+  }
+}
+```
+
 ### Auth endpoints
 
 **`POST /api/v1/auth/register`**
@@ -193,38 +216,6 @@ Every endpoint returns a JSON object with the following envelope:
 | `GET` | `/s/{slug}/files/{fileId}` | — | Download a file |
 | `GET` | `/s/{slug}/files/{fileId}/preview` | — | Preview a file |
 | `POST` | `/s/{slug}/upload` | — | Upload to a reverse share |
-
-## API Response Format
-
-Every JSON response uses a standard envelope:
-
-```json
-{ "success": true, "data": { ... } }
-{ "success": false, "error": "human-readable message" }
-```
-
-List endpoints that support pagination include a `meta` object:
-
-```json
-{
-  "success": true,
-  "data": [...],
-  "meta": { "total": 42, "page": 1, "per_page": 20 }
-}
-```
-
-Validation errors return HTTP 400 and include a `fields` map:
-
-```json
-{
-  "success": false,
-  "error": "validation failed",
-  "fields": {
-    "email": "email is required",
-    "password": "password must be at least 8 characters"
-  }
-}
-```
 
 ## Development
 
