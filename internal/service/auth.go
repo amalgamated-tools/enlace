@@ -240,6 +240,8 @@ func (s *AuthService) UpdatePassword(ctx context.Context, userID, oldPassword, n
 		PasswordHash: string(newHash),
 		DisplayName:  user.DisplayName,
 		IsAdmin:      user.IsAdmin,
+		OIDCSubject:  user.OIDCSubject,
+		OIDCIssuer:   user.OIDCIssuer,
 		CreatedAt:    user.CreatedAt,
 		UpdatedAt:    user.UpdatedAt,
 	}
