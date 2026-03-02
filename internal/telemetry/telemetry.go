@@ -56,6 +56,10 @@ func Send(version string) {
 		slog.Debug("Using local data folder for install ID", slog.String("path", installIDPath))
 	}
 
+	send(version, endpoint, installIDPath)
+}
+
+func send(version, endpoint, installIDPath string) {
 	// Only send once per install
 	if _, err := os.Stat(installIDPath); err == nil {
 		slog.Debug("Telemetry already sent for this install, skipping")
