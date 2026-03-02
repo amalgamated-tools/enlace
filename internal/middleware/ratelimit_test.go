@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amalgamated-tools/sharer/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/middleware"
 	"golang.org/x/time/rate"
 )
 

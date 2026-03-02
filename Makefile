@@ -5,21 +5,21 @@ all: build
 
 # Build the Go binary with embedded frontend
 build: frontend-build
-	@echo "Building sharer..."
-	go build -o sharer ./cmd/sharer
+	@echo "Building enlace..."
+	go build -o enlace ./cmd/enlace
 
 # Build without frontend (for faster iteration during backend development)
 build-backend:
 	@echo "Building backend only..."
-	go build -o sharer ./cmd/sharer
+	go build -o enlace ./cmd/enlace
 
 # Run the application locally
 run: build
-	JWT_SECRET=dev-secret ./sharer
+	JWT_SECRET=dev-secret ./enlace
 
 # Run backend only (assumes frontend is already built)
 run-backend:
-	JWT_SECRET=dev-secret go run ./cmd/sharer
+	JWT_SECRET=dev-secret go run ./cmd/enlace
 
 # Live reload development (air + pnpm dev via Procfile.dev)
 dev: frontend-install
@@ -38,7 +38,7 @@ test-coverage:
 
 # Clean build artifacts
 clean:
-	rm -f sharer coverage.out coverage.html db/sharer.db
+	rm -f enlace coverage.out coverage.html db/enlace.db ./enlace.db
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
 	rm -rf uploads
@@ -56,11 +56,11 @@ frontend-build: frontend-install
 
 # Build Docker image
 docker-build:
-	docker build -t sharer:latest .
+	docker build -t enlace:latest .
 
 # Run Docker container
 docker-run:
-	docker run -p 8080:8080 -e JWT_SECRET=dev-secret sharer:latest
+	docker run -p 8080:8080 -e JWT_SECRET=dev-secret enlace:latest
 
 # Run with docker-compose
 docker-up:

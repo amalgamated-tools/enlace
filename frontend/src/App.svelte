@@ -66,7 +66,7 @@
           <a
             href="#/"
             class="text-base font-semibold text-slate-900 tracking-tight"
-            >Sharer</a
+            >enlace</a
           >
           <nav class="flex items-center gap-1">
             <a

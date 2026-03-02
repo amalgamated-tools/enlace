@@ -58,7 +58,7 @@
 <div class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
   <div class="w-full max-w-sm">
     <div class="text-center mb-8">
-      <h1 class="text-2xl font-semibold text-slate-900">Sharer</h1>
+      <h1 class="text-2xl font-semibold text-slate-900">enlace</h1>
       <p class="text-sm text-slate-500 mt-1">Create a new account</p>
     </div>
 

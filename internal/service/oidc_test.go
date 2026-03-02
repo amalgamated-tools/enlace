@@ -3,8 +3,8 @@ package service_test
 import (
 	"testing"
 
-	"github.com/amalgamated-tools/sharer/internal/config"
-	"github.com/amalgamated-tools/sharer/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/config"
+	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
 func TestNewOIDCService_Disabled(t *testing.T) {

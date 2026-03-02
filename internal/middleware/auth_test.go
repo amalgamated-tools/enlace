@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amalgamated-tools/sharer/internal/database"
-	"github.com/amalgamated-tools/sharer/internal/middleware"
-	"github.com/amalgamated-tools/sharer/internal/repository"
-	"github.com/amalgamated-tools/sharer/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/database"
+	"github.com/amalgamated-tools/enlace/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/repository"
+	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
 func setupAuthService(t *testing.T) (*service.AuthService, func()) {

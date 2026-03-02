@@ -145,7 +145,7 @@
   <header class="bg-white border-b border-slate-200">
     <div class="max-w-6xl mx-auto px-6 h-14 flex items-center">
       <span class="text-base font-semibold text-slate-900 tracking-tight"
-        >Sharer</span
+        >enlace</span
       >
     </div>
   </header>
