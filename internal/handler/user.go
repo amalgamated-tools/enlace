@@ -58,6 +58,16 @@ type profileResponse struct {
 var userEmailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 
 // GetProfile handles GET /api/v1/me - get current user profile.
+//
+//	@Summary	Get current user profile
+//	@Tags		user
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Success	200	{object}	APIResponse{data=profileResponse}
+//	@Failure	401	{object}	APIResponse
+//	@Failure	404	{object}	APIResponse
+//	@Failure	500	{object}	APIResponse
+//	@Router		/api/v1/me [get]
 func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -82,6 +92,19 @@ func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateProfile handles PATCH /api/v1/me - update user profile.
+//
+//	@Summary	Update current user profile
+//	@Tags		user
+//	@Accept		json
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		body	body		updateProfileRequest		true	"Fields to update"
+//	@Success	200		{object}	APIResponse{data=profileResponse}
+//	@Failure	400		{object}	ValidationErrorResponse
+//	@Failure	401		{object}	APIResponse
+//	@Failure	409		{object}	APIResponse
+//	@Failure	500		{object}	APIResponse
+//	@Router		/api/v1/me [patch]
 func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -135,6 +158,18 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdatePassword handles PUT /api/v1/me/password - change user password.
+//
+//	@Summary	Change password
+//	@Tags		user
+//	@Accept		json
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		body	body		updatePasswordRequest	true	"Old and new password"
+//	@Success	200		{object}	APIResponse
+//	@Failure	400		{object}	ValidationErrorResponse
+//	@Failure	401		{object}	APIResponse
+//	@Failure	500		{object}	APIResponse
+//	@Router		/api/v1/me/password [put]
 func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
