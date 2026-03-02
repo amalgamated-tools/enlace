@@ -73,7 +73,21 @@ type fileResponse struct {
 	MimeType string `json:"mime_type"`
 }
 
-// Upload handles POST /api/v1/shares/{shareId}/files - uploads files to a share.
+// Upload handles POST /api/v1/shares/{id}/files - uploads files to a share.
+//
+//	@Summary	Upload files to a share
+//	@Tags		files
+//	@Accept		multipart/form-data
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		id		path		string						true	"Share ID (UUID)"
+//	@Param		files	formData	file						true	"Files to upload"
+//	@Success	201		{object}	APIResponse{data=[]fileResponse}
+//	@Failure	400		{object}	APIResponse
+//	@Failure	401		{object}	APIResponse
+//	@Failure	404		{object}	APIResponse
+//	@Failure	500		{object}	APIResponse
+//	@Router		/api/v1/shares/{id}/files [post]
 func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -163,6 +177,17 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListByShare handles GET /api/v1/shares/{id}/files - lists files for a share.
+//
+//	@Summary	List files in a share
+//	@Tags		files
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		id	path		string						true	"Share ID (UUID)"
+//	@Success	200	{object}	APIResponse{data=[]fileResponse}
+//	@Failure	401	{object}	APIResponse
+//	@Failure	404	{object}	APIResponse
+//	@Failure	500	{object}	APIResponse
+//	@Router		/api/v1/shares/{id}/files [get]
 func (h *FileHandler) ListByShare(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -213,6 +238,17 @@ func (h *FileHandler) ListByShare(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete handles DELETE /api/v1/files/{id} - deletes a file.
+//
+//	@Summary	Delete a file
+//	@Tags		files
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		id	path		string		true	"File ID (UUID)"
+//	@Success	200	{object}	APIResponse
+//	@Failure	401	{object}	APIResponse
+//	@Failure	404	{object}	APIResponse
+//	@Failure	500	{object}	APIResponse
+//	@Router		/api/v1/files/{id} [delete]
 func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {

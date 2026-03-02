@@ -79,14 +79,25 @@ type oidcConfigResponse struct {
 }
 
 // Config returns OIDC configuration for the frontend.
-// GET /api/v1/auth/oidc/config
+//
+//	@Summary	Get OIDC configuration
+//	@Tags		oidc
+//	@Produce	json
+//	@Success	200	{object}	APIResponse{data=oidcConfigResponse}
+//	@Router		/api/v1/auth/oidc/config [get]
 func (h *OIDCHandler) Config(w http.ResponseWriter, r *http.Request) {
 	enabled := h.oidcService != nil && h.oidcService.IsEnabled()
 	Success(w, http.StatusOK, oidcConfigResponse{Enabled: enabled})
 }
 
 // Login initiates the OIDC login flow.
-// GET /api/v1/auth/oidc/login
+//
+//	@Summary	Start OIDC login
+//	@Tags		oidc
+//	@Success	302	{string}	string	"Redirects to OIDC provider"
+//	@Failure	404	{object}	APIResponse
+//	@Failure	500	{object}	APIResponse
+//	@Router		/api/v1/auth/oidc/login [get]
 func (h *OIDCHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if h.oidcService == nil {
 		Error(w, http.StatusNotFound, "OIDC is not enabled")
@@ -129,7 +140,14 @@ func (h *OIDCHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // Callback handles the OIDC provider callback.
-// GET /api/v1/auth/oidc/callback
+//
+//	@Summary	OIDC callback
+//	@Tags		oidc
+//	@Param		code	query		string	true	"Authorization code"
+//	@Param		state	query		string	true	"State parameter"
+//	@Success	302		{string}	string	"Redirects to frontend with tokens"
+//	@Failure	302		{string}	string	"Redirects to frontend with error"
+//	@Router		/api/v1/auth/oidc/callback [get]
 func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	if h.oidcService == nil {
 		h.redirectWithError(w, r, "OIDC is not enabled")
@@ -202,7 +220,15 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 }
 
 // Link initiates the OIDC account linking flow.
-// GET /api/v1/me/oidc/link
+//
+//	@Summary	Start OIDC account linking
+//	@Tags		oidc
+//	@Security	BearerAuth
+//	@Success	302	{string}	string	"Redirects to OIDC provider"
+//	@Failure	401	{object}	APIResponse
+//	@Failure	404	{object}	APIResponse
+//	@Failure	500	{object}	APIResponse
+//	@Router		/api/v1/me/oidc/link [get]
 func (h *OIDCHandler) Link(w http.ResponseWriter, r *http.Request) {
 	if h.oidcService == nil {
 		Error(w, http.StatusNotFound, "OIDC is not enabled")
@@ -260,7 +286,14 @@ func (h *OIDCHandler) Link(w http.ResponseWriter, r *http.Request) {
 }
 
 // LinkCallback handles the OIDC account linking callback.
-// GET /api/v1/me/oidc/callback
+//
+//	@Summary	OIDC link callback
+//	@Tags		oidc
+//	@Param		code	query		string	true	"Authorization code"
+//	@Param		state	query		string	true	"State parameter"
+//	@Success	302		{string}	string	"Redirects to settings"
+//	@Failure	302		{string}	string	"Redirects with error"
+//	@Router		/api/v1/me/oidc/callback [get]
 func (h *OIDCHandler) LinkCallback(w http.ResponseWriter, r *http.Request) {
 	if h.oidcService == nil {
 		h.redirectWithError(w, r, "OIDC is not enabled")
@@ -324,7 +357,16 @@ func (h *OIDCHandler) LinkCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 // Unlink removes OIDC from the user's account.
-// DELETE /api/v1/me/oidc
+//
+//	@Summary	Unlink OIDC account
+//	@Tags		oidc
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Success	200	{object}	APIResponse
+//	@Failure	400	{object}	APIResponse
+//	@Failure	401	{object}	APIResponse
+//	@Failure	404	{object}	APIResponse
+//	@Router		/api/v1/me/oidc [delete]
 func (h *OIDCHandler) Unlink(w http.ResponseWriter, r *http.Request) {
 	if h.oidcService == nil {
 		Error(w, http.StatusNotFound, "OIDC is not enabled")
