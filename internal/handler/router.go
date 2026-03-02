@@ -91,7 +91,10 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		totpServiceAdapter = newTOTPServiceAdapter(cfg.TOTPService)
 	}
 	authHandler := NewAuthHandler(cfg.AuthService, totpServiceAdapter, cfg.Require2FA)
-	totpHandler := NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), newPasswordVerifierAdapter(cfg.AuthService), cfg.Require2FA)
+	var totpHandler *TOTPHandler
+	if totpServiceAdapter != nil {
+		totpHandler = NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), newPasswordVerifierAdapter(cfg.AuthService), cfg.Require2FA)
+	}
 	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService)
 	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService)
 	userHandler := NewUserHandler(cfg.AuthService)
@@ -112,11 +115,13 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 			r.Post("/logout", authHandler.Logout)
 
 			// 2FA verification routes (public, rate-limited)
-			r.Route("/2fa", func(r chi.Router) {
-				r.Use(tfaRateLimiter.Limit)
-				r.Post("/verify", totpHandler.Verify)
-				r.Post("/recovery", totpHandler.Recovery)
-			})
+			if totpHandler != nil {
+				r.Route("/2fa", func(r chi.Router) {
+					r.Use(tfaRateLimiter.Limit)
+					r.Post("/verify", totpHandler.Verify)
+					r.Post("/recovery", totpHandler.Recovery)
+				})
+			}
 
 			// OIDC routes
 			r.Route("/oidc", func(r chi.Router) {
@@ -164,13 +169,15 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 			})
 
 			// 2FA management routes
-			r.Route("/2fa", func(r chi.Router) {
-				r.Get("/status", totpHandler.GetStatus)
-				r.Post("/setup", totpHandler.BeginSetup)
-				r.Post("/confirm", totpHandler.ConfirmSetup)
-				r.Post("/disable", totpHandler.Disable)
-				r.Post("/recovery-codes", totpHandler.RegenerateRecoveryCodes)
-			})
+			if totpHandler != nil {
+				r.Route("/2fa", func(r chi.Router) {
+					r.Get("/status", totpHandler.GetStatus)
+					r.Post("/setup", totpHandler.BeginSetup)
+					r.Post("/confirm", totpHandler.ConfirmSetup)
+					r.Post("/disable", totpHandler.Disable)
+					r.Post("/recovery-codes", totpHandler.RegenerateRecoveryCodes)
+				})
+			}
 		})
 
 		// Admin routes - require authentication and admin role
