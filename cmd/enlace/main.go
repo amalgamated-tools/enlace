@@ -1,4 +1,4 @@
-//go:generate swag init -g cmd/enlace/main.go -o docs --parseDependency --parseInternal -d ../../
+//go:generate swag init -g main.go -o docs --parseDependency --parseInternal -d ../../
 
 package main
 
