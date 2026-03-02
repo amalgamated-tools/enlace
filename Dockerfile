@@ -1,5 +1,5 @@
 # Build frontend
-FROM node:22-alpine3.21@sha256:af8023ec879993821f6d5b21382ed915622a1b0f1cc03dbeb6804afaf01f8885 AS frontend
+FROM node:22-alpine AS frontend
 
 WORKDIR /app/frontend
 
