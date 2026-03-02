@@ -156,14 +156,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user details
+	// Get user details (required to check 2FA status)
 	user, err := h.authService.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
-		// If we can't get the user, still return the tokens
-		Success(w, http.StatusOK, loginResponse{
-			AccessToken:  tokens.AccessToken,
-			RefreshToken: tokens.RefreshToken,
-		})
+		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 

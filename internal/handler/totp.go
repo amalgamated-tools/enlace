@@ -24,29 +24,23 @@ type TOTPServiceInterface interface {
 
 // PasswordVerifier defines the interface for verifying user passwords.
 type PasswordVerifier interface {
-	GetUserByEmail(ctx context.Context, email string) (*userForTOTP, error)
 	VerifyPassword(ctx context.Context, userID, password string) error
-	GenerateTokensForUser(userID string, isAdmin bool) (*TokenPair, error)
-}
-
-// userForTOTP is a minimal user struct for TOTP operations.
-type userForTOTP struct {
-	ID      string
-	IsAdmin bool
 }
 
 // TOTPHandler handles two-factor authentication HTTP requests.
 type TOTPHandler struct {
 	totpService      TOTPServiceInterface
 	authTokenService AuthTokenServiceInterface
+	passwordVerifier PasswordVerifier
 	require2FA       bool
 }
 
 // NewTOTPHandler creates a new TOTPHandler instance.
-func NewTOTPHandler(totpService TOTPServiceInterface, authTokenService AuthTokenServiceInterface, require2FA bool) *TOTPHandler {
+func NewTOTPHandler(totpService TOTPServiceInterface, authTokenService AuthTokenServiceInterface, passwordVerifier PasswordVerifier, require2FA bool) *TOTPHandler {
 	return &TOTPHandler{
 		totpService:      totpService,
 		authTokenService: authTokenService,
+		passwordVerifier: passwordVerifier,
 		require2FA:       require2FA,
 	}
 }
@@ -234,8 +228,16 @@ func (h *TOTPHandler) Disable(w http.ResponseWriter, r *http.Request) {
 
 	userID := middleware.GetUserID(r.Context())
 
-	// Password verification is done by the auth handler layer that wraps this
-	// For now, we pass through to the service which handles the TOTP deletion
+	// Verify password before allowing 2FA disable
+	if err := h.passwordVerifier.VerifyPassword(r.Context(), userID, req.Password); err != nil {
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			Error(w, http.StatusUnauthorized, "invalid password")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
 	if err := h.totpService.Disable(r.Context(), userID); err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -271,6 +273,16 @@ func (h *TOTPHandler) RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Req
 	}
 
 	userID := middleware.GetUserID(r.Context())
+
+	// Verify password before allowing recovery code regeneration
+	if err := h.passwordVerifier.VerifyPassword(r.Context(), userID, req.Password); err != nil {
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			Error(w, http.StatusUnauthorized, "invalid password")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
 
 	codes, err := h.totpService.RegenerateRecoveryCodes(r.Context(), userID)
 	if err != nil {
