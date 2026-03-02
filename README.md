@@ -19,7 +19,8 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 docker run -d \
   -p 8080:8080 \
   -e JWT_SECRET=change-me \
-  -v enlace-data:/data \
+  -v enlace-db:/app/data \
+  -v enlace-uploads:/app/uploads \
   enlace:latest
 ```
 
