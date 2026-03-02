@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/amalgamated-tools/enlace/internal/database"
 	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/repository"
@@ -340,6 +342,56 @@ func TestAuthService_UpdatePassword_UserNotFound(t *testing.T) {
 	err := svc.UpdatePassword(ctx, "nonexistent-user-id", "oldpassword", "newpassword")
 	if err == nil {
 		t.Error("expected error for nonexistent user")
+	}
+}
+
+func TestAuthService_UpdatePassword_OIDCFieldsPreserved(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	svc := service.NewAuthService(userRepo, []byte("test-secret-key-for-jwt-signing"))
+
+	ctx := context.Background()
+
+	// Create a user with OIDC fields and a password
+	oidcUser := &model.User{
+		ID:          "oidc-pwd-user",
+		Email:       "oidc-pwd@example.com",
+		DisplayName: "OIDC Pwd User",
+		OIDCSubject: "subject-456",
+		OIDCIssuer:  "https://issuer.example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	// Set a password hash so UpdatePassword can verify the old password
+	hash, err := bcrypt.GenerateFromPassword([]byte("oldpassword"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("failed to hash password: %v", err)
+	}
+	oidcUser.PasswordHash = string(hash)
+	if err := userRepo.Create(ctx, oidcUser); err != nil {
+		t.Fatalf("failed to create OIDC user: %v", err)
+	}
+
+	// Update password
+	if err := svc.UpdatePassword(ctx, oidcUser.ID, "oldpassword", "newpassword"); err != nil {
+		t.Fatalf("failed to update password: %v", err)
+	}
+
+	// Verify OIDC fields are preserved
+	fetched, err := userRepo.GetByID(ctx, oidcUser.ID)
+	if err != nil {
+		t.Fatalf("failed to fetch user: %v", err)
+	}
+	if fetched.OIDCSubject != "subject-456" {
+		t.Errorf("expected OIDCSubject 'subject-456', got %s", fetched.OIDCSubject)
+	}
+	if fetched.OIDCIssuer != "https://issuer.example.com" {
+		t.Errorf("expected OIDCIssuer 'https://issuer.example.com', got %s", fetched.OIDCIssuer)
 	}
 }
 

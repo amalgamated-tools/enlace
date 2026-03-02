@@ -13,7 +13,7 @@ func TestNewS3Storage_MissingBucket(t *testing.T) {
 
 	_, err := NewS3Storage(t.Context(), cfg)
 	if err == nil {
-		t.Error("expected error for missing bucket")
+		t.Fatal("expected error for missing bucket")
 	}
 	if err.Error() != "bucket name is required" {
 		t.Errorf("expected 'bucket name is required', got %q", err.Error())
@@ -29,7 +29,7 @@ func TestNewS3Storage_MissingAccessKey(t *testing.T) {
 
 	_, err := NewS3Storage(t.Context(), cfg)
 	if err == nil {
-		t.Error("expected error for missing access key")
+		t.Fatal("expected error for missing access key")
 	}
 	if err.Error() != "access key is required" {
 		t.Errorf("expected 'access key is required', got %q", err.Error())
@@ -45,7 +45,7 @@ func TestNewS3Storage_MissingSecretKey(t *testing.T) {
 
 	_, err := NewS3Storage(t.Context(), cfg)
 	if err == nil {
-		t.Error("expected error for missing secret key")
+		t.Fatal("expected error for missing secret key")
 	}
 	if err.Error() != "secret key is required" {
 		t.Errorf("expected 'secret key is required', got %q", err.Error())
@@ -69,6 +69,9 @@ func TestNewS3Storage_DefaultRegion(t *testing.T) {
 	}
 	if storage.bucket != "test-bucket" {
 		t.Errorf("expected bucket 'test-bucket', got %s", storage.bucket)
+	}
+	if storage.region != "us-east-1" {
+		t.Errorf("expected default region 'us-east-1', got %s", storage.region)
 	}
 }
 
