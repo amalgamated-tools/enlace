@@ -60,6 +60,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	if cfg.JWTSecret == "" {
 		return fmt.Errorf("JWT_SECRET environment variable is required")
 	}
+	slog.DebugContext(cancelCtx, "configuration loaded", slog.Any("config", cfg))
 
 	// Initialize database
 	db, err := database.New(cfg.DatabasePath)
@@ -69,7 +70,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	defer func() { _ = db.Close() }()
 
 	// Initialize storage
-	store, err := initStorage(cfg)
+	store, err := initStorage(cancelCtx, cfg)
 	if err != nil {
 		return err
 	}
@@ -91,16 +92,16 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		var err error
 		oidcService, err = service.NewOIDCService(cfg, userRepo)
 		if err != nil {
-			slog.Warn("failed to initialize OIDC", "error", err)
+			slog.WarnContext(cancelCtx, "failed to initialize OIDC", slog.Any("error", err))
 		} else {
-			slog.Info("OIDC authentication enabled")
+			slog.InfoContext(cancelCtx, "OIDC authentication enabled")
 		}
 	}
 
 	// Get embedded frontend
 	frontendFS, err := enlace.FrontendFS()
 	if err != nil {
-		slog.Warn("failed to load embedded frontend", "error", err)
+		slog.WarnContext(cancelCtx, "failed to load embedded frontend", slog.Any("error", err))
 	}
 
 	// Parse CORS origins
@@ -167,10 +168,10 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 }
 
 // initStorage initializes the storage backend based on configuration.
-func initStorage(cfg *config.Config) (storage.Storage, error) {
+func initStorage(ctx context.Context, cfg *config.Config) (storage.Storage, error) {
 	switch cfg.StorageType {
 	case "s3":
-		s3Store, err := storage.NewS3Storage(context.Background(), storage.S3Config{
+		s3Store, err := storage.NewS3Storage(ctx, storage.S3Config{
 			Endpoint:   cfg.S3Endpoint,
 			Bucket:     cfg.S3Bucket,
 			AccessKey:  cfg.S3AccessKey,
