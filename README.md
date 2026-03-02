@@ -71,6 +71,23 @@ The following variables are accepted by the configuration loader and are reserve
 | `SMTP_PASS` | — | SMTP password |
 | `SMTP_FROM` | `noreply@example.com` | Sender address |
 
+### Logging
+
+| Variable | Default | Description |
+|---|---|---|
+| `LOG_FORMAT` | `json` | Log output format: `json` or `text` |
+| `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, or `error`. Setting `debug` also adds source location to each log line |
+
+### Telemetry
+
+Enlace collects **opt-in, anonymous** telemetry to help improve the project. Telemetry is **disabled by default** and only activates when `TELEMETRY_ENABLED=true` is explicitly set. A one-time ping is sent on first startup and never repeated for the same installation. The payload contains only: application name, a random install ID, version, OS, architecture, and timestamp — no user data, files, or IP addresses.
+
+| Variable | Default | Description |
+|---|---|---|
+| `TELEMETRY_ENABLED` | `false` | Set to `true` to enable anonymous telemetry |
+| `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Endpoint that receives the telemetry ping (override for self-hosted collection) |
+| `DATA_DIR` | `./data` | Directory used to store the install ID file that prevents duplicate telemetry pings |
+
 ### OIDC / SSO (optional)
 
 | Variable | Default | Description |
