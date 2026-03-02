@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -28,30 +29,42 @@ type FileServiceInterface interface {
 	ListByShare(ctx context.Context, shareID string) ([]*model.File, error)
 }
 
+// EmailServiceInterface defines the interface for email notification operations.
+type EmailServiceInterface interface {
+	IsConfigured() bool
+	SendShareNotification(ctx context.Context, share *model.Share, recipients []string) error
+	ListRecipients(ctx context.Context, shareID string) ([]*model.ShareRecipient, error)
+}
+
 // ShareHandler handles share-related HTTP requests.
 type ShareHandler struct {
 	shareService ShareServiceInterface
 	fileService  FileServiceInterface
+	emailService EmailServiceInterface
+	baseURL      string
 }
 
 // NewShareHandler creates a new ShareHandler instance.
-func NewShareHandler(shareService ShareServiceInterface, fileService FileServiceInterface) *ShareHandler {
+func NewShareHandler(shareService ShareServiceInterface, fileService FileServiceInterface, emailService EmailServiceInterface, baseURL string) *ShareHandler {
 	return &ShareHandler{
 		shareService: shareService,
 		fileService:  fileService,
+		emailService: emailService,
+		baseURL:      baseURL,
 	}
 }
 
 // createShareRequest represents the request body for creating a share.
 type createShareRequest struct {
-	Name           string  `json:"name"`
-	Description    string  `json:"description"`
-	Slug           string  `json:"slug"`
-	Password       *string `json:"password"`
-	ExpiresAt      *string `json:"expires_at"`
-	MaxDownloads   *int    `json:"max_downloads"`
-	MaxViews       *int    `json:"max_views"`
-	IsReverseShare bool    `json:"is_reverse_share"`
+	Name           string   `json:"name"`
+	Description    string   `json:"description"`
+	Slug           string   `json:"slug"`
+	Password       *string  `json:"password"`
+	ExpiresAt      *string  `json:"expires_at"`
+	MaxDownloads   *int     `json:"max_downloads"`
+	MaxViews       *int     `json:"max_views"`
+	IsReverseShare bool     `json:"is_reverse_share"`
+	Recipients     []string `json:"recipients"`
 }
 
 // updateShareRequest represents the request body for updating a share.
@@ -123,7 +136,7 @@ func (h *ShareHandler) List(w http.ResponseWriter, r *http.Request) {
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		body	body		createShareRequest			true	"Share details"
+//	@Param		body	body		createShareRequest	true	"Share details"
 //	@Success	201		{object}	APIResponse{data=shareResponse}
 //	@Failure	400		{object}	ValidationErrorResponse
 //	@Failure	401		{object}	APIResponse
@@ -180,6 +193,16 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Send email notifications in background (non-blocking)
+	if len(req.Recipients) > 0 && h.emailService != nil && h.emailService.IsConfigured() {
+		go func() {
+			bgCtx := context.Background()
+			if err := h.emailService.SendShareNotification(bgCtx, share, req.Recipients); err != nil {
+				slog.ErrorContext(bgCtx, "failed to send share notifications", slog.Any("error", err))
+			}
+		}()
+	}
+
 	Success(w, http.StatusCreated, h.toShareResponse(share))
 }
 
@@ -189,7 +212,7 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 //	@Tags		shares
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		id	path		string						true	"Share ID (UUID)"
+//	@Param		id	path		string	true	"Share ID (UUID)"
 //	@Success	200	{object}	APIResponse{data=shareResponse}
 //	@Failure	401	{object}	APIResponse
 //	@Failure	404	{object}	APIResponse
@@ -235,8 +258,8 @@ func (h *ShareHandler) Get(w http.ResponseWriter, r *http.Request) {
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		id		path		string						true	"Share ID (UUID)"
-//	@Param		body	body		updateShareRequest			true	"Fields to update"
+//	@Param		id		path		string				true	"Share ID (UUID)"
+//	@Param		body	body		updateShareRequest	true	"Fields to update"
 //	@Success	200		{object}	APIResponse{data=shareResponse}
 //	@Failure	400		{object}	ValidationErrorResponse
 //	@Failure	401		{object}	APIResponse
@@ -331,7 +354,7 @@ func (h *ShareHandler) Update(w http.ResponseWriter, r *http.Request) {
 //	@Tags		shares
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		id	path		string		true	"Share ID (UUID)"
+//	@Param		id	path		string	true	"Share ID (UUID)"
 //	@Success	200	{object}	APIResponse
 //	@Failure	401	{object}	APIResponse
 //	@Failure	404	{object}	APIResponse
@@ -487,4 +510,157 @@ func (h *ShareHandler) handleServiceError(w http.ResponseWriter, err error) {
 	default:
 		Error(w, http.StatusInternalServerError, "internal server error")
 	}
+}
+
+// sendNotificationRequest represents the request body for sending share notifications.
+type sendNotificationRequest struct {
+	Recipients []string `json:"recipients" example:"user@example.com"`
+}
+
+// recipientResponse represents a share recipient in API responses.
+type recipientResponse struct {
+	ID     string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Email  string `json:"email" example:"user@example.com"`
+	SentAt string `json:"sent_at" example:"2024-01-01T00:00:00Z"`
+}
+
+// SendNotification handles POST /api/v1/shares/{id}/notify - sends email notifications for a share.
+//
+//	@Summary	Send share notification emails
+//	@Tags		shares
+//	@Accept		json
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		id		path		string					true	"Share ID (UUID)"
+//	@Param		body	body		sendNotificationRequest	true	"Recipient emails"
+//	@Success	200		{object}	APIResponse
+//	@Failure	400		{object}	ValidationErrorResponse
+//	@Failure	401		{object}	APIResponse
+//	@Failure	404		{object}	APIResponse
+//	@Failure	500		{object}	APIResponse
+//	@Router		/api/v1/shares/{id}/notify [post]
+func (h *ShareHandler) SendNotification(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	if userID == "" {
+		Error(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	shareID := chi.URLParam(r, "id")
+	if shareID == "" {
+		Error(w, http.StatusBadRequest, "share ID is required")
+		return
+	}
+
+	share, err := h.shareService.GetByID(r.Context(), shareID)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+
+	// Check ownership
+	if share.CreatorID == nil || *share.CreatorID != userID {
+		Error(w, http.StatusNotFound, "share not found")
+		return
+	}
+
+	var req sendNotificationRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Filter and validate recipients
+	var validRecipients []string
+	for _, email := range req.Recipients {
+		email = strings.TrimSpace(email)
+		if email != "" && strings.Contains(email, "@") {
+			validRecipients = append(validRecipients, email)
+		}
+	}
+
+	if len(validRecipients) == 0 {
+		ValidationError(w, map[string]string{"recipients": "at least one valid email address is required"})
+		return
+	}
+
+	if h.emailService == nil || !h.emailService.IsConfigured() {
+		Error(w, http.StatusInternalServerError, "email notifications are not configured")
+		return
+	}
+
+	if err := h.emailService.SendShareNotification(r.Context(), share, validRecipients); err != nil {
+		Error(w, http.StatusInternalServerError, "failed to send notifications")
+		return
+	}
+
+	Success(w, http.StatusOK, map[string]string{"message": "notifications sent"})
+}
+
+// ListRecipients handles GET /api/v1/shares/{id}/recipients - lists notification recipients for a share.
+//
+//	@Summary	List share notification recipients
+//	@Tags		shares
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		id	path		string	true	"Share ID (UUID)"
+//	@Success	200	{object}	APIResponse{data=[]recipientResponse}
+//	@Failure	401	{object}	APIResponse
+//	@Failure	404	{object}	APIResponse
+//	@Failure	500	{object}	APIResponse
+//	@Router		/api/v1/shares/{id}/recipients [get]
+func (h *ShareHandler) ListRecipients(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	if userID == "" {
+		Error(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	shareID := chi.URLParam(r, "id")
+	if shareID == "" {
+		Error(w, http.StatusBadRequest, "share ID is required")
+		return
+	}
+
+	share, err := h.shareService.GetByID(r.Context(), shareID)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+
+	// Check ownership
+	if share.CreatorID == nil || *share.CreatorID != userID {
+		Error(w, http.StatusNotFound, "share not found")
+		return
+	}
+
+	if h.emailService == nil {
+		Success(w, http.StatusOK, []recipientResponse{})
+		return
+	}
+
+	recipients, err := h.emailService.ListRecipients(r.Context(), shareID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to retrieve recipients")
+		return
+	}
+
+	response := make([]recipientResponse, len(recipients))
+	for i, rec := range recipients {
+		response[i] = recipientResponse{
+			ID:     rec.ID,
+			Email:  rec.Email,
+			SentAt: rec.SentAt.Format(time.RFC3339),
+		}
+	}
+
+	Success(w, http.StatusOK, response)
 }

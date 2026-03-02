@@ -25,6 +25,13 @@ export interface CreateShareInput {
   max_downloads?: number;
   max_views?: number;
   is_reverse_share?: boolean;
+  recipients?: string[];
+}
+
+export interface ShareRecipient {
+  id: string;
+  email: string;
+  sent_at: string;
 }
 
 export const sharesApi = {
@@ -34,4 +41,8 @@ export const sharesApi = {
   update: (id: string, input: Partial<CreateShareInput>) =>
     api.patch<Share>(`/shares/${id}`, input),
   delete: (id: string) => api.delete<void>(`/shares/${id}`),
+  sendNotification: (id: string, recipients: string[]) =>
+    api.post<{ message: string }>(`/shares/${id}/notify`, { recipients }),
+  getRecipients: (id: string) =>
+    api.get<ShareRecipient[]>(`/shares/${id}/recipients`),
 };

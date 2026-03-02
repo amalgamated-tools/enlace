@@ -13,6 +13,7 @@
   let expiresAt = "";
   let isReverseShare = false;
 
+  let recipients = "";
   let pendingFiles: File[] = [];
   let creating = false;
   let errors: Record<string, string> = {};
@@ -47,6 +48,11 @@
 
     creating = true;
     try {
+      const recipientList = recipients
+        .split(",")
+        .map((e) => e.trim())
+        .filter((e) => e.length > 0);
+
       const share = await sharesApi.create({
         name: name.trim(),
         description: description.trim() || undefined,
@@ -56,6 +62,7 @@
         max_views: maxViews ? parseInt(maxViews, 10) : undefined,
         expires_at: expiresAt || undefined,
         is_reverse_share: isReverseShare,
+        recipients: recipientList.length > 0 ? recipientList : undefined,
       });
 
       if (pendingFiles.length > 0) {
@@ -151,6 +158,12 @@
           class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
         />
       </div>
+
+      <Input
+        label="Notify by Email"
+        bind:value={recipients}
+        placeholder="email1@example.com, email2@example.com (optional)"
+      />
 
       <div class="flex items-center gap-2.5">
         <input

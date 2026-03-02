@@ -106,7 +106,7 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			body	body		createUserRequest				true	"User details"
+//	@Param			body	body		createUserRequest	true	"User details"
 //	@Success		201		{object}	APIResponse{data=adminUserResponse}
 //	@Failure		400		{object}	ValidationErrorResponse
 //	@Failure		401		{object}	APIResponse
@@ -170,7 +170,7 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 //	@Tags			admin
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		string							true	"User ID (UUID)"
+//	@Param			id	path		string	true	"User ID (UUID)"
 //	@Success		200	{object}	APIResponse{data=adminUserResponse}
 //	@Failure		401	{object}	APIResponse
 //	@Failure		403	{object}	APIResponse
@@ -205,8 +205,8 @@ func (h *AdminHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		string							true	"User ID (UUID)"
-//	@Param			body	body		updateUserRequest				true	"Fields to update"
+//	@Param			id		path		string				true	"User ID (UUID)"
+//	@Param			body	body		updateUserRequest	true	"Fields to update"
 //	@Success		200		{object}	APIResponse{data=adminUserResponse}
 //	@Failure		400		{object}	ValidationErrorResponse
 //	@Failure		401		{object}	APIResponse
@@ -311,7 +311,7 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 //	@Tags			admin
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		string		true	"User ID (UUID)"
+//	@Param			id	path		string	true	"User ID (UUID)"
 //	@Success		200	{object}	APIResponse
 //	@Failure		401	{object}	APIResponse
 //	@Failure		403	{object}	APIResponse
