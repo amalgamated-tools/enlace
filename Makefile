@@ -4,7 +4,7 @@
 all: build
 
 # Build the Go binary with embedded frontend
-build: frontend-build swagger
+build: frontend-build
 	@echo "Building enlace..."
 	go build -o enlace ./cmd/enlace
 
