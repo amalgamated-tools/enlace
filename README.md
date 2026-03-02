@@ -71,6 +71,13 @@ The following variables are accepted by the configuration loader and are reserve
 | `SMTP_PASS` | — | SMTP password |
 | `SMTP_FROM` | `noreply@example.com` | Sender address |
 
+### API & CORS
+
+| Variable | Default | Description |
+|---|---|---|
+| `SWAGGER_ENABLED` | `false` | Set to `true` to serve the Swagger UI at `/swagger/` and the OpenAPI spec at `/swagger/doc.json` |
+| `CORS_ORIGINS` | *(BaseURL)* | Comma-separated list of allowed CORS origins. Defaults to `BASE_URL` when empty |
+
 ### Logging
 
 | Variable | Default | Description |
@@ -280,6 +287,7 @@ File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/health` | — | Health check |
+| `GET` | `/swagger/*` | — | Swagger UI (requires `SWAGGER_ENABLED=true`) |
 | `POST` | `/api/v1/auth/register` | — | Create account |
 | `POST` | `/api/v1/auth/login` | — | Obtain JWT tokens |
 | `POST` | `/api/v1/auth/refresh` | — | Refresh access token |
