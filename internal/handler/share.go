@@ -542,14 +542,24 @@ type recipientResponse struct {
 	SentAt string `json:"sent_at" example:"2024-01-01T00:00:00Z"`
 }
 
-// validateEmail checks that an email address is valid using net/mail.ParseAddress
-// and rejects addresses containing CRLF characters that could enable header injection.
+// validateEmail checks that an email address is a bare valid address using
+// net/mail.ParseAddress. It rejects display-name forms like "Name <user@example.com>"
+// and addresses containing CRLF characters that could enable header injection.
 func validateEmail(email string) bool {
-	if strings.ContainsAny(email, "\r\n") {
+	trimmed := strings.TrimSpace(email)
+	if trimmed == "" {
 		return false
 	}
-	_, err := mail.ParseAddress(email)
-	return err == nil
+	addr, err := mail.ParseAddress(trimmed)
+	if err != nil {
+		return false
+	}
+	// Only accept bare addresses, not display names or comments like "Name <user@example.com>".
+	if addr.Name != "" {
+		return false
+	}
+	// Ensure the parsed address exactly matches the original (trimmed) input.
+	return addr.Address == trimmed
 }
 
 // SendNotification handles POST /api/v1/shares/{id}/notify - sends email notifications for a share.

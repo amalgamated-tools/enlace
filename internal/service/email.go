@@ -129,6 +129,7 @@ func (s *EmailService) SendShareNotification(ctx context.Context, share *model.S
 			slog.ErrorContext(ctx, "failed to record recipient",
 				slog.String("email", email),
 				slog.Any("error", err))
+			failed = append(failed, email)
 		}
 	}
 
@@ -154,6 +155,7 @@ func sanitizeHeaderValue(s string) string {
 func (s *EmailService) sendMultipartEmail(to, shareName string, data emailTemplateData) error {
 	to = sanitizeHeaderValue(to)
 	shareName = sanitizeHeaderValue(shareName)
+	from := sanitizeHeaderValue(s.cfg.From)
 
 	var body bytes.Buffer
 
@@ -161,7 +163,7 @@ func (s *EmailService) sendMultipartEmail(to, shareName string, data emailTempla
 
 	// Write headers
 	var msg bytes.Buffer
-	fmt.Fprintf(&msg, "From: %s\r\n", s.cfg.From)
+	fmt.Fprintf(&msg, "From: %s\r\n", from)
 	fmt.Fprintf(&msg, "To: %s\r\n", to)
 	fmt.Fprintf(&msg, "Subject: %q has been shared with you on Enlace\r\n", shareName)
 	fmt.Fprintf(&msg, "MIME-Version: 1.0\r\n")
@@ -205,5 +207,5 @@ func (s *EmailService) sendMultipartEmail(to, shareName string, data emailTempla
 		auth = smtp.PlainAuth("", s.cfg.User, s.cfg.Pass, s.cfg.Host)
 	}
 
-	return s.sendMailFn(addr, auth, s.cfg.From, []string{to}, msg.Bytes())
+	return s.sendMailFn(addr, auth, from, []string{to}, msg.Bytes())
 }
