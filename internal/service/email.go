@@ -80,6 +80,7 @@ var htmlTmpl = htmltemplate.Must(htmltemplate.New("html").Parse(
 </html>`))
 
 // SendShareNotification sends notification emails for a share and records recipients.
+// It attempts delivery to all recipients and returns an error if any sends failed.
 func (s *EmailService) SendShareNotification(ctx context.Context, share *model.Share, recipients []string) error {
 	if !s.IsConfigured() {
 		slog.WarnContext(ctx, "SMTP not configured, skipping email notification")
@@ -94,6 +95,7 @@ func (s *EmailService) SendShareNotification(ctx context.Context, share *model.S
 		Link:        shareLink,
 	}
 
+	var failed []string
 	for _, email := range recipients {
 		email = strings.TrimSpace(email)
 		if email == "" {
@@ -104,6 +106,7 @@ func (s *EmailService) SendShareNotification(ctx context.Context, share *model.S
 			slog.ErrorContext(ctx, "failed to send email",
 				slog.String("to", email),
 				slog.Any("error", err))
+			failed = append(failed, email)
 			continue
 		}
 
@@ -117,6 +120,10 @@ func (s *EmailService) SendShareNotification(ctx context.Context, share *model.S
 				slog.String("email", email),
 				slog.Any("error", err))
 		}
+	}
+
+	if len(failed) > 0 {
+		return fmt.Errorf("failed to send to %d recipient(s): %s", len(failed), strings.Join(failed, ", "))
 	}
 
 	return nil
