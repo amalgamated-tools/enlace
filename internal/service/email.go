@@ -180,14 +180,18 @@ func (s *EmailService) sendMultipartEmail(to, shareName string, data emailTempla
 		return fmt.Errorf("failed to render HTML template: %w", err)
 	}
 
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("failed to finalize MIME body: %w", err)
+	}
 
 	// Combine headers and body
-	msg.Write(body.Bytes())
+	if _, err := msg.Write(body.Bytes()); err != nil {
+		return fmt.Errorf("failed to write message body: %w", err)
+	}
 
 	addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
 	var auth smtp.Auth
-	if s.cfg.User != "" || s.cfg.Pass != "" {
+	if s.cfg.User != "" && s.cfg.Pass != "" {
 		auth = smtp.PlainAuth("", s.cfg.User, s.cfg.Pass, s.cfg.Host)
 	}
 
