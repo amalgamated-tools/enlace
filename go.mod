@@ -1,6 +1,6 @@
-module github.com/amalgamated-tools/sharer
+module github.com/amalgamated-tools/enlace
 
-go 1.25.2
+go 1.26
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.2

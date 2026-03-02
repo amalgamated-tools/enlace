@@ -3,7 +3,7 @@ package database_test
 import (
 	"testing"
 
-	"github.com/amalgamated-tools/sharer/internal/database"
+	"github.com/amalgamated-tools/enlace/internal/database"
 )
 
 func TestNew_CreatesDatabase(t *testing.T) {

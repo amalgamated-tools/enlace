@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/amalgamated-tools/sharer/internal/model"
-	"github.com/amalgamated-tools/sharer/internal/repository"
+	"github.com/amalgamated-tools/enlace/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/repository"
 )
 
 // createTestShare is a helper to create a share for file FK constraints.

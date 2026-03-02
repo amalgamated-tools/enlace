@@ -7,9 +7,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/amalgamated-tools/sharer/internal/middleware"
-	"github.com/amalgamated-tools/sharer/internal/model"
-	"github.com/amalgamated-tools/sharer/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
 // UserServiceInterface defines the interface for user service operations.

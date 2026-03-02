@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/amalgamated-tools/sharer/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
 type contextKey string
