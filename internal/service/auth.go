@@ -268,6 +268,23 @@ func (s *AuthService) GenerateTokensForUser(userID string, isAdmin bool) (*Token
 	return s.generateTokenPair(userID, isAdmin)
 }
 
+// VerifyPassword verifies a user's password by their user ID.
+func (s *AuthService) VerifyPassword(ctx context.Context, userID, password string) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return ErrInvalidCredentials
+	}
+
+	return nil
+}
+
 // generateTokenPair creates a new access and refresh token pair.
 func (s *AuthService) generateTokenPair(userID string, isAdmin bool) (*TokenPair, error) {
 	accessToken, err := s.generateAccessToken(userID, isAdmin)

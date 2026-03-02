@@ -91,7 +91,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		totpServiceAdapter = newTOTPServiceAdapter(cfg.TOTPService)
 	}
 	authHandler := NewAuthHandler(cfg.AuthService, totpServiceAdapter, cfg.Require2FA)
-	totpHandler := NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), cfg.Require2FA)
+	totpHandler := NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), newPasswordVerifierAdapter(cfg.AuthService), cfg.Require2FA)
 	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService)
 	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService)
 	userHandler := NewUserHandler(cfg.AuthService)
@@ -372,4 +372,20 @@ func (a *totpServiceAdapterImpl) GeneratePendingToken(userID string, isAdmin boo
 
 func (a *totpServiceAdapterImpl) ValidatePendingToken(tokenStr string) (*service.Claims, error) {
 	return a.svc.ValidatePendingToken(tokenStr)
+}
+
+// passwordVerifierAdapter adapts *service.AuthService to PasswordVerifier.
+type passwordVerifierAdapter struct {
+	svc *service.AuthService
+}
+
+func newPasswordVerifierAdapter(svc *service.AuthService) PasswordVerifier {
+	if svc == nil {
+		return nil
+	}
+	return &passwordVerifierAdapter{svc: svc}
+}
+
+func (a *passwordVerifierAdapter) VerifyPassword(ctx context.Context, userID, password string) error {
+	return a.svc.VerifyPassword(ctx, userID, password)
 }
