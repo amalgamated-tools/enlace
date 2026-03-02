@@ -1,5 +1,5 @@
 # Build frontend
-FROM node:22-alpine AS frontend
+FROM node:22.13.0-alpine3.21@sha256:8e08de1d4e1a18be0f8628674222e122d555744f13c94fafaf716148eb665428 AS frontend
 
 WORKDIR /app/frontend
 
@@ -19,7 +19,7 @@ COPY frontend/ ./
 RUN pnpm build
 
 # Build Go binary
-FROM golang:1.25-alpine AS backend
+FROM golang:1.26-alpine AS backend
 ARG VERSION=dev
 WORKDIR /app
 
