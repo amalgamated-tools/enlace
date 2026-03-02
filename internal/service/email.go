@@ -27,11 +27,15 @@ type SMTPConfig struct {
 	From string
 }
 
+// SendMailFunc is the function signature for sending mail (matches smtp.SendMail).
+type SendMailFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+
 // EmailService handles sending email notifications and tracking recipients.
 type EmailService struct {
 	cfg           SMTPConfig
 	recipientRepo *repository.RecipientRepository
 	baseURL       string
+	sendMailFn    SendMailFunc
 }
 
 // NewEmailService creates a new EmailService instance.
@@ -40,7 +44,13 @@ func NewEmailService(cfg SMTPConfig, recipientRepo *repository.RecipientReposito
 		cfg:           cfg,
 		recipientRepo: recipientRepo,
 		baseURL:       baseURL,
+		sendMailFn:    smtp.SendMail,
 	}
+}
+
+// SetSendMailFunc overrides the SMTP send function (for testing).
+func (s *EmailService) SetSendMailFunc(fn SendMailFunc) {
+	s.sendMailFn = fn
 }
 
 // IsConfigured returns true if SMTP has sufficient configuration to send mail.
@@ -195,5 +205,5 @@ func (s *EmailService) sendMultipartEmail(to, shareName string, data emailTempla
 		auth = smtp.PlainAuth("", s.cfg.User, s.cfg.Pass, s.cfg.Host)
 	}
 
-	return smtp.SendMail(addr, auth, s.cfg.From, []string{to}, msg.Bytes())
+	return s.sendMailFn(addr, auth, s.cfg.From, []string{to}, msg.Bytes())
 }

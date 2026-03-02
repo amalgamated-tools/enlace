@@ -3,6 +3,9 @@ package service_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"net/smtp"
+	"strings"
 	"testing"
 
 	"github.com/amalgamated-tools/enlace/internal/database"
@@ -10,6 +13,16 @@ import (
 	"github.com/amalgamated-tools/enlace/internal/repository"
 	"github.com/amalgamated-tools/enlace/internal/service"
 )
+
+var configuredSMTP = service.SMTPConfig{
+	Host: "smtp.example.com",
+	Port: 587,
+	From: "noreply@example.com",
+}
+
+func noopSendMail(string, smtp.Auth, string, []string, []byte) error {
+	return nil
+}
 
 type emailTestEnv struct {
 	svc           *service.EmailService
@@ -101,8 +114,14 @@ func TestEmailService_SendShareNotification_SkipsWhenNotConfigured(t *testing.T)
 }
 
 func TestEmailService_SendShareNotification_SkipsEmptyEmails(t *testing.T) {
-	env := setupEmailService(t, service.SMTPConfig{})
+	env := setupEmailService(t, configuredSMTP)
 	defer env.cleanup()
+
+	sendCalled := false
+	env.svc.SetSendMailFunc(func(string, smtp.Auth, string, []string, []byte) error {
+		sendCalled = true
+		return nil
+	})
 
 	ctx := context.Background()
 	share := &model.Share{
@@ -116,12 +135,75 @@ func TestEmailService_SendShareNotification_SkipsEmptyEmails(t *testing.T) {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 
+	if sendCalled {
+		t.Error("expected sendMail not to be called for empty emails")
+	}
+
 	recipients, err := env.recipientRepo.ListByShare(ctx, "share-123")
 	if err != nil {
 		t.Fatalf("failed to list recipients: %v", err)
 	}
 	if len(recipients) != 0 {
 		t.Errorf("expected 0 recipients for empty emails, got %d", len(recipients))
+	}
+}
+
+func TestEmailService_SendShareNotification_RecordsRecipients(t *testing.T) {
+	env := setupEmailService(t, configuredSMTP)
+	defer env.cleanup()
+
+	env.svc.SetSendMailFunc(noopSendMail)
+
+	ctx := context.Background()
+
+	// Create a share so foreign key is satisfied
+	shareRepo := repository.NewShareRepository(env.db)
+	share := &model.Share{ID: "share-rec", Slug: "rec-test", Name: "Rec Test"}
+	if err := shareRepo.Create(ctx, share); err != nil {
+		t.Fatalf("failed to create share: %v", err)
+	}
+
+	err := env.svc.SendShareNotification(ctx, share, []string{"a@example.com", "b@example.com"})
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	recipients, err := env.recipientRepo.ListByShare(ctx, "share-rec")
+	if err != nil {
+		t.Fatalf("failed to list recipients: %v", err)
+	}
+	if len(recipients) != 2 {
+		t.Errorf("expected 2 recipients recorded, got %d", len(recipients))
+	}
+}
+
+func TestEmailService_SendShareNotification_ReturnsErrorOnFailure(t *testing.T) {
+	env := setupEmailService(t, configuredSMTP)
+	defer env.cleanup()
+
+	env.svc.SetSendMailFunc(func(string, smtp.Auth, string, []string, []byte) error {
+		return fmt.Errorf("connection refused")
+	})
+
+	ctx := context.Background()
+	share := &model.Share{ID: "share-fail", Slug: "fail-test", Name: "Fail Test"}
+
+	err := env.svc.SendShareNotification(ctx, share, []string{"a@example.com"})
+	if err == nil {
+		t.Fatal("expected error when send fails, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "a@example.com") {
+		t.Errorf("expected error to contain failed address, got: %v", err)
+	}
+
+	// No recipients should be recorded for failed sends
+	recipients, err := env.recipientRepo.ListByShare(ctx, "share-fail")
+	if err != nil {
+		t.Fatalf("failed to list recipients: %v", err)
+	}
+	if len(recipients) != 0 {
+		t.Errorf("expected 0 recipients for failed sends, got %d", len(recipients))
 	}
 }
 
