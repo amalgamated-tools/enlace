@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -46,20 +47,13 @@ func Send(version string) {
 
 	slog.Warn("NOTICE: This application collects anonymous telemetry data to help improve the product. To disable telemetry, set the environment variable TELEMETRY_ENABLED=false")
 
-	var installIDPath string
-	// Determine install ID path: prefer mounted /data folder, fall back to ./data
-	if _, err := os.Stat("/data"); err == nil {
-		installIDPath = "/data/install_id"
-		slog.Debug("Using mounted /data folder for install ID", slog.String("path", installIDPath))
-	} else {
-		installIDPath = "./data/install_id"
-		slog.Debug("Using local data folder for install ID", slog.String("path", installIDPath))
+	dataDir := os.Getenv("DATA_DIR")
+	if dataDir == "" {
+		dataDir = "./data"
 	}
+	installIDPath := filepath.Join(dataDir, "install_id")
+	slog.Debug("Using data directory for install ID", slog.String("path", installIDPath))
 
-	send(version, endpoint, installIDPath)
-}
-
-func send(version, endpoint, installIDPath string) {
 	// Only send once per install
 	if _, err := os.Stat(installIDPath); err == nil {
 		slog.Debug("Telemetry already sent for this install, skipping")
