@@ -41,16 +41,14 @@ type ShareHandler struct {
 	shareService ShareServiceInterface
 	fileService  FileServiceInterface
 	emailService EmailServiceInterface
-	baseURL      string
 }
 
 // NewShareHandler creates a new ShareHandler instance.
-func NewShareHandler(shareService ShareServiceInterface, fileService FileServiceInterface, emailService EmailServiceInterface, baseURL string) *ShareHandler {
+func NewShareHandler(shareService ShareServiceInterface, fileService FileServiceInterface, emailService EmailServiceInterface) *ShareHandler {
 	return &ShareHandler{
 		shareService: shareService,
 		fileService:  fileService,
 		emailService: emailService,
-		baseURL:      baseURL,
 	}
 }
 

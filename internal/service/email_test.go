@@ -24,8 +24,8 @@ func setupEmailService(t *testing.T, cfg service.SMTPConfig) (*service.EmailServ
 }
 
 func TestEmailService_IsConfigured(t *testing.T) {
-	t.Run("configured when host is set", func(t *testing.T) {
-		svc, _, cleanup := setupEmailService(t, service.SMTPConfig{Host: "smtp.example.com"})
+	t.Run("configured when host, port, and from are set", func(t *testing.T) {
+		svc, _, cleanup := setupEmailService(t, service.SMTPConfig{Host: "smtp.example.com", Port: 587, From: "noreply@example.com"})
 		defer cleanup()
 
 		if !svc.IsConfigured() {
@@ -34,7 +34,25 @@ func TestEmailService_IsConfigured(t *testing.T) {
 	})
 
 	t.Run("not configured when host is empty", func(t *testing.T) {
-		svc, _, cleanup := setupEmailService(t, service.SMTPConfig{})
+		svc, _, cleanup := setupEmailService(t, service.SMTPConfig{Port: 587, From: "noreply@example.com"})
+		defer cleanup()
+
+		if svc.IsConfigured() {
+			t.Error("expected IsConfigured to return false")
+		}
+	})
+
+	t.Run("not configured when port is zero", func(t *testing.T) {
+		svc, _, cleanup := setupEmailService(t, service.SMTPConfig{Host: "smtp.example.com", From: "noreply@example.com"})
+		defer cleanup()
+
+		if svc.IsConfigured() {
+			t.Error("expected IsConfigured to return false")
+		}
+	})
+
+	t.Run("not configured when from is empty", func(t *testing.T) {
+		svc, _, cleanup := setupEmailService(t, service.SMTPConfig{Host: "smtp.example.com", Port: 587})
 		defer cleanup()
 
 		if svc.IsConfigured() {

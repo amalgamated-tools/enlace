@@ -122,7 +122,7 @@ func TestShareHandler_List_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares", nil)
@@ -163,7 +163,7 @@ func TestShareHandler_List_EmptyList(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares", nil)
@@ -194,7 +194,7 @@ func TestShareHandler_List_EmptyList(t *testing.T) {
 
 func TestShareHandler_List_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares", nil)
@@ -217,7 +217,7 @@ func TestShareHandler_List_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares", nil)
@@ -249,7 +249,7 @@ func TestShareHandler_Create_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "My Share", "description": "A test share"}`
@@ -318,7 +318,7 @@ func TestShareHandler_Create_WithAllFields(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{
@@ -346,7 +346,7 @@ func TestShareHandler_Create_WithAllFields(t *testing.T) {
 func TestShareHandler_Create_ValidationErrors(t *testing.T) {
 	userID := "user-123"
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	tests := []struct {
@@ -421,7 +421,7 @@ func TestShareHandler_Create_ValidationErrors(t *testing.T) {
 func TestShareHandler_Create_InvalidExpiresAt(t *testing.T) {
 	userID := "user-123"
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test", "expires_at": "invalid-date"}`
@@ -457,7 +457,7 @@ func TestShareHandler_Create_SlugExists(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test", "slug": "existing-slug"}`
@@ -475,7 +475,7 @@ func TestShareHandler_Create_SlugExists(t *testing.T) {
 
 func TestShareHandler_Create_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -494,7 +494,7 @@ func TestShareHandler_Create_Unauthenticated(t *testing.T) {
 func TestShareHandler_Create_InvalidJSON(t *testing.T) {
 	userID := "user-123"
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares", bytes.NewBufferString(`{invalid`))
@@ -523,7 +523,7 @@ func TestShareHandler_Get_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID, nil)
@@ -566,7 +566,7 @@ func TestShareHandler_Get_NotFound(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID, nil)
@@ -592,7 +592,7 @@ func TestShareHandler_Get_NotOwner(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID, nil)
@@ -609,7 +609,7 @@ func TestShareHandler_Get_NotOwner(t *testing.T) {
 
 func TestShareHandler_Get_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/share-123", nil)
@@ -646,7 +646,7 @@ func TestShareHandler_Update_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Updated Name", "description": "Updated description"}`
@@ -700,7 +700,7 @@ func TestShareHandler_Update_ClearPassword(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"clear_password": true}`
@@ -730,7 +730,7 @@ func TestShareHandler_Update_NotFound(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -758,7 +758,7 @@ func TestShareHandler_Update_NotOwner(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -786,7 +786,7 @@ func TestShareHandler_Update_ValidationErrors(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	tests := []struct {
@@ -840,7 +840,7 @@ func TestShareHandler_Update_ValidationErrors(t *testing.T) {
 
 func TestShareHandler_Update_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -873,7 +873,7 @@ func TestShareHandler_Delete_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/"+shareID, nil)
@@ -908,7 +908,7 @@ func TestShareHandler_Delete_NotFound(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/"+shareID, nil)
@@ -934,7 +934,7 @@ func TestShareHandler_Delete_NotOwner(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/"+shareID, nil)
@@ -951,7 +951,7 @@ func TestShareHandler_Delete_NotOwner(t *testing.T) {
 
 func TestShareHandler_Delete_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/share-123", nil)
@@ -979,7 +979,7 @@ func TestShareHandler_Delete_ServiceError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/"+shareID, nil)
@@ -1005,7 +1005,7 @@ func TestShareHandler_Get_NilCreatorID(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID, nil)
@@ -1030,7 +1030,7 @@ func TestShareHandler_Get_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID, nil)
@@ -1053,7 +1053,7 @@ func TestShareHandler_Create_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -1080,7 +1080,7 @@ func TestShareHandler_Update_InvalidJSON(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/shares/"+shareID, bytes.NewBufferString(`{invalid`))
@@ -1109,7 +1109,7 @@ func TestShareHandler_Update_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -1135,7 +1135,7 @@ func TestShareHandler_Delete_InternalErrorOnGet(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/"+shareID, nil)
@@ -1193,7 +1193,7 @@ func TestShareHandler_SendNotification_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, mockEmail, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
 	router := setupShareRouter(h)
 
 	body := `{"recipients": ["test@example.com", "other@example.com"]}`
@@ -1225,7 +1225,7 @@ func TestShareHandler_SendNotification_NoRecipients(t *testing.T) {
 	}
 	mockEmail := &mockEmailService{isConfigured: true}
 
-	h := handler.NewShareHandler(mockShare, nil, mockEmail, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
 	router := setupShareRouter(h)
 
 	body := `{"recipients": []}`
@@ -1254,7 +1254,7 @@ func TestShareHandler_SendNotification_NotOwner(t *testing.T) {
 	}
 	mockEmail := &mockEmailService{isConfigured: true}
 
-	h := handler.NewShareHandler(mockShare, nil, mockEmail, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
 	router := setupShareRouter(h)
 
 	body := `{"recipients": ["test@example.com"]}`
@@ -1274,7 +1274,7 @@ func TestShareHandler_SendNotification_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
 	mockEmail := &mockEmailService{isConfigured: true}
 
-	h := handler.NewShareHandler(mockShare, nil, mockEmail, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
 	router := setupShareRouter(h)
 
 	body := `{"recipients": ["test@example.com"]}`
@@ -1309,7 +1309,7 @@ func TestShareHandler_ListRecipients_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, mockEmail, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID+"/recipients", nil)
@@ -1354,7 +1354,7 @@ func TestShareHandler_ListRecipients_NotOwner(t *testing.T) {
 	}
 	mockEmail := &mockEmailService{isConfigured: true}
 
-	h := handler.NewShareHandler(mockShare, nil, mockEmail, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID+"/recipients", nil)
@@ -1379,7 +1379,7 @@ func TestShareHandler_ListRecipients_NilEmailService(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil, nil, "http://localhost:8080")
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID+"/recipients", nil)
