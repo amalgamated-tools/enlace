@@ -85,6 +85,15 @@ type shareResponse struct {
 }
 
 // List handles GET /api/v1/shares - lists all shares for the authenticated user.
+//
+//	@Summary	List shares
+//	@Tags		shares
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Success	200	{object}	APIResponse{data=[]shareResponse}
+//	@Failure	401	{object}	APIResponse
+//	@Failure	500	{object}	APIResponse
+//	@Router		/api/v1/shares [get]
 func (h *ShareHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -108,6 +117,19 @@ func (h *ShareHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 // Create handles POST /api/v1/shares - creates a new share.
+//
+//	@Summary	Create a share
+//	@Tags		shares
+//	@Accept		json
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		body	body		createShareRequest			true	"Share details"
+//	@Success	201		{object}	APIResponse{data=shareResponse}
+//	@Failure	400		{object}	ValidationErrorResponse
+//	@Failure	401		{object}	APIResponse
+//	@Failure	409		{object}	APIResponse
+//	@Failure	500		{object}	APIResponse
+//	@Router		/api/v1/shares [post]
 func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -162,6 +184,17 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get handles GET /api/v1/shares/{id} - retrieves a specific share.
+//
+//	@Summary	Get a share
+//	@Tags		shares
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		id	path		string						true	"Share ID (UUID)"
+//	@Success	200	{object}	APIResponse{data=shareResponse}
+//	@Failure	401	{object}	APIResponse
+//	@Failure	404	{object}	APIResponse
+//	@Failure	500	{object}	APIResponse
+//	@Router		/api/v1/shares/{id} [get]
 func (h *ShareHandler) Get(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -196,6 +229,20 @@ func (h *ShareHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update handles PATCH /api/v1/shares/{id} - updates an existing share.
+//
+//	@Summary	Update a share
+//	@Tags		shares
+//	@Accept		json
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		id		path		string						true	"Share ID (UUID)"
+//	@Param		body	body		updateShareRequest			true	"Fields to update"
+//	@Success	200		{object}	APIResponse{data=shareResponse}
+//	@Failure	400		{object}	ValidationErrorResponse
+//	@Failure	401		{object}	APIResponse
+//	@Failure	404		{object}	APIResponse
+//	@Failure	500		{object}	APIResponse
+//	@Router		/api/v1/shares/{id} [patch]
 func (h *ShareHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -279,6 +326,17 @@ func (h *ShareHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete handles DELETE /api/v1/shares/{id} - deletes a share.
+//
+//	@Summary	Delete a share
+//	@Tags		shares
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		id	path		string		true	"Share ID (UUID)"
+//	@Success	200	{object}	APIResponse
+//	@Failure	401	{object}	APIResponse
+//	@Failure	404	{object}	APIResponse
+//	@Failure	500	{object}	APIResponse
+//	@Router		/api/v1/shares/{id} [delete]
 func (h *ShareHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {

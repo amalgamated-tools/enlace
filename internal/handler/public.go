@@ -121,6 +121,18 @@ type verifyPasswordResponse struct {
 }
 
 // ViewShare handles GET /s/{slug} - retrieves share details and files.
+//
+//	@Summary		View a public share
+//	@Description	Returns share details and files. Requires X-Share-Token for password-protected shares.
+//	@Tags			public
+//	@Produce		json
+//	@Param			slug	path		string								true	"Share slug"
+//	@Success		200		{object}	APIResponse{data=shareDetailsResponse}
+//	@Failure		401		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		410		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/s/{slug} [get]
 func (h *PublicHandler) ViewShare(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 	if slug == "" {
@@ -174,6 +186,21 @@ func (h *PublicHandler) ViewShare(w http.ResponseWriter, r *http.Request) {
 }
 
 // VerifyPassword handles POST /s/{slug}/verify - verifies share password.
+//
+//	@Summary		Verify share password
+//	@Description	Returns a share access token (1-hour expiry) for password-protected shares.
+//	@Tags			public
+//	@Accept			json
+//	@Produce		json
+//	@Param			slug	path		string									true	"Share slug"
+//	@Param			body	body		verifyPasswordRequest					true	"Password"
+//	@Success		200		{object}	APIResponse{data=verifyPasswordResponse}
+//	@Failure		400		{object}	APIResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		410		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/s/{slug}/verify [post]
 func (h *PublicHandler) VerifyPassword(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 	if slug == "" {
@@ -233,11 +260,39 @@ func (h *PublicHandler) VerifyPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 // DownloadFile handles GET /s/{slug}/files/{fileId} - downloads a file.
+//
+//	@Summary		Download a file
+//	@Description	Downloads a file from a public share. Use X-Share-Token header or token query param for password-protected shares.
+//	@Tags			public
+//	@Produce		octet-stream
+//	@Param			slug	path		string	true	"Share slug"
+//	@Param			fileId	path		string	true	"File ID (UUID)"
+//	@Param			token	query		string	false	"Share access token"
+//	@Success		200		{file}		binary
+//	@Failure		401		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		410		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/s/{slug}/files/{fileId} [get]
 func (h *PublicHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	h.serveFile(w, r, "attachment")
 }
 
 // PreviewFile handles GET /s/{slug}/files/{fileId}/preview - previews a file.
+//
+//	@Summary		Preview a file
+//	@Description	Previews a file inline. Use X-Share-Token header or token query param for password-protected shares.
+//	@Tags			public
+//	@Produce		octet-stream
+//	@Param			slug	path		string	true	"Share slug"
+//	@Param			fileId	path		string	true	"File ID (UUID)"
+//	@Param			token	query		string	false	"Share access token"
+//	@Success		200		{file}		binary
+//	@Failure		401		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		410		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/s/{slug}/files/{fileId}/preview [get]
 func (h *PublicHandler) PreviewFile(w http.ResponseWriter, r *http.Request) {
 	h.serveFile(w, r, "inline")
 }
@@ -324,6 +379,21 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 }
 
 // UploadToReverseShare handles POST /s/{slug}/upload - uploads files to a reverse share.
+//
+//	@Summary		Upload to a reverse share
+//	@Description	Uploads files to a public reverse share. No authentication required.
+//	@Tags			public
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			slug	path		string								true	"Share slug"
+//	@Param			files	formData	file								true	"Files to upload"
+//	@Success		201		{object}	APIResponse{data=[]publicFileResponse}
+//	@Failure		400		{object}	APIResponse
+//	@Failure		403		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		410		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/s/{slug}/upload [post]
 func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 	if slug == "" {
