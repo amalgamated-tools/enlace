@@ -77,6 +77,13 @@ func DecodeJSON(r *http.Request, v interface{}) error {
 	return decoder.Decode(v)
 }
 
+// ValidationErrorResponse represents a validation error response with field-specific errors.
+type ValidationErrorResponse struct {
+	Success bool              `json:"success" example:"false"`
+	Error   string            `json:"error" example:"validation failed"`
+	Fields  map[string]string `json:"fields"`
+}
+
 // ValidationError writes a validation error response with field-specific errors.
 func ValidationError(w http.ResponseWriter, errors map[string]string) {
 	response := struct {

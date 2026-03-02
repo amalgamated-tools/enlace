@@ -108,3 +108,31 @@ func TestRouter_ContentTypeJSON(t *testing.T) {
 		t.Errorf("health endpoint Content-Type = %v, want application/json", contentType)
 	}
 }
+
+func TestRouter_SwaggerEnabled(t *testing.T) {
+	cfg := RouterConfig{SwaggerEnabled: true}
+	router := NewRouter(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("swagger endpoint with SwaggerEnabled=true status = %v, want %v", w.Code, http.StatusOK)
+	}
+}
+
+func TestRouter_SwaggerDisabled(t *testing.T) {
+	cfg := RouterConfig{SwaggerEnabled: false}
+	router := NewRouter(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code == http.StatusOK {
+		t.Errorf("swagger endpoint with SwaggerEnabled=false status = %v, want non-200", w.Code)
+	}
+}
