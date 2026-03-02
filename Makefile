@@ -80,6 +80,7 @@ lint:
 
 # Format Go code
 fmt:
+	cd frontend && pnpm run format
 	go fmt ./...
 
 # Install development dependencies
