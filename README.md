@@ -85,6 +85,60 @@ See [OIDC.md](OIDC.md) for provider-specific setup guides.
 
 All authenticated endpoints require an `Authorization: Bearer <access_token>` header.
 
+### Response Format
+
+Every endpoint returns a JSON object with the following envelope:
+
+```json
+// Success
+{ "success": true, "data": <payload> }
+
+// Error
+{ "success": false, "error": "<message>" }
+
+// Validation error (HTTP 400)
+{ "success": false, "error": "validation failed", "fields": { "<field>": "<reason>" } }
+```
+
+### Auth endpoints
+
+**`POST /api/v1/auth/register`**
+
+```json
+{ "email": "user@example.com", "password": "secret", "display_name": "Alice" }
+```
+
+**`POST /api/v1/auth/login`** — returns `access_token`, `refresh_token`, and `user`.
+
+```json
+{ "email": "user@example.com", "password": "secret" }
+```
+
+**`POST /api/v1/auth/refresh`** — returns new `access_token` and `refresh_token`.
+
+```json
+{ "refresh_token": "<token>" }
+```
+
+### Share endpoints
+
+**`POST /api/v1/shares`**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | ✔ | Display name (max 255 chars) |
+| `description` | string | | Optional description |
+| `slug` | string | | Custom URL slug (3–50 chars, `[a-z0-9-]`); auto-generated if omitted |
+| `password` | string | | Password-protect the share |
+| `expires_at` | string (RFC3339) | | Expiry timestamp |
+| `max_downloads` | int | | Download limit (≥ 0) |
+| `max_views` | int | | View limit (≥ 0) |
+| `is_reverse_share` | bool | | Allow others to upload files to this share |
+
+**`PATCH /api/v1/shares/{id}`** accepts the same fields (all optional). Use `"clear_password": true` or `"clear_expiry": true` to remove those constraints.
+
+### Endpoint reference
+
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/health` | — | Health check |
@@ -147,7 +201,7 @@ make build          # production binary (frontend embedded)
 make build-backend  # backend only, faster iteration
 make test           # go test ./...
 make test-coverage  # test + HTML coverage report
-make lint           # go vet ./...
+make lint           # go vet ./... (CI also runs golangci-lint v2)
 make fmt            # gofmt
 make clean          # remove build artifacts
 ```
