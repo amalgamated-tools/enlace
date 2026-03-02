@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-Sharer is a self-hosted file sharing and collaboration application. It is a monorepo with a **Go backend** and a **Svelte + TypeScript frontend**. The Go binary embeds the built frontend assets from `frontend/dist` via `//go:embed` (see `embed.go`).
+Enlace is a self-hosted file sharing and collaboration application. It is a monorepo with a **Go backend** and a **Svelte + TypeScript frontend**. The Go binary embeds the built frontend assets from `frontend/dist` via `//go:embed` (see `embed.go`).
 
 ## Tech Stack
 
 ### Backend
 
-- **Language:** Go (module `github.com/amalgamated-tools/sharer`)
+- **Language:** Go (module `github.com/amalgamated-tools/enlace`)
 - **Router:** chi/v5
 - **Database:** SQLite via `modernc.org/sqlite`
 - **Auth:** JWT (`golang-jwt/jwt/v5`) with optional OIDC SSO (`go-oidc/v3`)
@@ -30,7 +30,7 @@ Sharer is a self-hosted file sharing and collaboration application. It is a mono
 
 The backend follows a layered architecture:
 
-- `cmd/sharer/` — Application entry point
+- `cmd/enlace/` — Application entry point
 - `internal/config/` — Configuration management (environment variables)
 - `internal/database/` — Database initialization and migrations
 - `internal/handler/` — HTTP route handlers (auth, files, shares, admin, public, OIDC)

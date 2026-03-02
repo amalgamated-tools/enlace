@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/amalgamated-tools/sharer/internal/model"
-	"github.com/amalgamated-tools/sharer/internal/repository"
+	"github.com/amalgamated-tools/enlace/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/repository"
 )
 
 // Sentinel errors for authentication operations.

@@ -1,6 +1,6 @@
-# Sharer — Frontend
+# Enlace — Frontend
 
-The Sharer web UI, built with [Svelte](https://svelte.dev/), TypeScript, and [Vite](https://vitejs.dev/).
+The Enlace web UI, built with [Svelte](https://svelte.dev/), TypeScript, and [Vite](https://vitejs.dev/).
 
 ## Recommended IDE Setup
 

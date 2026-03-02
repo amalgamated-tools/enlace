@@ -1,5 +1,5 @@
 # Build frontend
-FROM node:22-alpine AS frontend
+FROM node:22.13.0-alpine3.21@sha256:8e08de1d4e1a18be0f8628674222e122d555744f13c94fafaf716148eb665428 AS frontend
 
 WORKDIR /app/frontend
 
@@ -19,7 +19,7 @@ COPY frontend/ ./
 RUN pnpm build
 
 # Build Go binary
-FROM golang:1.25-alpine AS backend
+FROM golang:1.26-alpine AS backend
 ARG VERSION=dev
 WORKDIR /app
 
@@ -36,10 +36,10 @@ RUN go mod download
 COPY . .
 
 # Copy built frontend from previous stage
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend /app/frontend/dist ./frontend/dist
 
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s -X main.version=${VERSION}" -o /sharer ./cmd/sharer
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s -X main.version=${VERSION}" -o /enlace ./cmd/enlace
 
 # Runtime image
 FROM alpine:3.21
@@ -53,7 +53,7 @@ RUN apk add --no-cache ca-certificates tzdata
 RUN adduser -D -g '' appuser
 
 # Copy binary
-COPY --from=go-builder /sharer /app/sharer
+COPY --from=backend /enlace /app/enlace
 
 # Create directories for data
 RUN mkdir -p /app/data /app/uploads && \
@@ -67,7 +67,8 @@ EXPOSE 8080
 
 # Default environment variables
 ENV PORT=8080 \
-    DATABASE_PATH=/app/data/sharer.db \
+    DATABASE_PATH=/app/data/enlace.db \
+    DATA_DIR=/app/data \
     STORAGE_TYPE=local \
     STORAGE_LOCAL_PATH=/app/uploads
 
@@ -76,4 +77,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Run the binary
-ENTRYPOINT ["/app/sharer"]
+ENTRYPOINT ["/app/enlace"]

@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/amalgamated-tools/sharer/internal/model"
-	"github.com/amalgamated-tools/sharer/internal/repository"
-	"github.com/amalgamated-tools/sharer/internal/storage"
+	"github.com/amalgamated-tools/enlace/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/repository"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 // ErrFileNotFound is returned when a requested file does not exist.
