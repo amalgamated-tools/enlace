@@ -14,20 +14,27 @@ import (
 	"github.com/amalgamated-tools/enlace/internal/config"
 	"github.com/amalgamated-tools/enlace/internal/database"
 	"github.com/amalgamated-tools/enlace/internal/handler"
+	"github.com/amalgamated-tools/enlace/internal/otel"
 	"github.com/amalgamated-tools/enlace/internal/repository"
 	"github.com/amalgamated-tools/enlace/internal/service"
 	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
+var version = "dev"
+
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	otel.SetupLogger()
+	slog.Info("enlace", slog.String("version", version))
+	cancelCtx, cancelAll := context.WithCancel(context.Background())
+
+	if err := realMain(cancelCtx); err != nil {
+		slog.ErrorContext(cancelCtx, "error occurred", slog.Any("error", err))
+		cancelAll()
 	}
 }
 
-func run() error {
-	// Load configuration
+// This is the real main function. That's why it's called realMain.
+func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The newctx context comes from the StartTracer function, so it's already wrapped.
 	cfg := config.Load()
 
 	// Validate required config
