@@ -80,13 +80,13 @@ The following variables are accepted by the configuration loader and are reserve
 
 ### Telemetry
 
-Enlace collects **opt-in, anonymous** telemetry to help improve the project. Telemetry is **disabled by default** and only activates when `TELEMETRY_ENABLED=true` is explicitly set. When enabled, Enlace attempts to send a lightweight telemetry ping on startup; after a successful send, it writes an install ID file in `DATA_DIR` and will not send additional pings for that installation. If the request fails or the install ID file cannot be written, the ping will be retried on subsequent startups. Clearing or changing `DATA_DIR` causes Enlace to generate a new install ID and send telemetry again. The payload contains only: application name, a random install ID, version, OS, architecture, and timestamp — no user data, files, or IP addresses.
+> **Note:** The telemetry infrastructure (`internal/telemetry`) is implemented and reserved for a future release. The variables below are accepted by the configuration loader, but **telemetry is not yet active** — no data is sent in the current release regardless of the value of `TELEMETRY_ENABLED`. This section will be updated when telemetry is wired into the application startup.
 
 | Variable | Default | Description |
 |---|---|---|
-| `TELEMETRY_ENABLED` | `false` | Set to `true` to enable anonymous telemetry |
-| `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Endpoint that receives the telemetry ping (override for self-hosted collection) |
-| `DATA_DIR` | `./data` | Directory used to store the install ID file that prevents duplicate telemetry pings |
+| `TELEMETRY_ENABLED` | `false` | Reserved. Set to `true` to enable anonymous telemetry (not yet active) |
+| `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Reserved. Endpoint that will receive the telemetry ping |
+| `DATA_DIR` | `./data` | Reserved. Directory used to store the install ID file |
 
 ### API & CORS
 
@@ -333,6 +333,14 @@ make dev-setup
 # Start backend and frontend dev servers with live reload
 make dev
 ```
+
+### Binary flags
+
+The compiled `enlace` binary accepts the following flags:
+
+| Flag | Description |
+|---|---|
+| `--version` | Print the version string and exit |
 
 The backend defaults to <http://localhost:8080> and the Vite dev server proxies API calls from <http://localhost:5173>.
 
