@@ -82,12 +82,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 	// Create handlers
 	authHandler := NewAuthHandler(cfg.AuthService)
-	var shareHandler *ShareHandler
-	if cfg.EmailService != nil {
-		shareHandler = NewShareHandler(cfg.ShareService, cfg.FileService, cfg.EmailService)
-	} else {
-		shareHandler = NewShareHandler(cfg.ShareService, cfg.FileService, nil)
-	}
+	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService, cfg.EmailService)
 	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService)
 	userHandler := NewUserHandler(cfg.AuthService)
 	adminHandler := NewAdminHandler(cfg.UserRepo)
