@@ -186,7 +186,10 @@ func (s *EmailService) sendMultipartEmail(to, shareName string, data emailTempla
 	msg.Write(body.Bytes())
 
 	addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
-	auth := smtp.PlainAuth("", s.cfg.User, s.cfg.Pass, s.cfg.Host)
+	var auth smtp.Auth
+	if s.cfg.User != "" || s.cfg.Pass != "" {
+		auth = smtp.PlainAuth("", s.cfg.User, s.cfg.Pass, s.cfg.Host)
+	}
 
 	return smtp.SendMail(addr, auth, s.cfg.From, []string{to}, msg.Bytes())
 }
