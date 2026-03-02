@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amalgamated-tools/sharer/internal/model"
-	"github.com/amalgamated-tools/sharer/internal/repository"
+	"github.com/amalgamated-tools/enlace/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/repository"
 )
 
 func TestShareRepository_Create(t *testing.T) {

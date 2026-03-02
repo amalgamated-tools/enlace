@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/amalgamated-tools/sharer/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/model"
 )
 
 // ErrNotFound is returned when a requested record does not exist.

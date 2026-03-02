@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/amalgamated-tools/sharer/internal/database"
-	"github.com/amalgamated-tools/sharer/internal/model"
-	"github.com/amalgamated-tools/sharer/internal/repository"
+	"github.com/amalgamated-tools/enlace/internal/database"
+	"github.com/amalgamated-tools/enlace/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/repository"
 )
 
 func setupTestDB(t *testing.T) *database.Database {

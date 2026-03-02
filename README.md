@@ -1,4 +1,4 @@
-# Sharer
+# Enlace
 
 A self-hosted file-sharing application with a Go backend and Svelte frontend. Create password-protected, expiring shares, set download or view limits, and let others upload files to you via reverse shares.
 
@@ -19,8 +19,9 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 docker run -d \
   -p 8080:8080 \
   -e JWT_SECRET=change-me \
-  -v sharer-data:/data \
-  sharer:latest
+  -v enlace-db:/app/data \
+  -v enlace-uploads:/app/uploads \
+  enlace:latest
 ```
 
 Open <http://localhost:8080> and register your first user.
@@ -41,7 +42,7 @@ All settings are read from environment variables (or a `.env` file when running 
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8080` | HTTP port the server listens on |
-| `DATABASE_PATH` | `./sharer.db` | Path to the SQLite database file |
+| `DATABASE_PATH` | `./enlace.db` | Path to the SQLite database file |
 | `JWT_SECRET` | *(required)* | Secret used to sign JWT tokens |
 | `BASE_URL` | `http://localhost:8080` | Public base URL (used in share links) |
 
@@ -221,7 +222,7 @@ Then set `STORAGE_TYPE=s3` and point `S3_ENDPOINT` at `http://localhost:9000`.
 ## Building a Docker Image
 
 ```bash
-make docker-build   # builds sharer:latest
+make docker-build   # builds enlace:latest
 make docker-run     # run the image locally
 ```
 
@@ -230,7 +231,7 @@ The `Dockerfile` uses a multi-stage build: Node 22 compiles the Svelte frontend,
 ## Project Layout
 
 ```
-cmd/sharer/        # main entrypoint
+cmd/enlace/        # main entrypoint
 internal/
   config/          # environment-based configuration
   database/        # SQLite helpers & migrations

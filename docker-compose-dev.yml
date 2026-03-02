@@ -1,11 +1,12 @@
 services:
-  sharer:
+  enlace:
     build: .
     ports:
       - "8080:8080"
     environment:
       - PORT=8080
-      - DATABASE_PATH=/app/data/sharer.db
+      - DATABASE_PATH=/app/data/enlace.db
+      - DATA_DIR=/app/data
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - BASE_URL=${BASE_URL:-http://localhost:8080}
       - STORAGE_TYPE=${STORAGE_TYPE:-local}

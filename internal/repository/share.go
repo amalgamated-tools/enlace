@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/amalgamated-tools/sharer/internal/model"
+	"github.com/amalgamated-tools/enlace/internal/model"
 )
 
 // ShareRepository provides CRUD operations for shares.
