@@ -1,0 +1,1435 @@
+basePath: /
+definitions:
+  internal_handler.APIResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+  internal_handler.ValidationErrorResponse:
+    properties:
+      error:
+        example: validation failed
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+      success:
+        example: false
+        type: boolean
+    type: object
+  internal_handler.adminUserResponse:
+    properties:
+      created_at:
+        type: string
+      display_name:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_admin:
+        type: boolean
+      updated_at:
+        type: string
+    type: object
+  internal_handler.createShareRequest:
+    properties:
+      description:
+        type: string
+      expires_at:
+        type: string
+      is_reverse_share:
+        type: boolean
+      max_downloads:
+        type: integer
+      max_views:
+        type: integer
+      name:
+        type: string
+      password:
+        type: string
+      slug:
+        type: string
+    type: object
+  internal_handler.createUserRequest:
+    properties:
+      display_name:
+        type: string
+      email:
+        type: string
+      is_admin:
+        type: boolean
+      password:
+        type: string
+    type: object
+  internal_handler.fileResponse:
+    properties:
+      id:
+        type: string
+      mime_type:
+        type: string
+      name:
+        type: string
+      size:
+        type: integer
+    type: object
+  internal_handler.loginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  internal_handler.loginResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/internal_handler.userResponse'
+    type: object
+  internal_handler.oidcConfigResponse:
+    properties:
+      enabled:
+        type: boolean
+    type: object
+  internal_handler.profileResponse:
+    properties:
+      display_name:
+        type: string
+      email:
+        type: string
+      has_password:
+        type: boolean
+      id:
+        type: string
+      is_admin:
+        type: boolean
+      oidc_linked:
+        type: boolean
+    type: object
+  internal_handler.publicFileResponse:
+    properties:
+      id:
+        type: string
+      mime_type:
+        type: string
+      name:
+        type: string
+      size:
+        type: integer
+    type: object
+  internal_handler.publicShareResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      download_count:
+        type: integer
+      expires_at:
+        type: string
+      has_password:
+        type: boolean
+      id:
+        type: string
+      is_reverse_share:
+        type: boolean
+      max_downloads:
+        type: integer
+      max_views:
+        type: integer
+      name:
+        type: string
+      slug:
+        type: string
+      view_count:
+        type: integer
+    type: object
+  internal_handler.refreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  internal_handler.registerRequest:
+    properties:
+      display_name:
+        type: string
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  internal_handler.shareDetailsResponse:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/internal_handler.publicFileResponse'
+        type: array
+      share:
+        $ref: '#/definitions/internal_handler.publicShareResponse'
+    type: object
+  internal_handler.shareResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      download_count:
+        type: integer
+      expires_at:
+        type: string
+      has_password:
+        type: boolean
+      id:
+        type: string
+      is_reverse_share:
+        type: boolean
+      max_downloads:
+        type: integer
+      max_views:
+        type: integer
+      name:
+        type: string
+      slug:
+        type: string
+      updated_at:
+        type: string
+      view_count:
+        type: integer
+    type: object
+  internal_handler.tokenResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  internal_handler.updatePasswordRequest:
+    properties:
+      new_password:
+        type: string
+      old_password:
+        type: string
+    type: object
+  internal_handler.updateProfileRequest:
+    properties:
+      display_name:
+        type: string
+      email:
+        type: string
+    type: object
+  internal_handler.updateShareRequest:
+    properties:
+      clear_expiry:
+        type: boolean
+      clear_password:
+        type: boolean
+      description:
+        type: string
+      expires_at:
+        type: string
+      is_reverse_share:
+        type: boolean
+      max_downloads:
+        type: integer
+      max_views:
+        type: integer
+      name:
+        type: string
+      password:
+        type: string
+    type: object
+  internal_handler.updateUserRequest:
+    properties:
+      display_name:
+        type: string
+      email:
+        type: string
+      is_admin:
+        type: boolean
+      password:
+        type: string
+    type: object
+  internal_handler.userResponse:
+    properties:
+      display_name:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+    type: object
+  internal_handler.verifyPasswordRequest:
+    properties:
+      password:
+        type: string
+    type: object
+  internal_handler.verifyPasswordResponse:
+    properties:
+      token:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: File sharing API with support for password-protected shares, expiring
+    links, reverse shares, and admin user management.
+  title: Enlace API
+  version: "1.0"
+paths:
+  /api/v1/admin/users:
+    get:
+      description: Requires admin role.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/internal_handler.adminUserResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      description: Requires admin role.
+      parameters:
+      - description: User details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.createUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.adminUserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a user
+      tags:
+      - admin
+  /api/v1/admin/users/{id}:
+    delete:
+      description: Requires admin role.
+      parameters:
+      - description: User ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a user
+      tags:
+      - admin
+    get:
+      description: Requires admin role.
+      parameters:
+      - description: User ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.adminUserResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a user
+      tags:
+      - admin
+    patch:
+      consumes:
+      - application/json
+      description: Requires admin role.
+      parameters:
+      - description: User ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.updateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.adminUserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a user
+      tags:
+      - admin
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns JWT access token (15-min expiry)
+        and refresh token (7-day expiry).
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.loginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Login
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Logout
+      tags:
+      - auth
+  /api/v1/auth/oidc/callback:
+    get:
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: State parameter
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Redirects to frontend with error
+          schema:
+            type: string
+      summary: OIDC callback
+      tags:
+      - oidc
+  /api/v1/auth/oidc/config:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.oidcConfigResponse'
+              type: object
+      summary: Get OIDC configuration
+      tags:
+      - oidc
+  /api/v1/auth/oidc/login:
+    get:
+      responses:
+        "302":
+          description: Redirects to OIDC provider
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Start OIDC login
+      tags:
+      - oidc
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.refreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.tokenResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Refresh tokens
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Registration details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.registerRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.userResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /api/v1/files/{id}:
+    delete:
+      parameters:
+      - description: File ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a file
+      tags:
+      - files
+  /api/v1/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.profileResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - user
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.updateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.profileResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update current user profile
+      tags:
+      - user
+  /api/v1/me/oidc:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Unlink OIDC account
+      tags:
+      - oidc
+  /api/v1/me/oidc/callback:
+    get:
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: State parameter
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Redirects with error
+          schema:
+            type: string
+      summary: OIDC link callback
+      tags:
+      - oidc
+  /api/v1/me/oidc/link:
+    get:
+      responses:
+        "302":
+          description: Redirects to OIDC provider
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Start OIDC account linking
+      tags:
+      - oidc
+  /api/v1/me/password:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Old and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.updatePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Change password
+      tags:
+      - user
+  /api/v1/shares:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/internal_handler.shareResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List shares
+      tags:
+      - shares
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Share details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.createShareRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.shareResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a share
+      tags:
+      - shares
+  /api/v1/shares/{id}:
+    delete:
+      parameters:
+      - description: Share ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a share
+      tags:
+      - shares
+    get:
+      parameters:
+      - description: Share ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.shareResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a share
+      tags:
+      - shares
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Share ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.updateShareRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.shareResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a share
+      tags:
+      - shares
+  /api/v1/shares/{id}/files:
+    get:
+      parameters:
+      - description: Share ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/internal_handler.fileResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List files in a share
+      tags:
+      - files
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Share ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Files to upload
+        in: formData
+        name: files
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/internal_handler.fileResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload files to a share
+      tags:
+      - files
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Health check
+      tags:
+      - system
+  /s/{slug}:
+    get:
+      description: Returns share details and files. Requires X-Share-Token for password-protected
+        shares.
+      parameters:
+      - description: Share slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.shareDetailsResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "410":
+          description: Gone
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: View a public share
+      tags:
+      - public
+  /s/{slug}/files/{fileId}:
+    get:
+      description: Downloads a file from a public share. Use X-Share-Token header
+        or token query param for password-protected shares.
+      parameters:
+      - description: Share slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: File ID (UUID)
+        in: path
+        name: fileId
+        required: true
+        type: string
+      - description: Share access token
+        in: query
+        name: token
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "410":
+          description: Gone
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Download a file
+      tags:
+      - public
+  /s/{slug}/files/{fileId}/preview:
+    get:
+      description: Previews a file inline. Use X-Share-Token header or token query
+        param for password-protected shares.
+      parameters:
+      - description: Share slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: File ID (UUID)
+        in: path
+        name: fileId
+        required: true
+        type: string
+      - description: Share access token
+        in: query
+        name: token
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "410":
+          description: Gone
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Preview a file
+      tags:
+      - public
+  /s/{slug}/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads files to a public reverse share. No authentication required.
+      parameters:
+      - description: Share slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Files to upload
+        in: formData
+        name: files
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/internal_handler.publicFileResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "410":
+          description: Gone
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Upload to a reverse share
+      tags:
+      - public
+  /s/{slug}/verify:
+    post:
+      consumes:
+      - application/json
+      description: Returns a share access token (1-hour expiry) for password-protected
+        shares.
+      parameters:
+      - description: Share slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.verifyPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.verifyPasswordResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "410":
+          description: Gone
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Verify share password
+      tags:
+      - public
+securityDefinitions:
+  BearerAuth:
+    description: 'Enter your Bearer token: Bearer {token}'
+    in: header
+    name: Authorization
+    type: apiKey
+  ShareToken:
+    description: Share access token for password-protected shares
+    in: header
+    name: X-Share-Token
+    type: apiKey
+swagger: "2.0"

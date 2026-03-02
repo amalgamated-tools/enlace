@@ -1,3 +1,5 @@
+//go:generate swag init -g cmd/enlace/main.go -o docs --parseDependency --parseInternal -d ../../
+
 package main
 
 import (
@@ -22,6 +24,22 @@ import (
 
 var version = "dev"
 
+// @title           Enlace API
+// @version         1.0
+// @description     File sharing API with support for password-protected shares, expiring links, reverse shares, and admin user management.
+
+// @host      localhost:8080
+// @BasePath  /
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter your Bearer token: Bearer {token}
+
+// @securityDefinitions.apikey ShareToken
+// @in header
+// @name X-Share-Token
+// @description Share access token for password-protected shares
 func main() {
 	otel.SetupLogger(version)
 	slog.Info("enlace", slog.String("version", version))
@@ -95,8 +113,9 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		Storage:      store,
 		JWTSecret:    cfg.JWTSecret,
 		BaseURL:      cfg.BaseURL,
-		OIDCService:  oidcService,
-		FrontendFS:   frontendFS,
+		OIDCService:    oidcService,
+		FrontendFS:     frontendFS,
+		SwaggerEnabled: cfg.SwaggerEnabled,
 	})
 
 	// Create server

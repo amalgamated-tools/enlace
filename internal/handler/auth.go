@@ -74,7 +74,17 @@ type tokenResponse struct {
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 
 // Register handles user registration requests.
-// POST /api/auth/register
+//
+//	@Summary	Register a new user
+//	@Tags		auth
+//	@Accept		json
+//	@Produce	json
+//	@Param		body	body		registerRequest				true	"Registration details"
+//	@Success	201		{object}	APIResponse{data=userResponse}
+//	@Failure	400		{object}	ValidationErrorResponse
+//	@Failure	409		{object}	APIResponse
+//	@Failure	500		{object}	APIResponse
+//	@Router		/api/v1/auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := DecodeJSON(r, &req); err != nil {
@@ -105,7 +115,18 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 // Login handles user login requests.
-// POST /api/auth/login
+//
+//	@Summary		Login
+//	@Description	Authenticates a user and returns JWT access token (15-min expiry) and refresh token (7-day expiry).
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		loginRequest				true	"Login credentials"
+//	@Success		200		{object}	APIResponse{data=loginResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := DecodeJSON(r, &req); err != nil {
@@ -153,7 +174,17 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // Refresh handles token refresh requests.
-// POST /api/auth/refresh
+//
+//	@Summary	Refresh tokens
+//	@Tags		auth
+//	@Accept		json
+//	@Produce	json
+//	@Param		body	body		refreshRequest				true	"Refresh token"
+//	@Success	200		{object}	APIResponse{data=tokenResponse}
+//	@Failure	400		{object}	ValidationErrorResponse
+//	@Failure	401		{object}	APIResponse
+//	@Failure	500		{object}	APIResponse
+//	@Router		/api/v1/auth/refresh [post]
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
 	if err := DecodeJSON(r, &req); err != nil {
@@ -181,9 +212,13 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Logout handles user logout requests.
-// POST /api/auth/logout
-// For JWT-based auth, logout is primarily handled client-side by discarding tokens.
+// Logout handles user logout requests. JWT logout is client-side.
+//
+//	@Summary	Logout
+//	@Tags		auth
+//	@Produce	json
+//	@Success	200	{object}	APIResponse
+//	@Router		/api/v1/auth/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	// JWT logout is client-side, just return success
 	Success(w, http.StatusOK, nil)
