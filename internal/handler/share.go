@@ -206,11 +206,13 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send email notifications in background (non-blocking)
+	// Send email notifications in background (non-blocking).
+	// Use WithoutCancel so the goroutine isn't canceled when the handler returns,
+	// while still carrying request-scoped values (e.g. trace IDs) for logging.
 	if len(validRecipients) > 0 && h.emailService != nil && h.emailService.IsConfigured() {
-		parentCtx := r.Context()
+		bgCtx := context.WithoutCancel(r.Context())
 		go func() {
-			ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)
+			ctx, cancel := context.WithTimeout(bgCtx, 30*time.Second)
 			defer cancel()
 
 			if err := h.emailService.SendShareNotification(ctx, share, validRecipients); err != nil {
