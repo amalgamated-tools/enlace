@@ -10,7 +10,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
 - **Storage backends** — local filesystem or any S3-compatible object store
 - **Admin panel** — manage users from the UI
-- **Rate limiting** — IP-based rate limiting middleware is included (login: 5 req/min, register: 3 req/min, general API: 60 req/min); not applied to routes by default
+- **Rate limiting** — IP-based rate limiting middleware included (not applied by default; see `internal/middleware/ratelimit.go` for `LoginRateLimiter`, `RegisterRateLimiter`, and `APIRateLimiter` helpers)
 - **Embeds frontend** — single binary ships the compiled Svelte app
 
 ## Quick Start (Docker)
@@ -130,7 +130,7 @@ List endpoints that support pagination include a `meta` object:
 }
 ```
 
-Validation errors return HTTP 400 and include a `fields` map:
+Full validation error example:
 
 ```json
 {
@@ -280,9 +280,11 @@ internal/
   handler/         # HTTP handlers and router (chi)
   middleware/       # auth and rate-limiting middleware
   model/           # domain types (Share, File, User)
+  otel/            # structured logging setup (slog)
   repository/      # data-access layer
   service/         # business logic
   storage/         # Storage interface + local & S3 implementations
+  telemetry/       # anonymous opt-in telemetry
 frontend/          # Svelte + TypeScript + Vite app
 ```
 
