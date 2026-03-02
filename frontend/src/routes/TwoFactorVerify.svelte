@@ -30,7 +30,10 @@
     loading = true;
     try {
       const response = await totpApi.verify(pendingToken, code.trim());
-      auth.setTokens(response.access_token!, response.refresh_token!);
+      if (!response.access_token || !response.refresh_token) {
+        throw new Error("Verification failed: no tokens received");
+      }
+      auth.setTokens(response.access_token, response.refresh_token);
       toast.success("Logged in successfully");
       push("/");
     } catch (err) {
@@ -58,7 +61,10 @@
         pendingToken,
         recoveryCode.trim(),
       );
-      auth.setTokens(response.access_token!, response.refresh_token!);
+      if (!response.access_token || !response.refresh_token) {
+        throw new Error("Recovery failed: no tokens received");
+      }
+      auth.setTokens(response.access_token, response.refresh_token);
       toast.success("Logged in successfully");
       push("/");
     } catch (err) {
