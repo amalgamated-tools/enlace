@@ -73,7 +73,11 @@ func Send(version string) {
 		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 	}
 
-	body, _ := json.Marshal(payload)
+	body, err := json.Marshal(payload)
+	if err != nil {
+		slog.Error("Failed to marshal telemetry payload", slog.Any("error", err))
+		return
+	}
 
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
 	if err != nil {

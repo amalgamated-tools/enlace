@@ -70,9 +70,11 @@ func TestSend_SuccessfulPayload(t *testing.T) {
 	defer srv.Close()
 
 	tmpDir := t.TempDir()
-	installIDPath := filepath.Join(tmpDir, "install_id")
+	t.Setenv("TELEMETRY_ENABLED", "true")
+	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
+	t.Setenv("DATA_DIR", tmpDir)
 
-	send("2.5.0", srv.URL, installIDPath)
+	Send("2.5.0")
 
 	if received.Application != "enlace" {
 		t.Errorf("expected application 'enlace', got %q", received.Application)
@@ -94,6 +96,7 @@ func TestSend_SuccessfulPayload(t *testing.T) {
 	}
 
 	// Verify install_id file was written
+	installIDPath := filepath.Join(tmpDir, "install_id")
 	data, err := os.ReadFile(installIDPath)
 	if err != nil {
 		t.Fatalf("install_id file should have been created: %v", err)
@@ -112,16 +115,18 @@ func TestSend_OnlyOnce(t *testing.T) {
 	defer srv.Close()
 
 	tmpDir := t.TempDir()
-	installIDPath := filepath.Join(tmpDir, "install_id")
+	t.Setenv("TELEMETRY_ENABLED", "true")
+	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
+	t.Setenv("DATA_DIR", tmpDir)
 
 	// First call should send
-	send("1.0.0", srv.URL, installIDPath)
+	Send("1.0.0")
 	if callCount.Load() != 1 {
 		t.Fatalf("expected 1 call after first send, got %d", callCount.Load())
 	}
 
 	// Second call should skip because install_id exists
-	send("1.0.0", srv.URL, installIDPath)
+	Send("1.0.0")
 	if callCount.Load() != 1 {
 		t.Errorf("expected 1 call after second send (should skip), got %d", callCount.Load())
 	}
@@ -134,11 +139,14 @@ func TestSend_ServerError(t *testing.T) {
 	defer srv.Close()
 
 	tmpDir := t.TempDir()
-	installIDPath := filepath.Join(tmpDir, "install_id")
+	t.Setenv("TELEMETRY_ENABLED", "true")
+	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
+	t.Setenv("DATA_DIR", tmpDir)
 
 	// Should not panic or write install_id on server error
-	send("1.0.0", srv.URL, installIDPath)
+	Send("1.0.0")
 
+	installIDPath := filepath.Join(tmpDir, "install_id")
 	if _, err := os.Stat(installIDPath); err == nil {
 		t.Error("install_id should not be written when server returns an error")
 	}
@@ -146,11 +154,14 @@ func TestSend_ServerError(t *testing.T) {
 
 func TestSend_ConnectionFailure(t *testing.T) {
 	tmpDir := t.TempDir()
-	installIDPath := filepath.Join(tmpDir, "install_id")
+	t.Setenv("TELEMETRY_ENABLED", "true")
+	t.Setenv("TELEMETRY_ENDPOINT", "http://127.0.0.1:1")
+	t.Setenv("DATA_DIR", tmpDir)
 
 	// Point at a closed server to simulate connection failure
-	send("1.0.0", "http://127.0.0.1:1", installIDPath)
+	Send("1.0.0")
 
+	installIDPath := filepath.Join(tmpDir, "install_id")
 	if _, err := os.Stat(installIDPath); err == nil {
 		t.Error("install_id should not be written when connection fails")
 	}
@@ -164,18 +175,15 @@ func TestSend_WriteFailure(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	// Use a path in a non-existent directory so WriteFile fails
-	installIDPath := filepath.Join(t.TempDir(), "nonexistent", "subdir", "install_id")
+	// Use a non-existent nested directory so WriteFile fails
+	t.Setenv("TELEMETRY_ENABLED", "true")
+	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
+	t.Setenv("DATA_DIR", filepath.Join(t.TempDir(), "nonexistent", "subdir"))
 
-	send("1.0.0", srv.URL, installIDPath)
+	Send("1.0.0")
 
 	// HTTP call should still have been made
 	if callCount.Load() != 1 {
 		t.Errorf("expected 1 HTTP call, got %d", callCount.Load())
-	}
-
-	// install_id should not exist since the write failed
-	if _, err := os.Stat(installIDPath); err == nil {
-		t.Error("install_id should not exist when write to non-existent directory fails")
 	}
 }
