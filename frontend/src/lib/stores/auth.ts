@@ -89,8 +89,16 @@ const createAuthStore = () => {
         if (response.access_token) {
           localStorage.setItem("access_token", response.access_token);
           localStorage.setItem("refresh_token", response.refresh_token!);
+
+          if (!response.user) {
+            // Tokens without user data should not happen; clear and fail
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
+            throw new Error("Login failed: no user data received");
+          }
+
           set({
-            user: response.user!,
+            user: response.user,
             loading: false,
             initialized: true,
           });
@@ -98,7 +106,7 @@ const createAuthStore = () => {
           return {
             success: true,
             requires2FASetup: response.requires_2fa_setup,
-            user: response.user!,
+            user: response.user,
           };
         }
 
