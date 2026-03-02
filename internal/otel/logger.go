@@ -58,5 +58,5 @@ func SetupLogger(v string) {
 	logger.Info("Logger initialized", slog.String("format", format), slog.String("level", level.String()))
 	slog.SetDefault(logger)
 
-	telemetry.Send(Version)
+	go telemetry.Send(Version)
 }
