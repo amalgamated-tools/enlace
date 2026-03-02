@@ -76,7 +76,7 @@ The following variables are accepted by the configuration loader and are reserve
 | Variable | Default | Description |
 |---|---|---|
 | `SWAGGER_ENABLED` | `false` | Set to `true` to serve the Swagger UI at `/swagger/` and the OpenAPI spec at `/swagger/doc.json` |
-| `CORS_ORIGINS` | *(BaseURL)* | Comma-separated list of allowed CORS origins. Defaults to `BASE_URL` when empty |
+| `CORS_ORIGINS` | *(equals `BASE_URL`)* | Comma-separated list of allowed CORS origins. Defaults to the value of `BASE_URL` when not set |
 
 ### Logging
 
@@ -94,13 +94,6 @@ Enlace collects **opt-in, anonymous** telemetry to help improve the project. Tel
 | `TELEMETRY_ENABLED` | `false` | Set to `true` to enable anonymous telemetry |
 | `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Endpoint that receives the telemetry ping (override for self-hosted collection) |
 | `DATA_DIR` | `./data` | Directory used to store the install ID file that prevents duplicate telemetry pings |
-
-### API & CORS
-
-| Variable | Default | Description |
-|---|---|---|
-| `SWAGGER_ENABLED` | `false` | Set to `true` to serve the Swagger UI at `/swagger/` and the OpenAPI spec at `/swagger/doc.json` |
-| `CORS_ORIGINS` | *(equals `BASE_URL`)* | Comma-separated list of allowed CORS origins. Defaults to the value of `BASE_URL` when not set |
 
 ### OIDC / SSO (optional)
 
