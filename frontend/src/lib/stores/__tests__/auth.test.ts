@@ -134,8 +134,9 @@ describe("auth store", () => {
         user: mockUser,
       });
 
-      const user = await auth.login("test@test.com", "password");
-      expect(user).toEqual(mockUser);
+      const result = await auth.login("test@test.com", "password");
+      expect(result.success).toBe(true);
+      expect(result.user).toEqual(mockUser);
       expect(localStorage.getItem("access_token")).toBe("access-123");
       expect(localStorage.getItem("refresh_token")).toBe("refresh-123");
       expect(get(auth).user).toEqual(mockUser);
