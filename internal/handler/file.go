@@ -80,8 +80,8 @@ type fileResponse struct {
 //	@Accept		multipart/form-data
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		id		path		string						true	"Share ID (UUID)"
-//	@Param		files	formData	file						true	"Files to upload"
+//	@Param		id		path		string	true	"Share ID (UUID)"
+//	@Param		files	formData	file	true	"Files to upload"
 //	@Success	201		{object}	APIResponse{data=[]fileResponse}
 //	@Failure	400		{object}	APIResponse
 //	@Failure	401		{object}	APIResponse
@@ -182,7 +182,7 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 //	@Tags		files
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		id	path		string						true	"Share ID (UUID)"
+//	@Param		id	path		string	true	"Share ID (UUID)"
 //	@Success	200	{object}	APIResponse{data=[]fileResponse}
 //	@Failure	401	{object}	APIResponse
 //	@Failure	404	{object}	APIResponse
@@ -243,7 +243,7 @@ func (h *FileHandler) ListByShare(w http.ResponseWriter, r *http.Request) {
 //	@Tags		files
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		id	path		string		true	"File ID (UUID)"
+//	@Param		id	path		string	true	"File ID (UUID)"
 //	@Success	200	{object}	APIResponse
 //	@Failure	401	{object}	APIResponse
 //	@Failure	404	{object}	APIResponse

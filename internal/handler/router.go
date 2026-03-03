@@ -23,6 +23,7 @@ type RouterConfig struct {
 	AuthService  *service.AuthService
 	ShareService *service.ShareService
 	FileService  *service.FileService
+	EmailService *service.EmailService
 
 	// Repositories (for middleware/handlers that need direct access)
 	UserRepo  *repository.UserRepository
@@ -81,7 +82,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 	// Create handlers
 	authHandler := NewAuthHandler(cfg.AuthService)
-	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService)
+	var emailSvc EmailServiceInterface
+	if cfg.EmailService != nil {
+		emailSvc = cfg.EmailService
+	}
+	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService, emailSvc)
 	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService)
 	userHandler := NewUserHandler(cfg.AuthService)
 	adminHandler := NewAdminHandler(cfg.UserRepo)
@@ -115,6 +120,8 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 				r.Get("/", shareHandler.Get)
 				r.Patch("/", shareHandler.Update)
 				r.Delete("/", shareHandler.Delete)
+				r.Post("/notify", shareHandler.SendNotification)
+				r.Get("/recipients", shareHandler.ListRecipients)
 
 				// File routes for a specific share
 				r.Get("/files", fileHandler.ListByShare)

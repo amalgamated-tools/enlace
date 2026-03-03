@@ -98,7 +98,7 @@ func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		body	body		updateProfileRequest		true	"Fields to update"
+//	@Param		body	body		updateProfileRequest	true	"Fields to update"
 //	@Success	200		{object}	APIResponse{data=profileResponse}
 //	@Failure	400		{object}	ValidationErrorResponse
 //	@Failure	401		{object}	APIResponse

@@ -20,3 +20,4 @@ uploads/
 # Air live reload
 tmp/
 rustfs/
+mail/

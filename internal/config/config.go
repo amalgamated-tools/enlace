@@ -23,6 +23,7 @@ type Config struct {
 	SMTPUser         string
 	SMTPPass         string
 	SMTPFrom         string
+	SMTPTLSPolicy    string
 	// OIDC configuration
 	OIDCEnabled      bool
 	OIDCIssuerURL    string
@@ -55,6 +56,7 @@ func Load() *Config {
 		SMTPUser:         getEnv("SMTP_USER", ""),
 		SMTPPass:         getEnv("SMTP_PASS", ""),
 		SMTPFrom:         getEnv("SMTP_FROM", "noreply@example.com"),
+		SMTPTLSPolicy:    getEnv("SMTP_TLS_POLICY", "opportunistic"),
 		OIDCEnabled:      getEnvBool("OIDC_ENABLED", false),
 		OIDCIssuerURL:    getEnv("OIDC_ISSUER_URL", ""),
 		OIDCClientID:     getEnv("OIDC_CLIENT_ID", ""),
