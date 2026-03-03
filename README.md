@@ -385,6 +385,27 @@ Share responses include the following fields:
 | `created_at` | string (RFC3339) | Creation timestamp |
 | `updated_at` | string (RFC3339) | Last-updated timestamp |
 
+### File upload
+
+**`POST /api/v1/shares/{id}/files`** — upload one or more files to a share you own.
+
+The request must use `Content-Type: multipart/form-data`. Include each file under the `files` field (repeat the field for multiple files):
+
+```
+POST /api/v1/shares/{id}/files
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data; boundary=----boundary
+
+------boundary
+Content-Disposition: form-data; name="files"; filename="report.pdf"
+Content-Type: application/pdf
+
+<binary content>
+------boundary--
+```
+
+Returns an array of file objects (see [File object](#file-object) below).
+
 ### File object
 
 File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
@@ -395,6 +416,54 @@ File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
 | `name` | string | Original filename |
 | `size` | int | File size in bytes |
 | `mime_type` | string | Detected MIME type |
+
+### Public share endpoints
+
+The following endpoints are publicly accessible (no authentication) and are used to view and interact with shares via their slug.
+
+**`GET /s/{slug}`** — retrieve a share's metadata and file list.
+
+- If the share is **not** password-protected, the response is returned immediately.
+- If the share **is** password-protected, you must first obtain an access token (see `POST /s/{slug}/verify` below) and pass it in the `X-Share-Token` header.
+
+Response `data` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `share` | object | Share metadata (same fields as the authenticated share response) |
+| `files` | array | List of file objects in the share |
+
+---
+
+**`POST /s/{slug}/verify`** — unlock a password-protected share and receive an access token.
+
+```json
+{ "password": "your-share-password" }
+```
+
+On success, returns:
+
+```json
+{ "token": "<share-access-token>" }
+```
+
+The token is valid for **1 hour**. Pass it in subsequent requests to the same share as either:
+- `X-Share-Token: <token>` header, or
+- `?token=<token>` query parameter.
+
+---
+
+**`GET /s/{slug}/files/{fileId}`** — download a file. Returns the raw file content with `Content-Disposition: attachment`.
+
+For password-protected shares, include the access token as `X-Share-Token: <token>` or `?token=<token>`.
+
+**`GET /s/{slug}/files/{fileId}/preview`** — preview a file inline. Identical to the download endpoint but serves the file with `Content-Disposition: inline`, suitable for in-browser preview.
+
+---
+
+**`POST /s/{slug}/upload`** — upload files to a reverse share (no authentication required).
+
+Uses the same `multipart/form-data` format as the authenticated upload endpoint — attach files under the `files` field. Returns an array of uploaded file objects.
 
 ### Notify endpoint
 
