@@ -11,6 +11,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Storage backends** — local filesystem or any S3-compatible object store
 - **Admin panel** — manage users from the UI
 - **Rate limiting** — IP-based rate limiting middleware included (not applied by default). Pre-built helpers in `internal/middleware/ratelimit.go`: `LoginRateLimiter` (5 req/min), `RegisterRateLimiter` (3 req/min), and `APIRateLimiter` (60 req/min).
+- **Email notifications** — optionally email share links to recipients via SMTP; resend from the share detail page
 - **Embeds frontend** — single binary ships the compiled Svelte app
 
 ## Quick Start (Docker)
@@ -59,17 +60,23 @@ All settings are read from environment variables (or a `.env` file when running 
 | `S3_REGION` | — | AWS/compatible region |
 | `S3_PATH_PREFIX` | — | Optional key prefix inside the bucket |
 
-### SMTP (reserved for future use)
+### SMTP (email notifications)
 
-The following variables are accepted by the configuration loader and are reserved for upcoming email-notification features. No emails are sent in the current release.
+Configure SMTP to let Enlace email share links to recipients. Emails are sent as multipart (plain-text + HTML) messages and use opportunistic TLS by default.
 
 | Variable | Default | Description |
 |---|---|---|
 | `SMTP_HOST` | — | SMTP server hostname |
 | `SMTP_PORT` | `587` | SMTP port |
-| `SMTP_USER` | — | SMTP username |
-| `SMTP_PASS` | — | SMTP password |
+| `SMTP_USER` | — | SMTP username (omit for unauthenticated relays) |
+| `SMTP_PASS` | — | SMTP password (omit for unauthenticated relays) |
 | `SMTP_FROM` | `noreply@example.com` | Sender address |
+| `SMTP_TLS_POLICY` | `opportunistic` | TLS mode: `opportunistic` (STARTTLS when available), `mandatory` (STARTTLS required), or `none` (no TLS) |
+
+Email notifications are **disabled** when `SMTP_HOST` is not set. When configured, you can:
+
+- Supply a `recipients` array on share creation to notify addresses immediately.
+- Call `POST /api/v1/shares/{id}/notify` at any time to (re-)send the share link.
 
 ### Logging
 
@@ -245,6 +252,7 @@ Admin user responses include `id`, `email`, `display_name`, `is_admin`, `created
 | `max_downloads` | int | | Download limit (≥ 0) |
 | `max_views` | int | | View limit (≥ 0) |
 | `is_reverse_share` | bool | | Allow others to upload files to this share |
+| `recipients` | array of strings | | Email addresses to notify immediately (requires SMTP to be configured) |
 
 **`PATCH /api/v1/shares/{id}`** accepts the same fields (all optional). Use `"clear_password": true` or `"clear_expiry": true` to remove those constraints.
 
@@ -277,6 +285,17 @@ File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
 | `size` | int | File size in bytes |
 | `mime_type` | string | Detected MIME type |
 
+### Recipient object
+
+Recipient responses (from `GET /api/v1/shares/{id}/recipients`) include:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Recipient UUID |
+| `share_id` | string | Parent share UUID |
+| `email` | string | Notified email address |
+| `sent_at` | string (RFC3339) | Timestamp when the notification was sent |
+
 ### Endpoint reference
 
 | Method | Path | Auth | Description |
@@ -297,6 +316,8 @@ File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
 | `DELETE` | `/api/v1/shares/{id}` | ✔ | Delete a share |
 | `GET` | `/api/v1/shares/{id}/files` | ✔ | List files in a share |
 | `POST` | `/api/v1/shares/{id}/files` | ✔ | Upload a file to a share |
+| `POST` | `/api/v1/shares/{id}/notify` | ✔ | Send email notifications for a share |
+| `GET` | `/api/v1/shares/{id}/recipients` | ✔ | List notified recipients for a share |
 | `DELETE` | `/api/v1/files/{id}` | ✔ | Delete a file |
 | `GET` | `/api/v1/me` | ✔ | Get my profile |
 | `PATCH` | `/api/v1/me` | ✔ | Update my profile |
@@ -359,6 +380,22 @@ make rustfs-logs    # tail logs
 ```
 
 Then set `STORAGE_TYPE=s3` and point `S3_ENDPOINT` at `http://localhost:9000`.
+
+### Email (local dev)
+
+The dev compose file ships [Mailpit](https://mailpit.axllent.org/), a local SMTP catch-all:
+
+```bash
+docker compose -f docker-compose-dev.yml up mailpit
+```
+
+| Setting | Value |
+|---|---|
+| SMTP host | `localhost` |
+| SMTP port | `1025` |
+| Mailpit UI | <http://localhost:8025> |
+
+Set `SMTP_HOST=localhost`, `SMTP_PORT=1025`, and `SMTP_TLS_POLICY=none` in your `.env` to route all outgoing mail to Mailpit.
 
 ## Building a Docker Image
 
