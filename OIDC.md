@@ -118,6 +118,34 @@ volumes:
 3. You should be redirected to Pocket ID to authenticate with your passkey.
 4. After authentication, you'll be redirected back to Enlace and logged in.
 
+## SSO and Two-Factor Authentication
+
+**SSO (OIDC) and 2FA are mutually exclusive.** When you link an OIDC identity to a Enlace account — either by signing in for the first time or by linking via the Settings page — any existing TOTP 2FA configuration on that account is automatically and permanently removed.
+
+### Why?
+
+When authentication is delegated to an identity provider, the provider is responsible for all factors of authentication (including second factors such as passkeys, hardware tokens, or its own TOTP). Adding an additional Enlace-managed TOTP layer on top would create redundancy without meaningful security benefit, and could create confusing or inaccessible account states.
+
+### Behaviour for SSO-linked accounts
+
+| Situation | What happens |
+|---|---|
+| User links an OIDC identity (first login or explicit link) | Any active 2FA is silently removed |
+| SSO user attempts to set up 2FA (`POST /me/2fa/setup`) | **HTTP 403** — `"2FA is not available for SSO accounts"` |
+| SSO user attempts to confirm setup, disable, or regenerate recovery codes | **HTTP 403** — same error |
+| SSO user logs in | 2FA challenge step is skipped entirely |
+| 2FA UI in Settings | Hidden for SSO-linked accounts |
+
+### Migrating from 2FA to SSO
+
+If you have 2FA enabled and want to switch to SSO, simply link your OIDC identity via **Settings → Linked Accounts**. Your 2FA configuration will be removed automatically. You do not need to disable 2FA manually first.
+
+### Migrating from SSO to local password + 2FA
+
+1. Ensure your account has a local password set (**Settings → Change Password** or `PUT /api/v1/me/password`).
+2. Unlink your OIDC identity via **Settings → Linked Accounts**.
+3. You can now enroll in 2FA under **Settings → Two-Factor Authentication**.
+
 ## Troubleshooting
 
 ### "OIDC is not enabled"
