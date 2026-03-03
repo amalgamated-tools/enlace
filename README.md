@@ -7,7 +7,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **File shares** — upload files and generate a public link
 - **Reverse shares** — let others upload files to a link you control
 - **Access controls** — optional password protection, expiry date, download limit, and view limit per share
-- **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
+- **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO); optional TOTP-based two-factor authentication (2FA) with recovery codes
 - **Storage backends** — local filesystem or any S3-compatible object store
 - **Admin panel** — manage users from the UI
 - **Rate limiting** — IP-based rate limiting middleware included (not applied by default). Pre-built helpers in `internal/middleware/ratelimit.go`: `LoginRateLimiter` (5 req/min), `RegisterRateLimiter` (3 req/min), and `APIRateLimiter` (60 req/min).
@@ -114,6 +114,19 @@ Enlace collects **opt-in, anonymous** telemetry to help improve the project. Tel
 | `OIDC_SCOPES` | `openid email profile` | Space-separated scope list |
 
 See [OIDC.md](OIDC.md) for provider-specific setup guides.
+
+### Two-Factor Authentication (2FA)
+
+Enlace supports TOTP-based 2FA. Users can enroll via **Settings → Security** in the UI, or via the `/api/v1/me/2fa/*` endpoints. Each user stores an AES-GCM-encrypted TOTP secret and a set of one-time recovery codes.
+
+| Variable | Default | Description |
+|---|---|---|
+| `REQUIRE_2FA` | `false` | Set to `true` to require all users to enroll in 2FA before they can access the application |
+
+**Login flow with 2FA enabled:**
+
+1. `POST /api/v1/auth/login` — returns a short-lived *pending* JWT (`TFA=true` claim) instead of a full access token.
+2. The client submits the TOTP code to `POST /api/v1/auth/2fa/verify` (or a recovery code to `POST /api/v1/auth/2fa/recovery`) to exchange the pending token for a full access/refresh token pair.
 
 ## API
 
@@ -322,6 +335,8 @@ Recipient responses (from `GET /api/v1/shares/{id}/recipients`) include:
 | `GET` | `/api/v1/auth/oidc/config` | — | OIDC feature flag |
 | `GET` | `/api/v1/auth/oidc/login` | — | Start OIDC flow |
 | `GET` | `/api/v1/auth/oidc/callback` | — | OIDC callback |
+| `POST` | `/api/v1/auth/2fa/verify` | ✔ pending | Verify TOTP code and obtain full tokens |
+| `POST` | `/api/v1/auth/2fa/recovery` | ✔ pending | Use a recovery code and obtain full tokens |
 | `GET` | `/api/v1/shares` | ✔ | List my shares |
 | `POST` | `/api/v1/shares` | ✔ | Create a share |
 | `GET` | `/api/v1/shares/{id}` | ✔ | Get share details |
@@ -338,6 +353,11 @@ Recipient responses (from `GET /api/v1/shares/{id}/recipients`) include:
 | `GET` | `/api/v1/me/oidc/link` | ✔ | Start OIDC link flow |
 | `GET` | `/api/v1/me/oidc/callback` | ✔ | OIDC link callback |
 | `DELETE` | `/api/v1/me/oidc` | ✔ | Unlink OIDC identity (requires a local password to be set) |
+| `GET` | `/api/v1/me/2fa/status` | ✔ | Get 2FA enrollment status |
+| `POST` | `/api/v1/me/2fa/setup` | ✔ | Begin TOTP setup (returns secret and QR code) |
+| `POST` | `/api/v1/me/2fa/confirm` | ✔ | Confirm TOTP setup with a code (returns recovery codes) |
+| `POST` | `/api/v1/me/2fa/disable` | ✔ | Disable 2FA (requires current password) |
+| `POST` | `/api/v1/me/2fa/recovery-codes` | ✔ | Regenerate recovery codes (requires current password) |
 | `GET` | `/api/v1/admin/users` | ✔ admin | List all users |
 | `POST` | `/api/v1/admin/users` | ✔ admin | Create a user |
 | `GET` | `/api/v1/admin/users/{id}` | ✔ admin | Get a user |
