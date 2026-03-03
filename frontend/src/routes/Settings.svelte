@@ -64,7 +64,11 @@
     try {
       totpStatus = await totpApi.getStatus();
       // Auto-open setup if redirected from login with setup2fa flag
-      if (params.get("setup2fa") === "true" && !totpStatus.enabled) {
+      if (
+        params.get("setup2fa") === "true" &&
+        !totpStatus.enabled &&
+        !$auth.user?.oidc_linked
+      ) {
         handleBeginSetup();
       }
     } catch {
@@ -357,7 +361,7 @@
     </div>
   </div>
 
-  {#if totpStatus !== null}
+  {#if totpStatus !== null && !$auth.user?.oidc_linked}
     <div class="bg-white rounded-xl border border-slate-200 mt-6">
       <div class="px-6 py-4 border-b border-slate-100">
         <h3 class="text-sm font-semibold text-slate-900">

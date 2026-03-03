@@ -18,7 +18,7 @@ func TestNewOIDCService_Disabled(t *testing.T) {
 		OIDCEnabled: false,
 	}
 
-	svc, err := service.NewOIDCService(cfg, nil)
+	svc, err := service.NewOIDCService(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error for disabled OIDC, got %v", err)
 	}
@@ -39,7 +39,7 @@ func TestNewOIDCService_EnabledInvalidIssuer(t *testing.T) {
 		OIDCClientID:  "client-id",
 	}
 
-	_, err := service.NewOIDCService(cfg, nil)
+	_, err := service.NewOIDCService(cfg, nil, nil)
 	if err == nil {
 		t.Error("expected error for invalid OIDC issuer URL")
 	}
@@ -60,7 +60,7 @@ func TestOIDCService_FindOrCreateUser_ExistingOIDCUser(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db.DB())
-	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com")
+	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com", nil)
 	ctx := context.Background()
 
 	// Create a user with OIDC info directly via repo
@@ -101,7 +101,7 @@ func TestOIDCService_FindOrCreateUser_AutoLinkByEmail(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db.DB())
-	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com")
+	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com", nil)
 	ctx := context.Background()
 
 	// Create a user without OIDC linkage
@@ -143,7 +143,7 @@ func TestOIDCService_FindOrCreateUser_NewUser(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db.DB())
-	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com")
+	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com", nil)
 	ctx := context.Background()
 
 	// FindOrCreateUser should create a brand new user
@@ -178,7 +178,7 @@ func TestOIDCService_UnlinkOIDC_RequiresPassword(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db.DB())
-	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com")
+	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com", nil)
 	ctx := context.Background()
 
 	// Create a user without password (OIDC-only user)
@@ -208,7 +208,7 @@ func TestOIDCService_UnlinkOIDC_WithPassword(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db.DB())
-	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com")
+	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com", nil)
 	ctx := context.Background()
 
 	// Create a user with both password and OIDC linkage
@@ -239,5 +239,98 @@ func TestOIDCService_UnlinkOIDC_WithPassword(t *testing.T) {
 	}
 	if found.OIDCIssuer != "" {
 		t.Errorf("expected empty OIDCIssuer, got %s", found.OIDCIssuer)
+	}
+}
+
+// mockTOTPDisabler records calls to Disable for test assertions.
+type mockTOTPDisabler struct {
+	disabledUsers []string
+}
+
+func (m *mockTOTPDisabler) Disable(ctx context.Context, userID string) error {
+	m.disabledUsers = append(m.disabledUsers, userID)
+	return nil
+}
+
+func TestOIDCService_FindOrCreateUser_AutoLinkRemoves2FA(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	disabler := &mockTOTPDisabler{}
+	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com", disabler)
+	ctx := context.Background()
+
+	// Create a user without OIDC linkage (has email only)
+	existingUser := &model.User{
+		ID:          "user-with-2fa",
+		Email:       "twofa@example.com",
+		DisplayName: "2FA User",
+	}
+	if err := userRepo.Create(ctx, existingUser); err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	// Auto-link via email should remove 2FA
+	_, err = svc.FindOrCreateUser(ctx, &service.OIDCUserInfo{
+		Subject:     "sub-new",
+		Email:       "twofa@example.com",
+		DisplayName: "2FA User",
+		Issuer:      "https://issuer.example.com",
+	})
+	if err != nil {
+		t.Fatalf("FindOrCreateUser failed: %v", err)
+	}
+
+	if len(disabler.disabledUsers) != 1 {
+		t.Fatalf("expected 1 Disable call, got %d", len(disabler.disabledUsers))
+	}
+	if disabler.disabledUsers[0] != "user-with-2fa" {
+		t.Errorf("expected Disable for user-with-2fa, got %s", disabler.disabledUsers[0])
+	}
+}
+
+func TestOIDCService_LinkOIDC_Removes2FA(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	disabler := &mockTOTPDisabler{}
+	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com", disabler)
+	ctx := context.Background()
+
+	// Create a user with a password (can link OIDC)
+	user := &model.User{
+		ID:           "user-link-2fa",
+		Email:        "link@example.com",
+		PasswordHash: "hashed-password",
+		DisplayName:  "Link User",
+	}
+	if err := userRepo.Create(ctx, user); err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	// Link OIDC should remove 2FA
+	err = svc.LinkOIDC(ctx, "user-link-2fa", &service.OIDCUserInfo{
+		Subject:     "sub-link",
+		Email:       "link@example.com",
+		DisplayName: "Link User",
+		Issuer:      "https://issuer.example.com",
+	})
+	if err != nil {
+		t.Fatalf("LinkOIDC failed: %v", err)
+	}
+
+	if len(disabler.disabledUsers) != 1 {
+		t.Fatalf("expected 1 Disable call, got %d", len(disabler.disabledUsers))
+	}
+	if disabler.disabledUsers[0] != "user-link-2fa" {
+		t.Errorf("expected Disable for user-link-2fa, got %s", disabler.disabledUsers[0])
 	}
 }
