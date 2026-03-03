@@ -178,6 +178,9 @@ func (s *OIDCService) FindOrCreateUser(ctx context.Context, info *OIDCUserInfo) 
 	// First, try to find by OIDC identity
 	user, err := s.userRepo.GetByOIDC(ctx, info.Issuer, info.Subject)
 	if err == nil {
+		// Best-effort: clean up any stale 2FA data left from a partial failure
+		// during a previous link attempt where Update succeeded but disable2FA failed.
+		_ = s.disable2FA(ctx, user.ID)
 		return user, nil
 	}
 	if !errors.Is(err, repository.ErrNotFound) {

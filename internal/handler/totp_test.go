@@ -952,6 +952,14 @@ func TestTOTPHandler_Recovery_InvalidCode(t *testing.T) {
 
 // --- OIDC user blocking tests ---
 
+func errorUserGetter() *mockUserGetter {
+	return &mockUserGetter{
+		getUserFn: func(ctx context.Context, userID string) (*model.User, error) {
+			return nil, errors.New("database connection lost")
+		},
+	}
+}
+
 func oidcUserGetter() *mockUserGetter {
 	return &mockUserGetter{
 		getUserFn: func(ctx context.Context, userID string) (*model.User, error) {
@@ -1056,5 +1064,73 @@ func TestTOTPHandler_GetStatus_OIDCUserAllowed(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+}
+
+// --- isOIDCUser error path tests (GetUser returns error → HTTP 500) ---
+
+func TestTOTPHandler_BeginSetup_UserGetterError(t *testing.T) {
+	totpMock := &mockTOTPService{}
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, errorUserGetter())
+	router := setupTOTPRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/me/2fa/setup", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestTOTPHandler_ConfirmSetup_UserGetterError(t *testing.T) {
+	totpMock := &mockTOTPService{}
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, errorUserGetter())
+	router := setupTOTPRouter(h)
+
+	body := `{"code": "123456"}`
+	req := httptest.NewRequest(http.MethodPost, "/me/2fa/confirm", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestTOTPHandler_Disable_UserGetterError(t *testing.T) {
+	totpMock := &mockTOTPService{}
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, errorUserGetter())
+	router := setupTOTPRouter(h)
+
+	body := `{"password": "some-password"}`
+	req := httptest.NewRequest(http.MethodPost, "/me/2fa/disable", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestTOTPHandler_RegenerateRecoveryCodes_UserGetterError(t *testing.T) {
+	totpMock := &mockTOTPService{}
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, errorUserGetter())
+	router := setupTOTPRouter(h)
+
+	body := `{"password": "some-password"}`
+	req := httptest.NewRequest(http.MethodPost, "/me/2fa/recovery-codes", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
 	}
 }
