@@ -127,6 +127,8 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 			slog.WarnContext(cancelCtx, "failed to initialize OIDC", slog.Any("error", err))
 		} else {
 			slog.InfoContext(cancelCtx, "OIDC authentication enabled")
+			// Wire TOTP disabler so linking OIDC auto-disables any existing 2FA
+			oidcService.SetTOTPDisabler(totpService)
 		}
 	}
 

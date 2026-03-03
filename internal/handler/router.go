@@ -376,6 +376,10 @@ func (a *totpServiceAdapterImpl) GetStatus(ctx context.Context, userID string) (
 	return a.svc.GetStatus(ctx, userID)
 }
 
+func (a *totpServiceAdapterImpl) IsOIDCUser(ctx context.Context, userID string) (bool, error) {
+	return a.svc.IsOIDCUser(ctx, userID)
+}
+
 func (a *totpServiceAdapterImpl) GeneratePendingToken(userID string, isAdmin bool) (string, error) {
 	return a.svc.GeneratePendingToken(userID, isAdmin)
 }

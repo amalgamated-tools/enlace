@@ -184,8 +184,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Check admin enforcement
-		if h.require2FA && !has2FA {
+		// Check admin enforcement (skip for OIDC-linked users who cannot set up 2FA)
+		if h.require2FA && !has2FA && user.OIDCSubject == "" {
 			Success(w, http.StatusOK, loginResponse{
 				AccessToken:  tokens.AccessToken,
 				RefreshToken: tokens.RefreshToken,

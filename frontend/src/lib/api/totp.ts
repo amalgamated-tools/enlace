@@ -4,6 +4,7 @@ import type { LoginResponse } from "./auth";
 export interface TOTPStatus {
   enabled: boolean;
   require_2fa: boolean;
+  oidc_user: boolean;
 }
 
 export interface TOTPSetupResponse {

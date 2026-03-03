@@ -25,11 +25,12 @@ import (
 
 // Sentinel errors for TOTP operations.
 var (
-	ErrTOTPAlreadyEnabled  = errors.New("2FA is already enabled")
-	ErrTOTPNotEnabled      = errors.New("2FA is not enabled")
-	ErrTOTPNotSetup        = errors.New("2FA setup not started")
-	ErrInvalidTOTPCode     = errors.New("invalid 2FA code")
-	ErrInvalidRecoveryCode = errors.New("invalid recovery code")
+	ErrTOTPAlreadyEnabled    = errors.New("2FA is already enabled")
+	ErrTOTPNotEnabled        = errors.New("2FA is not enabled")
+	ErrTOTPNotSetup          = errors.New("2FA setup not started")
+	ErrInvalidTOTPCode       = errors.New("invalid 2FA code")
+	ErrInvalidRecoveryCode   = errors.New("invalid recovery code")
+	ErrTOTPNotAllowedForOIDC = errors.New("2FA is not available for SSO users")
 )
 
 const (
@@ -60,9 +61,31 @@ func NewTOTPService(totpRepo *repository.TOTPRepository, userRepo *repository.Us
 	}
 }
 
+// isOIDCUser checks whether the user has an OIDC subject linked to their account.
+func (s *TOTPService) isOIDCUser(ctx context.Context, userID string) (bool, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	return user.OIDCSubject != "", nil
+}
+
+// IsOIDCUser returns whether the user has an OIDC identity linked.
+// Exposed for use by handlers that need to adjust responses for SSO users.
+func (s *TOTPService) IsOIDCUser(ctx context.Context, userID string) (bool, error) {
+	return s.isOIDCUser(ctx, userID)
+}
+
 // BeginSetup generates a new TOTP secret for the user and returns the provisioning URI
 // and a base64-encoded QR code PNG.
 func (s *TOTPService) BeginSetup(ctx context.Context, userID string) (string, string, string, error) {
+	// Block 2FA setup for OIDC-linked users
+	if oidc, err := s.isOIDCUser(ctx, userID); err != nil {
+		return "", "", "", fmt.Errorf("failed to check OIDC status: %w", err)
+	} else if oidc {
+		return "", "", "", ErrTOTPNotAllowedForOIDC
+	}
+
 	// Check if 2FA is already enabled
 	existing, err := s.totpRepo.GetByUserID(ctx, userID)
 	if err == nil {
@@ -115,6 +138,13 @@ func (s *TOTPService) BeginSetup(ctx context.Context, userID string) (string, st
 // ConfirmSetup verifies the TOTP code against the pending secret,
 // enables 2FA, generates recovery codes, and returns the plain codes.
 func (s *TOTPService) ConfirmSetup(ctx context.Context, userID, code string) ([]string, error) {
+	// Block 2FA confirmation for OIDC-linked users
+	if oidc, err := s.isOIDCUser(ctx, userID); err != nil {
+		return nil, fmt.Errorf("failed to check OIDC status: %w", err)
+	} else if oidc {
+		return nil, ErrTOTPNotAllowedForOIDC
+	}
+
 	totpRecord, err := s.totpRepo.GetByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -214,6 +244,13 @@ func (s *TOTPService) Disable(ctx context.Context, userID string) error {
 
 // RegenerateRecoveryCodes generates new recovery codes, replacing old ones.
 func (s *TOTPService) RegenerateRecoveryCodes(ctx context.Context, userID string) ([]string, error) {
+	// Block recovery code regeneration for OIDC-linked users
+	if oidc, err := s.isOIDCUser(ctx, userID); err != nil {
+		return nil, fmt.Errorf("failed to check OIDC status: %w", err)
+	} else if oidc {
+		return nil, ErrTOTPNotAllowedForOIDC
+	}
+
 	// Verify 2FA is enabled
 	totpRecord, err := s.totpRepo.GetByUserID(ctx, userID)
 	if err != nil {

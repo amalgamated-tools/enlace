@@ -33,13 +33,19 @@ type OIDCUserInfo struct {
 	Issuer      string
 }
 
+// TOTPDisabler is an optional interface for disabling 2FA when OIDC is linked.
+type TOTPDisabler interface {
+	Disable(ctx context.Context, userID string) error
+}
+
 // OIDCService handles OIDC authentication operations.
 type OIDCService struct {
-	provider  *oidc.Provider
-	oauth2Cfg *oauth2.Config
-	verifier  *oidc.IDTokenVerifier
-	userRepo  *repository.UserRepository
-	issuerURL string
+	provider     *oidc.Provider
+	oauth2Cfg    *oauth2.Config
+	verifier     *oidc.IDTokenVerifier
+	userRepo     *repository.UserRepository
+	issuerURL    string
+	totpDisabler TOTPDisabler
 }
 
 // NewOIDCService creates a new OIDCService instance.
@@ -77,6 +83,14 @@ func NewOIDCService(cfg *config.Config, userRepo *repository.UserRepository) (*O
 		userRepo:  userRepo,
 		issuerURL: cfg.OIDCIssuerURL,
 	}, nil
+}
+
+// SetTOTPDisabler sets the optional TOTP disabler for auto-disabling 2FA when OIDC is linked.
+// This is set separately to avoid circular dependencies during service initialization.
+func (s *OIDCService) SetTOTPDisabler(d TOTPDisabler) {
+	if s != nil {
+		s.totpDisabler = d
+	}
 }
 
 // GenerateState creates a secure random state token.
@@ -163,6 +177,17 @@ func (s *OIDCService) ExchangeCode(ctx context.Context, code, codeVerifier strin
 	}, nil
 }
 
+// disableTOTPIfNeeded disables 2FA for the user if a TOTP disabler is configured.
+// This ensures that SSO-linked users do not retain locally-configured 2FA.
+func (s *OIDCService) disableTOTPIfNeeded(ctx context.Context, userID string) {
+	if s.totpDisabler != nil {
+		// Best-effort: if no TOTP is configured for this user, Disable will
+		// silently succeed (no TOTP record to delete). We ignore errors here
+		// because the OIDC link itself has already succeeded.
+		_ = s.totpDisabler.Disable(ctx, userID)
+	}
+}
+
 // FindOrCreateUser finds an existing user or creates a new one from OIDC info.
 // If a user with matching email exists, it links the OIDC identity.
 func (s *OIDCService) FindOrCreateUser(ctx context.Context, info *OIDCUserInfo) (*model.User, error) {
@@ -192,6 +217,8 @@ func (s *OIDCService) FindOrCreateUser(ctx context.Context, info *OIDCUserInfo) 
 		if err := s.userRepo.Update(ctx, linkedUser); err != nil {
 			return nil, err
 		}
+		// Auto-disable 2FA since the user is now OIDC-linked
+		s.disableTOTPIfNeeded(ctx, linkedUser.ID)
 		return linkedUser, nil
 	}
 	if !errors.Is(err, repository.ErrNotFound) {
@@ -240,7 +267,12 @@ func (s *OIDCService) LinkOIDC(ctx context.Context, userID string, info *OIDCUse
 		OIDCIssuer:   info.Issuer,
 		CreatedAt:    user.CreatedAt,
 	}
-	return s.userRepo.Update(ctx, linkedUser)
+	if err := s.userRepo.Update(ctx, linkedUser); err != nil {
+		return err
+	}
+	// Auto-disable 2FA since the user is now OIDC-linked
+	s.disableTOTPIfNeeded(ctx, userID)
+	return nil
 }
 
 // UnlinkOIDC removes OIDC identity from a user.

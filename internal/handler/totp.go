@@ -18,6 +18,7 @@ type TOTPServiceInterface interface {
 	Disable(ctx context.Context, userID string) error
 	RegenerateRecoveryCodes(ctx context.Context, userID string) ([]string, error)
 	GetStatus(ctx context.Context, userID string) (bool, error)
+	IsOIDCUser(ctx context.Context, userID string) (bool, error)
 	GeneratePendingToken(userID string, isAdmin bool) (string, error)
 	ValidatePendingToken(tokenStr string) (*service.Claims, error)
 }
@@ -51,6 +52,7 @@ func NewTOTPHandler(totpService TOTPServiceInterface, authTokenService AuthToken
 type totpStatusResponse struct {
 	Enabled    bool `json:"enabled"`
 	Require2FA bool `json:"require_2fa"`
+	OIDCUser   bool `json:"oidc_user"`
 }
 
 // totpSetupResponse represents the data returned when beginning 2FA setup.
@@ -113,9 +115,16 @@ func (h *TOTPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	oidcUser, err := h.totpService.IsOIDCUser(r.Context(), userID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
 	Success(w, http.StatusOK, totpStatusResponse{
 		Enabled:    enabled,
 		Require2FA: h.require2FA,
+		OIDCUser:   oidcUser,
 	})
 }
 
@@ -138,6 +147,10 @@ func (h *TOTPHandler) BeginSetup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, service.ErrTOTPAlreadyEnabled) {
 			Error(w, http.StatusConflict, "2FA is already enabled")
+			return
+		}
+		if errors.Is(err, service.ErrTOTPNotAllowedForOIDC) {
+			Error(w, http.StatusForbidden, "2FA is not available for SSO users")
 			return
 		}
 		Error(w, http.StatusInternalServerError, "internal server error")
@@ -189,6 +202,8 @@ func (h *TOTPHandler) ConfirmSetup(w http.ResponseWriter, r *http.Request) {
 			Error(w, http.StatusBadRequest, "2FA setup not started; call /me/2fa/setup first")
 		case errors.Is(err, service.ErrInvalidTOTPCode):
 			Error(w, http.StatusBadRequest, "invalid verification code")
+		case errors.Is(err, service.ErrTOTPNotAllowedForOIDC):
+			Error(w, http.StatusForbidden, "2FA is not available for SSO users")
 		default:
 			Error(w, http.StatusInternalServerError, "internal server error")
 		}
@@ -288,6 +303,10 @@ func (h *TOTPHandler) RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		if errors.Is(err, service.ErrTOTPNotEnabled) {
 			Error(w, http.StatusBadRequest, "2FA is not enabled")
+			return
+		}
+		if errors.Is(err, service.ErrTOTPNotAllowedForOIDC) {
+			Error(w, http.StatusForbidden, "2FA is not available for SSO users")
 			return
 		}
 		Error(w, http.StatusInternalServerError, "internal server error")

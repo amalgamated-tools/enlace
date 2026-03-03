@@ -365,7 +365,12 @@
         </h3>
       </div>
       <div class="p-6">
-        {#if !totpStatus.enabled}
+        {#if totpStatus.oidc_user}
+          <p class="text-sm text-slate-600">
+            Two-factor authentication is managed by your identity provider and
+            cannot be configured here.
+          </p>
+        {:else if !totpStatus.enabled}
           <p class="text-sm text-slate-600 mb-4">
             Add an extra layer of security to your account by enabling
             two-factor authentication with an authenticator app.
