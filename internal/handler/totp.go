@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/amalgamated-tools/enlace/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
@@ -27,22 +28,42 @@ type PasswordVerifier interface {
 	VerifyPassword(ctx context.Context, userID, password string) error
 }
 
+// UserGetter retrieves user data for authorization checks.
+type UserGetter interface {
+	GetUser(ctx context.Context, userID string) (*model.User, error)
+}
+
 // TOTPHandler handles two-factor authentication HTTP requests.
 type TOTPHandler struct {
 	totpService      TOTPServiceInterface
 	authTokenService AuthTokenServiceInterface
 	passwordVerifier PasswordVerifier
+	userGetter       UserGetter
 	require2FA       bool
 }
 
 // NewTOTPHandler creates a new TOTPHandler instance.
-func NewTOTPHandler(totpService TOTPServiceInterface, authTokenService AuthTokenServiceInterface, passwordVerifier PasswordVerifier, require2FA bool) *TOTPHandler {
+func NewTOTPHandler(totpService TOTPServiceInterface, authTokenService AuthTokenServiceInterface, passwordVerifier PasswordVerifier, require2FA bool, userGetter UserGetter) *TOTPHandler {
 	return &TOTPHandler{
 		totpService:      totpService,
 		authTokenService: authTokenService,
 		passwordVerifier: passwordVerifier,
+		userGetter:       userGetter,
 		require2FA:       require2FA,
 	}
+}
+
+// isOIDCUser checks whether the given user is linked to an OIDC provider.
+// Returns false if no UserGetter is configured.
+func (h *TOTPHandler) isOIDCUser(ctx context.Context, userID string) (bool, error) {
+	if h.userGetter == nil {
+		return false, nil
+	}
+	user, err := h.userGetter.GetUser(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	return user.OIDCSubject != "", nil
 }
 
 // --- Request/Response types for Swagger ---
@@ -134,6 +155,14 @@ func (h *TOTPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 func (h *TOTPHandler) BeginSetup(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
+	if isOIDC, err := h.isOIDCUser(r.Context(), userID); err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	} else if isOIDC {
+		Error(w, http.StatusForbidden, "2FA is not available for SSO accounts")
+		return
+	}
+
 	secret, qrBase64, provisioningURI, err := h.totpService.BeginSetup(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, service.ErrTOTPAlreadyEnabled) {
@@ -179,6 +208,14 @@ func (h *TOTPHandler) ConfirmSetup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := middleware.GetUserID(r.Context())
+
+	if isOIDC, err := h.isOIDCUser(r.Context(), userID); err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	} else if isOIDC {
+		Error(w, http.StatusForbidden, "2FA is not available for SSO accounts")
+		return
+	}
 
 	codes, err := h.totpService.ConfirmSetup(r.Context(), userID, req.Code)
 	if err != nil {
@@ -228,6 +265,14 @@ func (h *TOTPHandler) Disable(w http.ResponseWriter, r *http.Request) {
 
 	userID := middleware.GetUserID(r.Context())
 
+	if isOIDC, err := h.isOIDCUser(r.Context(), userID); err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	} else if isOIDC {
+		Error(w, http.StatusForbidden, "2FA is not available for SSO accounts")
+		return
+	}
+
 	// Verify password before allowing 2FA disable
 	if err := h.passwordVerifier.VerifyPassword(r.Context(), userID, req.Password); err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) {
@@ -273,6 +318,14 @@ func (h *TOTPHandler) RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Req
 	}
 
 	userID := middleware.GetUserID(r.Context())
+
+	if isOIDC, err := h.isOIDCUser(r.Context(), userID); err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	} else if isOIDC {
+		Error(w, http.StatusForbidden, "2FA is not available for SSO accounts")
+		return
+	}
 
 	// Verify password before allowing recovery code regeneration
 	if err := h.passwordVerifier.VerifyPassword(r.Context(), userID, req.Password); err != nil {

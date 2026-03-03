@@ -163,8 +163,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check 2FA status
-	if h.totpService != nil {
+	// Check 2FA status (skip for OIDC-linked users — their IdP handles MFA)
+	if h.totpService != nil && user.OIDCSubject == "" {
 		has2FA, err := h.totpService.GetStatus(r.Context(), user.ID)
 		if err != nil {
 			Error(w, http.StatusInternalServerError, "internal server error")
