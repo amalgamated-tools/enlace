@@ -87,8 +87,12 @@ const createAuthStore = () => {
         }
 
         if (response.access_token) {
+          if (!response.refresh_token) {
+            throw new Error("Login failed: no refresh token received");
+          }
+
           localStorage.setItem("access_token", response.access_token);
-          localStorage.setItem("refresh_token", response.refresh_token!);
+          localStorage.setItem("refresh_token", response.refresh_token);
 
           if (!response.user) {
             // Tokens without user data should not happen; clear and fail

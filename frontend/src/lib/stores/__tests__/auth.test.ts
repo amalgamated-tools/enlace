@@ -142,6 +142,46 @@ describe("auth store", () => {
       expect(get(auth).user).toEqual(mockUser);
     });
 
+    it("returns pendingToken and does not store tokens when 2FA is required", async () => {
+      mockedAuthApi.logout.mockResolvedValueOnce(undefined);
+      await auth.logout();
+
+      mockedAuthApi.login.mockResolvedValueOnce({
+        requires_2fa: true,
+        pending_token: "pending-abc",
+      });
+
+      const result = await auth.login("test@test.com", "password");
+      expect(result.success).toBe(false);
+      expect(result.requires2FA).toBe(true);
+      expect(result.pendingToken).toBe("pending-abc");
+      expect(localStorage.getItem("access_token")).toBeNull();
+      expect(localStorage.getItem("refresh_token")).toBeNull();
+      expect(get(auth).user).toBeNull();
+      expect(get(auth).loading).toBe(false);
+    });
+
+    it("returns requires2FASetup flag on success when user needs 2FA setup", async () => {
+      const mockUser = {
+        id: "1",
+        email: "test@test.com",
+        display_name: "Test",
+        is_admin: false,
+      };
+      mockedAuthApi.login.mockResolvedValueOnce({
+        access_token: "access-123",
+        refresh_token: "refresh-123",
+        user: mockUser,
+        requires_2fa_setup: true,
+      });
+
+      const result = await auth.login("test@test.com", "password");
+      expect(result.success).toBe(true);
+      expect(result.requires2FASetup).toBe(true);
+      expect(result.user).toEqual(mockUser);
+      expect(localStorage.getItem("access_token")).toBe("access-123");
+    });
+
     it("throws on failed login", async () => {
       mockedAuthApi.login.mockRejectedValueOnce(
         new Error("Invalid credentials"),
@@ -150,6 +190,25 @@ describe("auth store", () => {
       await expect(auth.login("bad@test.com", "wrong")).rejects.toThrow(
         "Invalid credentials",
       );
+      expect(get(auth).loading).toBe(false);
+    });
+
+    it("throws when access_token is present but refresh_token is missing", async () => {
+      mockedAuthApi.login.mockResolvedValueOnce({
+        access_token: "access-123",
+        user: {
+          id: "1",
+          email: "test@test.com",
+          display_name: "Test",
+          is_admin: false,
+        },
+      });
+
+      await expect(auth.login("test@test.com", "password")).rejects.toThrow(
+        "no refresh token received",
+      );
+      expect(localStorage.getItem("access_token")).toBeNull();
+      expect(localStorage.getItem("refresh_token")).toBeNull();
       expect(get(auth).loading).toBe(false);
     });
   });
