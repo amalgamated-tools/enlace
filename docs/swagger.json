@@ -30,7 +30,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -38,7 +38,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/internal_handler.adminUserResponse"
+                                                "$ref": "#/definitions/handler.adminUserResponse"
                                             }
                                         }
                                     }
@@ -49,19 +49,19 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -90,7 +90,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.createUserRequest"
+                            "$ref": "#/definitions/handler.createUserRequest"
                         }
                     }
                 ],
@@ -100,13 +100,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.adminUserResponse"
+                                            "$ref": "#/definitions/handler.adminUserResponse"
                                         }
                                     }
                                 }
@@ -116,31 +116,31 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -176,13 +176,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.adminUserResponse"
+                                            "$ref": "#/definitions/handler.adminUserResponse"
                                         }
                                     }
                                 }
@@ -192,25 +192,25 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -242,31 +242,31 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -302,7 +302,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.updateUserRequest"
+                            "$ref": "#/definitions/handler.updateUserRequest"
                         }
                     }
                 ],
@@ -312,13 +312,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.adminUserResponse"
+                                            "$ref": "#/definitions/handler.adminUserResponse"
                                         }
                                     }
                                 }
@@ -328,37 +328,37 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -384,7 +384,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.totpRecoveryRequest"
+                            "$ref": "#/definitions/handler.totpRecoveryRequest"
                         }
                     }
                 ],
@@ -394,13 +394,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.loginResponse"
+                                            "$ref": "#/definitions/handler.loginResponse"
                                         }
                                     }
                                 }
@@ -410,25 +410,25 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -454,7 +454,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.totpVerifyRequest"
+                            "$ref": "#/definitions/handler.totpVerifyRequest"
                         }
                     }
                 ],
@@ -464,13 +464,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.loginResponse"
+                                            "$ref": "#/definitions/handler.loginResponse"
                                         }
                                     }
                                 }
@@ -480,25 +480,25 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -524,7 +524,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.loginRequest"
+                            "$ref": "#/definitions/handler.loginRequest"
                         }
                     }
                 ],
@@ -534,13 +534,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.loginResponse"
+                                            "$ref": "#/definitions/handler.loginResponse"
                                         }
                                     }
                                 }
@@ -550,19 +550,19 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -581,7 +581,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -634,13 +634,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.oidcConfigResponse"
+                                            "$ref": "#/definitions/handler.oidcConfigResponse"
                                         }
                                     }
                                 }
@@ -666,13 +666,13 @@
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -697,7 +697,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.refreshRequest"
+                            "$ref": "#/definitions/handler.refreshRequest"
                         }
                     }
                 ],
@@ -707,13 +707,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.tokenResponse"
+                                            "$ref": "#/definitions/handler.tokenResponse"
                                         }
                                     }
                                 }
@@ -723,19 +723,19 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -760,7 +760,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.registerRequest"
+                            "$ref": "#/definitions/handler.registerRequest"
                         }
                     }
                 ],
@@ -770,13 +770,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.userResponse"
+                                            "$ref": "#/definitions/handler.userResponse"
                                         }
                                     }
                                 }
@@ -786,19 +786,19 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -831,25 +831,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -875,13 +875,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.profileResponse"
+                                            "$ref": "#/definitions/handler.profileResponse"
                                         }
                                     }
                                 }
@@ -891,19 +891,19 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -931,7 +931,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.updateProfileRequest"
+                            "$ref": "#/definitions/handler.updateProfileRequest"
                         }
                     }
                 ],
@@ -941,13 +941,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.profileResponse"
+                                            "$ref": "#/definitions/handler.profileResponse"
                                         }
                                     }
                                 }
@@ -957,25 +957,25 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1006,7 +1006,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.totpConfirmRequest"
+                            "$ref": "#/definitions/handler.totpConfirmRequest"
                         }
                     }
                 ],
@@ -1016,13 +1016,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.totpConfirmResponse"
+                                            "$ref": "#/definitions/handler.totpConfirmResponse"
                                         }
                                     }
                                 }
@@ -1032,25 +1032,25 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1081,7 +1081,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.totpDisableRequest"
+                            "$ref": "#/definitions/handler.totpDisableRequest"
                         }
                     }
                 ],
@@ -1089,25 +1089,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1138,7 +1138,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.totpRegenerateRequest"
+                            "$ref": "#/definitions/handler.totpRegenerateRequest"
                         }
                     }
                 ],
@@ -1148,13 +1148,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.totpConfirmResponse"
+                                            "$ref": "#/definitions/handler.totpConfirmResponse"
                                         }
                                     }
                                 }
@@ -1164,19 +1164,19 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1203,13 +1203,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.totpSetupResponse"
+                                            "$ref": "#/definitions/handler.totpSetupResponse"
                                         }
                                     }
                                 }
@@ -1219,19 +1219,19 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1257,13 +1257,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.totpStatusResponse"
+                                            "$ref": "#/definitions/handler.totpStatusResponse"
                                         }
                                     }
                                 }
@@ -1273,13 +1273,13 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1303,25 +1303,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1380,19 +1380,19 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1422,7 +1422,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.updatePasswordRequest"
+                            "$ref": "#/definitions/handler.updatePasswordRequest"
                         }
                     }
                 ],
@@ -1430,25 +1430,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1474,7 +1474,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -1482,7 +1482,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/internal_handler.shareResponse"
+                                                "$ref": "#/definitions/handler.shareResponse"
                                             }
                                         }
                                     }
@@ -1493,13 +1493,13 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1527,7 +1527,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.createShareRequest"
+                            "$ref": "#/definitions/handler.createShareRequest"
                         }
                     }
                 ],
@@ -1537,13 +1537,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.shareResponse"
+                                            "$ref": "#/definitions/handler.shareResponse"
                                         }
                                     }
                                 }
@@ -1553,25 +1553,25 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1606,13 +1606,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.shareResponse"
+                                            "$ref": "#/definitions/handler.shareResponse"
                                         }
                                     }
                                 }
@@ -1622,19 +1622,19 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1665,25 +1665,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1718,7 +1718,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.updateShareRequest"
+                            "$ref": "#/definitions/handler.updateShareRequest"
                         }
                     }
                 ],
@@ -1728,13 +1728,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.shareResponse"
+                                            "$ref": "#/definitions/handler.shareResponse"
                                         }
                                     }
                                 }
@@ -1744,25 +1744,25 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1797,7 +1797,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -1805,7 +1805,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/internal_handler.fileResponse"
+                                                "$ref": "#/definitions/handler.fileResponse"
                                             }
                                         }
                                     }
@@ -1816,19 +1816,19 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1871,7 +1871,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -1879,7 +1879,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/internal_handler.fileResponse"
+                                                "$ref": "#/definitions/handler.fileResponse"
                                             }
                                         }
                                     }
@@ -1890,25 +1890,25 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -1945,7 +1945,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.sendNotificationRequest"
+                            "$ref": "#/definitions/handler.sendNotificationRequest"
                         }
                     }
                 ],
@@ -1953,31 +1953,31 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.ValidationErrorResponse"
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -2012,7 +2012,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2020,7 +2020,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/internal_handler.recipientResponse"
+                                                "$ref": "#/definitions/handler.recipientResponse"
                                             }
                                         }
                                     }
@@ -2031,19 +2031,19 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -2062,7 +2062,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -2093,13 +2093,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.shareDetailsResponse"
+                                            "$ref": "#/definitions/handler.shareDetailsResponse"
                                         }
                                     }
                                 }
@@ -2109,25 +2109,25 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "410": {
                         "description": "Gone",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -2175,25 +2175,25 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "410": {
                         "description": "Gone",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -2241,25 +2241,25 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "410": {
                         "description": "Gone",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -2300,7 +2300,7 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -2308,7 +2308,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/internal_handler.publicFileResponse"
+                                                "$ref": "#/definitions/handler.publicFileResponse"
                                             }
                                         }
                                     }
@@ -2319,31 +2319,31 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "410": {
                         "description": "Gone",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -2376,7 +2376,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.verifyPasswordRequest"
+                            "$ref": "#/definitions/handler.verifyPasswordRequest"
                         }
                     }
                 ],
@@ -2386,13 +2386,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/internal_handler.APIResponse"
+                                    "$ref": "#/definitions/handler.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/internal_handler.verifyPasswordResponse"
+                                            "$ref": "#/definitions/handler.verifyPasswordResponse"
                                         }
                                     }
                                 }
@@ -2402,31 +2402,31 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "410": {
                         "description": "Gone",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.APIResponse"
+                            "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
                 }
@@ -2434,7 +2434,7 @@
         }
     },
     "definitions": {
-        "internal_handler.APIResponse": {
+        "handler.APIResponse": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -2446,7 +2446,7 @@
                 }
             }
         },
-        "internal_handler.ValidationErrorResponse": {
+        "handler.ValidationErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -2465,7 +2465,7 @@
                 }
             }
         },
-        "internal_handler.adminUserResponse": {
+        "handler.adminUserResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2488,7 +2488,7 @@
                 }
             }
         },
-        "internal_handler.createShareRequest": {
+        "handler.createShareRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -2523,7 +2523,7 @@
                 }
             }
         },
-        "internal_handler.createUserRequest": {
+        "handler.createUserRequest": {
             "type": "object",
             "properties": {
                 "display_name": {
@@ -2540,7 +2540,7 @@
                 }
             }
         },
-        "internal_handler.fileResponse": {
+        "handler.fileResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -2557,7 +2557,7 @@
                 }
             }
         },
-        "internal_handler.loginRequest": {
+        "handler.loginRequest": {
             "type": "object",
             "properties": {
                 "email": {
@@ -2568,7 +2568,7 @@
                 }
             }
         },
-        "internal_handler.loginResponse": {
+        "handler.loginResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -2587,11 +2587,11 @@
                     "type": "boolean"
                 },
                 "user": {
-                    "$ref": "#/definitions/internal_handler.userResponse"
+                    "$ref": "#/definitions/handler.userResponse"
                 }
             }
         },
-        "internal_handler.oidcConfigResponse": {
+        "handler.oidcConfigResponse": {
             "type": "object",
             "properties": {
                 "enabled": {
@@ -2599,7 +2599,7 @@
                 }
             }
         },
-        "internal_handler.profileResponse": {
+        "handler.profileResponse": {
             "type": "object",
             "properties": {
                 "display_name": {
@@ -2622,7 +2622,7 @@
                 }
             }
         },
-        "internal_handler.publicFileResponse": {
+        "handler.publicFileResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -2639,7 +2639,7 @@
                 }
             }
         },
-        "internal_handler.publicShareResponse": {
+        "handler.publicShareResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2680,7 +2680,7 @@
                 }
             }
         },
-        "internal_handler.recipientResponse": {
+        "handler.recipientResponse": {
             "type": "object",
             "properties": {
                 "email": {
@@ -2697,7 +2697,7 @@
                 }
             }
         },
-        "internal_handler.refreshRequest": {
+        "handler.refreshRequest": {
             "type": "object",
             "properties": {
                 "refresh_token": {
@@ -2705,7 +2705,7 @@
                 }
             }
         },
-        "internal_handler.registerRequest": {
+        "handler.registerRequest": {
             "type": "object",
             "properties": {
                 "display_name": {
@@ -2719,7 +2719,7 @@
                 }
             }
         },
-        "internal_handler.sendNotificationRequest": {
+        "handler.sendNotificationRequest": {
             "type": "object",
             "properties": {
                 "recipients": {
@@ -2733,21 +2733,21 @@
                 }
             }
         },
-        "internal_handler.shareDetailsResponse": {
+        "handler.shareDetailsResponse": {
             "type": "object",
             "properties": {
                 "files": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/internal_handler.publicFileResponse"
+                        "$ref": "#/definitions/handler.publicFileResponse"
                     }
                 },
                 "share": {
-                    "$ref": "#/definitions/internal_handler.publicShareResponse"
+                    "$ref": "#/definitions/handler.publicShareResponse"
                 }
             }
         },
-        "internal_handler.shareResponse": {
+        "handler.shareResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2791,7 +2791,7 @@
                 }
             }
         },
-        "internal_handler.tokenResponse": {
+        "handler.tokenResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -2802,7 +2802,7 @@
                 }
             }
         },
-        "internal_handler.totpConfirmRequest": {
+        "handler.totpConfirmRequest": {
             "type": "object",
             "properties": {
                 "code": {
@@ -2810,7 +2810,7 @@
                 }
             }
         },
-        "internal_handler.totpConfirmResponse": {
+        "handler.totpConfirmResponse": {
             "type": "object",
             "properties": {
                 "recovery_codes": {
@@ -2821,7 +2821,7 @@
                 }
             }
         },
-        "internal_handler.totpDisableRequest": {
+        "handler.totpDisableRequest": {
             "type": "object",
             "properties": {
                 "password": {
@@ -2829,7 +2829,7 @@
                 }
             }
         },
-        "internal_handler.totpRecoveryRequest": {
+        "handler.totpRecoveryRequest": {
             "type": "object",
             "properties": {
                 "pending_token": {
@@ -2840,7 +2840,7 @@
                 }
             }
         },
-        "internal_handler.totpRegenerateRequest": {
+        "handler.totpRegenerateRequest": {
             "type": "object",
             "properties": {
                 "password": {
@@ -2848,7 +2848,7 @@
                 }
             }
         },
-        "internal_handler.totpSetupResponse": {
+        "handler.totpSetupResponse": {
             "type": "object",
             "properties": {
                 "provisioning_uri": {
@@ -2862,7 +2862,7 @@
                 }
             }
         },
-        "internal_handler.totpStatusResponse": {
+        "handler.totpStatusResponse": {
             "type": "object",
             "properties": {
                 "enabled": {
@@ -2873,7 +2873,7 @@
                 }
             }
         },
-        "internal_handler.totpVerifyRequest": {
+        "handler.totpVerifyRequest": {
             "type": "object",
             "properties": {
                 "code": {
@@ -2884,7 +2884,7 @@
                 }
             }
         },
-        "internal_handler.updatePasswordRequest": {
+        "handler.updatePasswordRequest": {
             "type": "object",
             "properties": {
                 "new_password": {
@@ -2895,7 +2895,7 @@
                 }
             }
         },
-        "internal_handler.updateProfileRequest": {
+        "handler.updateProfileRequest": {
             "type": "object",
             "properties": {
                 "display_name": {
@@ -2906,7 +2906,7 @@
                 }
             }
         },
-        "internal_handler.updateShareRequest": {
+        "handler.updateShareRequest": {
             "type": "object",
             "properties": {
                 "clear_expiry": {
@@ -2938,7 +2938,7 @@
                 }
             }
         },
-        "internal_handler.updateUserRequest": {
+        "handler.updateUserRequest": {
             "type": "object",
             "properties": {
                 "display_name": {
@@ -2955,7 +2955,7 @@
                 }
             }
         },
-        "internal_handler.userResponse": {
+        "handler.userResponse": {
             "type": "object",
             "properties": {
                 "display_name": {
@@ -2969,7 +2969,7 @@
                 }
             }
         },
-        "internal_handler.verifyPasswordRequest": {
+        "handler.verifyPasswordRequest": {
             "type": "object",
             "properties": {
                 "password": {
@@ -2977,7 +2977,7 @@
                 }
             }
         },
-        "internal_handler.verifyPasswordResponse": {
+        "handler.verifyPasswordResponse": {
             "type": "object",
             "properties": {
                 "token": {

@@ -42,6 +42,7 @@ clean:
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
 	rm -rf uploads
+	mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 
 # Frontend development server
 frontend-dev:
