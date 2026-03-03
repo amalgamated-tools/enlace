@@ -52,6 +52,10 @@ definitions:
         type: string
       password:
         type: string
+      recipients:
+        items:
+          type: string
+        type: array
       slug:
         type: string
     type: object
@@ -157,6 +161,18 @@ definitions:
       view_count:
         type: integer
     type: object
+  internal_handler.recipientResponse:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      sent_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
   internal_handler.refreshRequest:
     properties:
       refresh_token:
@@ -170,6 +186,15 @@ definitions:
         type: string
       password:
         type: string
+    type: object
+  internal_handler.sendNotificationRequest:
+    properties:
+      recipients:
+        example:
+        - user@example.com
+        items:
+          type: string
+        type: array
     type: object
   internal_handler.shareDetailsResponse:
     properties:
@@ -1503,6 +1528,89 @@ paths:
       summary: Upload files to a share
       tags:
       - files
+  /api/v1/shares/{id}/notify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Share ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Recipient emails
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.sendNotificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Send share notification emails
+      tags:
+      - shares
+  /api/v1/shares/{id}/recipients:
+    get:
+      parameters:
+      - description: Share ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/internal_handler.recipientResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List share notification recipients
+      tags:
+      - shares
   /health:
     get:
       produces:

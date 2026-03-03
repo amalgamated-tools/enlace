@@ -105,6 +105,17 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	authService := service.NewAuthService(userRepo, jwtSecret)
 	shareService := service.NewShareService(shareRepo, fileRepo, store)
 	fileService := service.NewFileService(fileRepo, shareRepo, store)
+
+	// Initialize recipient repository and email service
+	recipientRepo := repository.NewRecipientRepository(db.DB())
+	emailService := service.NewEmailService(service.SMTPConfig{
+		Host:      cfg.SMTPHost,
+		Port:      cfg.SMTPPort,
+		User:      cfg.SMTPUser,
+		Pass:      cfg.SMTPPass,
+		From:      cfg.SMTPFrom,
+		TLSPolicy: cfg.SMTPTLSPolicy,
+	}, recipientRepo, cfg.BaseURL)
 	totpService := service.NewTOTPService(totpRepo, userRepo, jwtSecret)
 
 	// Initialize OIDC service (optional, based on config)
@@ -140,6 +151,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		AuthService:    authService,
 		ShareService:   shareService,
 		FileService:    fileService,
+		EmailService:   emailService,
 		UserRepo:       userRepo,
 		ShareRepo:      shareRepo,
 		FileRepo:       fileRepo,
