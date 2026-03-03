@@ -285,6 +285,20 @@ File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
 | `size` | int | File size in bytes |
 | `mime_type` | string | Detected MIME type |
 
+### Notify endpoint
+
+**`POST /api/v1/shares/{id}/notify`** — send (or resend) email notifications for a share. Requires SMTP to be configured.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `recipients` | array of strings | ✔ | One or more email addresses to notify |
+
+Example:
+
+```json
+{ "recipients": ["alice@example.com", "bob@example.com"] }
+```
+
 ### Recipient object
 
 Recipient responses (from `GET /api/v1/shares/{id}/recipients`) include:
@@ -292,7 +306,6 @@ Recipient responses (from `GET /api/v1/shares/{id}/recipients`) include:
 | Field | Type | Description |
 |---|---|---|
 | `id` | string | Recipient UUID |
-| `share_id` | string | Parent share UUID |
 | `email` | string | Notified email address |
 | `sent_at` | string (RFC3339) | Timestamp when the notification was sent |
 
