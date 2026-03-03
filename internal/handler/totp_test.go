@@ -25,6 +25,7 @@ type mockTOTPService struct {
 	disableFn                 func(ctx context.Context, userID string) error
 	regenerateRecoveryCodesFn func(ctx context.Context, userID string) ([]string, error)
 	getStatusFn               func(ctx context.Context, userID string) (bool, error)
+	isOIDCUserFn              func(ctx context.Context, userID string) (bool, error)
 	generatePendingTokenFn    func(userID string, isAdmin bool) (string, error)
 	validatePendingTokenFn    func(tokenStr string) (*service.Claims, error)
 }
@@ -76,6 +77,13 @@ func (m *mockTOTPService) GetStatus(ctx context.Context, userID string) (bool, e
 		return m.getStatusFn(ctx, userID)
 	}
 	return false, errors.New("not implemented")
+}
+
+func (m *mockTOTPService) IsOIDCUser(ctx context.Context, userID string) (bool, error) {
+	if m.isOIDCUserFn != nil {
+		return m.isOIDCUserFn(ctx, userID)
+	}
+	return false, nil
 }
 
 func (m *mockTOTPService) GeneratePendingToken(userID string, isAdmin bool) (string, error) {
