@@ -118,7 +118,16 @@ All API endpoints return a consistent JSON envelope:
 {
   "success": true,
   "data": { ... },
-  "error": "optional error message",
-  "fields": { "field_name": "validation error" }
+  "error": "optional error message"
+}
+```
+
+Validation errors include an additional `fields` map with per-field error details:
+
+```json
+{
+  "success": false,
+  "error": "validation failed",
+  "fields": { "email": "is required", "password": "too short" }
 }
 ```
