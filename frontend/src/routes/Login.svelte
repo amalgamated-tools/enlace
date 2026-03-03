@@ -53,7 +53,27 @@
 
     loading = true;
     try {
-      await auth.login(email, password);
+      const result = await auth.login(email, password);
+
+      if (result.requires2FA && result.pendingToken) {
+        // Store the pending 2FA token in sessionStorage instead of passing it via URL
+        try {
+          sessionStorage.setItem("pending2FAToken", result.pendingToken);
+        } catch {
+          // If storage is unavailable, proceed without persisting the token here.
+        }
+        push("/auth/2fa");
+        return;
+      }
+
+      if (result.requires2FASetup) {
+        toast.info(
+          "Your administrator requires two-factor authentication. Please set it up now.",
+        );
+        push("/settings?setup2fa=true");
+        return;
+      }
+
       toast.success("Logged in successfully");
       push("/");
     } catch (err) {

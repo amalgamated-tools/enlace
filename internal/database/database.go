@@ -114,6 +114,22 @@ func runMigrations(db *sql.DB) error {
 			FOREIGN KEY (share_id) REFERENCES shares(id) ON DELETE CASCADE
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_share_recipients_share_id ON share_recipients(share_id)`,
+		`CREATE TABLE IF NOT EXISTS user_totp (
+			user_id TEXT PRIMARY KEY,
+			secret TEXT NOT NULL,
+			enabled INTEGER NOT NULL DEFAULT 0,
+			verified_at DATETIME,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+		`CREATE TABLE IF NOT EXISTS user_recovery_codes (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			code_hash TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_user_recovery_codes_user_id ON user_recovery_codes(user_id)`,
 	}
 
 	for _, m := range migrations {

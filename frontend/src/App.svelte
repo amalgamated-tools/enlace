@@ -20,6 +20,7 @@
     $location === "/login" ||
     $location === "/register" ||
     $location === "/auth/callback" ||
+    $location === "/auth/2fa" ||
     $location.startsWith("/s/");
   $: showLayout = $auth.initialized && $isAuthenticated && !isPublicPage;
 

@@ -40,6 +40,7 @@ type TokenPair struct {
 type Claims struct {
 	UserID  string `json:"uid"`
 	IsAdmin bool   `json:"adm"`
+	TFA     bool   `json:"tfa,omitempty"` // true for pending 2FA tokens
 	jwt.RegisteredClaims
 }
 
@@ -160,6 +161,18 @@ func (s *AuthService) GetUser(ctx context.Context, userID string) (*model.User, 
 	return user, nil
 }
 
+// GetUserByEmail retrieves a user by their email address.
+func (s *AuthService) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
 // UpdateProfile updates a user's profile (display_name and/or email).
 // Empty string values are ignored (no update for that field).
 func (s *AuthService) UpdateProfile(ctx context.Context, userID, displayName, email string) (*model.User, error) {
@@ -253,6 +266,23 @@ func (s *AuthService) UpdatePassword(ctx context.Context, userID, oldPassword, n
 // Used by OIDC flow where we already have verified user identity.
 func (s *AuthService) GenerateTokensForUser(userID string, isAdmin bool) (*TokenPair, error) {
 	return s.generateTokenPair(userID, isAdmin)
+}
+
+// VerifyPassword verifies a user's password by their user ID.
+func (s *AuthService) VerifyPassword(ctx context.Context, userID, password string) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return ErrInvalidCredentials
+	}
+
+	return nil
 }
 
 // generateTokenPair creates a new access and refresh token pair.

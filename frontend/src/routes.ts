@@ -8,12 +8,14 @@ import Settings from "./routes/Settings.svelte";
 import AdminUsers from "./routes/admin/Users.svelte";
 import PublicShare from "./routes/PublicShare.svelte";
 import AuthCallback from "./routes/AuthCallback.svelte";
+import TwoFactorVerify from "./routes/TwoFactorVerify.svelte";
 
 export default {
   "/": Dashboard,
   "/login": Login,
   "/register": Register,
   "/auth/callback": AuthCallback,
+  "/auth/2fa": TwoFactorVerify,
   "/shares": Shares,
   "/shares/new": NewShare,
   "/shares/:id": ShareDetail,

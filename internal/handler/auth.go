@@ -18,17 +18,22 @@ type AuthServiceInterface interface {
 	Login(ctx context.Context, email, password string) (*service.TokenPair, error)
 	RefreshTokens(ctx context.Context, refreshToken string) (*service.TokenPair, error)
 	GetUser(ctx context.Context, userID string) (*model.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 }
 
 // AuthHandler handles authentication-related HTTP requests.
 type AuthHandler struct {
 	authService AuthServiceInterface
+	totpService TOTPServiceInterface
+	require2FA  bool
 }
 
 // NewAuthHandler creates a new AuthHandler instance.
-func NewAuthHandler(authService AuthServiceInterface) *AuthHandler {
+func NewAuthHandler(authService AuthServiceInterface, totpService TOTPServiceInterface, require2FA bool) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
+		totpService: totpService,
+		require2FA:  require2FA,
 	}
 }
 
@@ -59,9 +64,12 @@ type userResponse struct {
 
 // loginResponse represents the response data for successful login.
 type loginResponse struct {
-	AccessToken  string       `json:"access_token"`
-	RefreshToken string       `json:"refresh_token"`
-	User         userResponse `json:"user"`
+	AccessToken      string        `json:"access_token,omitempty"`
+	RefreshToken     string        `json:"refresh_token,omitempty"`
+	User             *userResponse `json:"user,omitempty"`
+	Requires2FA      bool          `json:"requires_2fa,omitempty"`
+	Requires2FASetup bool          `json:"requires_2fa_setup,omitempty"`
+	PendingToken     string        `json:"pending_token,omitempty"`
 }
 
 // tokenResponse represents the response data for token refresh.
@@ -117,7 +125,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // Login handles user login requests.
 //
 //	@Summary		Login
-//	@Description	Authenticates a user and returns JWT access token (15-min expiry) and refresh token (7-day expiry).
+//	@Description	Authenticates a user and returns JWT tokens. When 2FA is enabled, returns a pending_token and requires_2fa flag instead; use /auth/2fa/verify to complete login.
 //	@Tags			auth
 //	@Accept			json
 //	@Produce		json
@@ -141,31 +149,61 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Authenticate user
+	// Authenticate user (verify password)
 	tokens, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		h.handleServiceError(w, err)
 		return
 	}
 
-	// Get user details for response
-	// Note: We need to decode the token to get the user ID, but since we just logged in,
-	// we can get the user by email instead
-	user, err := h.getUserByToken(r.Context(), tokens.AccessToken)
+	// Get user details (required to check 2FA status)
+	user, err := h.authService.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
-		// If we can't get the user, still return the tokens
-		Success(w, http.StatusOK, loginResponse{
-			AccessToken:  tokens.AccessToken,
-			RefreshToken: tokens.RefreshToken,
-			User:         userResponse{},
-		})
+		Error(w, http.StatusInternalServerError, "internal server error")
 		return
+	}
+
+	// Check 2FA status
+	if h.totpService != nil {
+		has2FA, err := h.totpService.GetStatus(r.Context(), user.ID)
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+		if has2FA {
+			// 2FA is enabled - return pending token instead of real tokens
+			pendingToken, err := h.totpService.GeneratePendingToken(user.ID, user.IsAdmin)
+			if err != nil {
+				Error(w, http.StatusInternalServerError, "internal server error")
+				return
+			}
+			Success(w, http.StatusOK, loginResponse{
+				Requires2FA:  true,
+				PendingToken: pendingToken,
+			})
+			return
+		}
+
+		// Check admin enforcement
+		if h.require2FA && !has2FA {
+			Success(w, http.StatusOK, loginResponse{
+				AccessToken:  tokens.AccessToken,
+				RefreshToken: tokens.RefreshToken,
+				User: &userResponse{
+					ID:          user.ID,
+					Email:       user.Email,
+					DisplayName: user.DisplayName,
+				},
+				Requires2FASetup: true,
+			})
+			return
+		}
 	}
 
 	Success(w, http.StatusOK, loginResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
-		User: userResponse{
+		User: &userResponse{
 			ID:          user.ID,
 			Email:       user.Email,
 			DisplayName: user.DisplayName,
@@ -291,16 +329,4 @@ func (h *AuthHandler) handleServiceError(w http.ResponseWriter, err error) {
 	default:
 		Error(w, http.StatusInternalServerError, "internal server error")
 	}
-}
-
-// getUserByToken is a helper to get user details after login.
-// This is a simplified approach - in production, you might decode the JWT directly.
-func (h *AuthHandler) getUserByToken(_ctx context.Context, _accessToken string) (*model.User, error) {
-	// Since we have a token that was just generated, we can decode it to get the user ID
-	// However, to avoid duplicating JWT logic here, we'll use GetUser with a decoded userID
-	// This is a workaround since we don't have direct token parsing in the handler
-
-	// For now, return nil to skip user info if we can't easily get it
-	// The login response will still have the tokens which is the critical part
-	return nil, errors.New("user lookup not implemented in handler")
 }

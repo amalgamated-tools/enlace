@@ -98,6 +98,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	userRepo := repository.NewUserRepository(db.DB())
 	shareRepo := repository.NewShareRepository(db.DB())
 	fileRepo := repository.NewFileRepository(db.DB())
+	totpRepo := repository.NewTOTPRepository(db.DB())
 
 	// Initialize services
 	jwtSecret := []byte(cfg.JWTSecret)
@@ -115,6 +116,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		From:      cfg.SMTPFrom,
 		TLSPolicy: cfg.SMTPTLSPolicy,
 	}, recipientRepo, cfg.BaseURL)
+	totpService := service.NewTOTPService(totpRepo, userRepo, jwtSecret)
 
 	// Initialize OIDC service (optional, based on config)
 	var oidcService *service.OIDCService
@@ -160,6 +162,8 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		FrontendFS:     frontendFS,
 		SwaggerEnabled: cfg.SwaggerEnabled,
 		CORSOrigins:    corsOrigins,
+		TOTPService:    totpService,
+		Require2FA:     cfg.Require2FA,
 	})
 
 	// Create server

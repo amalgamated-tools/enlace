@@ -23,14 +23,16 @@ type AuthServiceInterface interface {
 	Login(ctx context.Context, email, password string) (*service.TokenPair, error)
 	RefreshTokens(ctx context.Context, refreshToken string) (*service.TokenPair, error)
 	GetUser(ctx context.Context, userID string) (*model.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 }
 
 // mockAuthService implements AuthServiceInterface for testing.
 type mockAuthService struct {
-	registerFn      func(ctx context.Context, email, password, displayName string) (*model.User, error)
-	loginFn         func(ctx context.Context, email, password string) (*service.TokenPair, error)
-	refreshTokensFn func(ctx context.Context, refreshToken string) (*service.TokenPair, error)
-	getUserFn       func(ctx context.Context, userID string) (*model.User, error)
+	registerFn       func(ctx context.Context, email, password, displayName string) (*model.User, error)
+	loginFn          func(ctx context.Context, email, password string) (*service.TokenPair, error)
+	refreshTokensFn  func(ctx context.Context, refreshToken string) (*service.TokenPair, error)
+	getUserFn        func(ctx context.Context, userID string) (*model.User, error)
+	getUserByEmailFn func(ctx context.Context, email string) (*model.User, error)
 }
 
 func (m *mockAuthService) Register(ctx context.Context, email, password, displayName string) (*model.User, error) {
@@ -61,6 +63,13 @@ func (m *mockAuthService) GetUser(ctx context.Context, userID string) (*model.Us
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockAuthService) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	if m.getUserByEmailFn != nil {
+		return m.getUserByEmailFn(ctx, email)
+	}
+	return nil, errors.New("not implemented")
+}
+
 // Helper function to create a new router with auth routes for testing.
 func setupAuthRouter(h *handler.AuthHandler) *chi.Mux {
 	r := chi.NewRouter()
@@ -84,7 +93,7 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	body := `{"email": "user@example.com", "password": "password123", "display_name": "Test User"}`
@@ -126,7 +135,7 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 
 func TestAuthHandler_Register_ValidationErrors(t *testing.T) {
 	mock := &mockAuthService{}
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	tests := []struct {
@@ -199,7 +208,7 @@ func TestAuthHandler_Register_EmailExists(t *testing.T) {
 		},
 	}
 
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	body := `{"email": "existing@example.com", "password": "password123", "display_name": "Test User"}`
@@ -228,7 +237,7 @@ func TestAuthHandler_Register_EmailExists(t *testing.T) {
 
 func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
 	mock := &mockAuthService{}
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewBufferString(`{invalid`))
@@ -250,16 +259,16 @@ func TestAuthHandler_Login_Success(t *testing.T) {
 				RefreshToken: "refresh-token-456",
 			}, nil
 		},
-		getUserFn: func(ctx context.Context, userID string) (*model.User, error) {
+		getUserByEmailFn: func(ctx context.Context, email string) (*model.User, error) {
 			return &model.User{
 				ID:          "user-123",
-				Email:       "user@example.com",
+				Email:       email,
 				DisplayName: "Test User",
 			}, nil
 		},
 	}
 
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	body := `{"email": "user@example.com", "password": "password123"}`
@@ -302,7 +311,7 @@ func TestAuthHandler_Login_Success(t *testing.T) {
 
 func TestAuthHandler_Login_ValidationErrors(t *testing.T) {
 	mock := &mockAuthService{}
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	tests := []struct {
@@ -365,7 +374,7 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 		},
 	}
 
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	body := `{"email": "user@example.com", "password": "wrongpassword"}`
@@ -402,7 +411,7 @@ func TestAuthHandler_Refresh_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	body := `{"refresh_token": "old-refresh-token"}`
@@ -440,7 +449,7 @@ func TestAuthHandler_Refresh_Success(t *testing.T) {
 
 func TestAuthHandler_Refresh_ValidationErrors(t *testing.T) {
 	mock := &mockAuthService{}
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	body := `{}`
@@ -478,7 +487,7 @@ func TestAuthHandler_Refresh_InvalidToken(t *testing.T) {
 		},
 	}
 
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	body := `{"refresh_token": "invalid-token"}`
@@ -507,7 +516,7 @@ func TestAuthHandler_Refresh_InvalidToken(t *testing.T) {
 
 func TestAuthHandler_Logout_Success(t *testing.T) {
 	mock := &mockAuthService{}
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
@@ -538,7 +547,7 @@ func TestAuthHandler_Register_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	body := `{"email": "user@example.com", "password": "password123", "display_name": "Test User"}`
@@ -560,7 +569,7 @@ func TestAuthHandler_Login_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	body := `{"email": "user@example.com", "password": "password123"}`
@@ -582,7 +591,7 @@ func TestAuthHandler_Refresh_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewAuthHandler(mock)
+	h := handler.NewAuthHandler(mock, nil, false)
 	router := setupAuthRouter(h)
 
 	body := `{"refresh_token": "some-token"}`

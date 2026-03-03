@@ -92,8 +92,14 @@ definitions:
     properties:
       access_token:
         type: string
+      pending_token:
+        type: string
       refresh_token:
         type: string
+      requires_2fa:
+        type: boolean
+      requires_2fa_setup:
+        type: boolean
       user:
         $ref: '#/definitions/internal_handler.userResponse'
     type: object
@@ -233,6 +239,58 @@ definitions:
       access_token:
         type: string
       refresh_token:
+        type: string
+    type: object
+  internal_handler.totpConfirmRequest:
+    properties:
+      code:
+        type: string
+    type: object
+  internal_handler.totpConfirmResponse:
+    properties:
+      recovery_codes:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_handler.totpDisableRequest:
+    properties:
+      password:
+        type: string
+    type: object
+  internal_handler.totpRecoveryRequest:
+    properties:
+      pending_token:
+        type: string
+      recovery_code:
+        type: string
+    type: object
+  internal_handler.totpRegenerateRequest:
+    properties:
+      password:
+        type: string
+    type: object
+  internal_handler.totpSetupResponse:
+    properties:
+      provisioning_uri:
+        type: string
+      qr_code:
+        type: string
+      secret:
+        type: string
+    type: object
+  internal_handler.totpStatusResponse:
+    properties:
+      enabled:
+        type: boolean
+      require_2fa:
+        type: boolean
+    type: object
+  internal_handler.totpVerifyRequest:
+    properties:
+      code:
+        type: string
+      pending_token:
         type: string
     type: object
   internal_handler.updatePasswordRequest:
@@ -525,12 +583,101 @@ paths:
       summary: Update a user
       tags:
       - admin
+  /api/v1/auth/2fa/recovery:
+    post:
+      consumes:
+      - application/json
+      description: Validates a recovery code against a pending 2FA token and returns
+        JWT tokens on success. The recovery code is consumed (single-use).
+      parameters:
+      - description: Pending token and recovery code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.totpRecoveryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.loginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Verify recovery code
+      tags:
+      - 2fa
+  /api/v1/auth/2fa/verify:
+    post:
+      consumes:
+      - application/json
+      description: Validates a TOTP code against a pending 2FA token and returns JWT
+        tokens on success.
+      parameters:
+      - description: Pending token and TOTP code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.totpVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.loginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      summary: Verify 2FA code
+      tags:
+      - 2fa
   /api/v1/auth/login:
     post:
       consumes:
       - application/json
-      description: Authenticates a user and returns JWT access token (15-min expiry)
-        and refresh token (7-day expiry).
+      description: Authenticates a user and returns JWT tokens. When 2FA is enabled,
+        returns a pending_token and requires_2fa flag instead; use /auth/2fa/verify
+        to complete login.
       parameters:
       - description: Login credentials
         in: body
@@ -815,6 +962,190 @@ paths:
       summary: Update current user profile
       tags:
       - user
+  /api/v1/me/2fa/confirm:
+    post:
+      consumes:
+      - application/json
+      description: Verifies a TOTP code from the authenticator app, enables 2FA, and
+        returns recovery codes.
+      parameters:
+      - description: TOTP verification code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.totpConfirmRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.totpConfirmResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Confirm 2FA setup
+      tags:
+      - 2fa
+  /api/v1/me/2fa/disable:
+    post:
+      consumes:
+      - application/json
+      description: Disables two-factor authentication. Requires password confirmation.
+      parameters:
+      - description: Password confirmation
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.totpDisableRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Disable 2FA
+      tags:
+      - 2fa
+  /api/v1/me/2fa/recovery-codes:
+    post:
+      consumes:
+      - application/json
+      description: Generates new recovery codes, replacing all existing ones. Requires
+        password confirmation.
+      parameters:
+      - description: Password confirmation
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.totpRegenerateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.totpConfirmResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Regenerate recovery codes
+      tags:
+      - 2fa
+  /api/v1/me/2fa/setup:
+    post:
+      description: Generates a TOTP secret and returns a QR code for scanning with
+        an authenticator app.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.totpSetupResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Begin 2FA setup
+      tags:
+      - 2fa
+  /api/v1/me/2fa/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/internal_handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.totpStatusResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get 2FA status
+      tags:
+      - 2fa
   /api/v1/me/oidc:
     delete:
       produces:

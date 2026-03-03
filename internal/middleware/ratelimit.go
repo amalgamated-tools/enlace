@@ -141,3 +141,8 @@ func RegisterRateLimiter() *RateLimiter {
 func APIRateLimiter() *RateLimiter {
 	return NewRateLimiter(rate.Every(time.Second), 60)
 }
+
+// TFAVerifyRateLimiter returns a limiter for 2FA verification attempts (5 per minute).
+func TFAVerifyRateLimiter() *RateLimiter {
+	return NewRateLimiter(rate.Every(12*time.Second), 5)
+}
