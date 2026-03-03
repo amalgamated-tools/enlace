@@ -8,6 +8,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Reverse shares** — let others upload files to a link you control
 - **Access controls** — optional password protection, expiry date, download limit, and view limit per share
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
+- **Two-factor authentication** — per-user TOTP 2FA with QR-code setup, recovery codes, and optional admin-enforced enrollment (`REQUIRE_2FA`)
 - **Storage backends** — local filesystem or any S3-compatible object store
 - **Admin panel** — manage users from the UI
 - **Rate limiting** — IP-based rate limiting middleware included (not applied by default). Pre-built helpers in `internal/middleware/ratelimit.go`: `LoginRateLimiter` (5 req/min), `RegisterRateLimiter` (3 req/min), and `APIRateLimiter` (60 req/min).
@@ -102,6 +103,14 @@ Enlace collects **opt-in, anonymous** telemetry to help improve the project. Tel
 | `SWAGGER_ENABLED` | `false` | Set to `true` to serve the Swagger UI at `/swagger/` and the OpenAPI spec at `/swagger/doc.json` |
 | `CORS_ORIGINS` | *(equals `BASE_URL`)* | Comma-separated list of allowed CORS origins. Defaults to the value of `BASE_URL` when not set |
 
+### Two-Factor Authentication (optional)
+
+Enlace supports TOTP-based 2FA. Users enable it in their account settings; admins can require it for all accounts.
+
+| Variable | Default | Description |
+|---|---|---|
+| `REQUIRE_2FA` | `false` | Set to `true` to enforce 2FA enrollment for all users. Users who have not yet set up 2FA will receive `requires_2fa_setup: true` on login and must complete TOTP setup before proceeding. |
+
 ### OIDC / SSO (optional)
 
 | Variable | Default | Description |
@@ -165,13 +174,13 @@ Full validation error example:
 { "email": "user@example.com", "password": "secret", "display_name": "Alice" }
 ```
 
-**`POST /api/v1/auth/login`** — returns `access_token`, `refresh_token`, and `user`.
+**`POST /api/v1/auth/login`** — authenticates the user. Returns `access_token`, `refresh_token`, and `user` on success, or a `pending_token` when 2FA verification is required.
 
 ```json
 { "email": "user@example.com", "password": "secret" }
 ```
 
-Response:
+Normal response (no 2FA):
 
 ```json
 {
@@ -180,6 +189,34 @@ Response:
     "access_token": "<jwt>",
     "refresh_token": "<token>",
     "user": { "id": "<uuid>", "email": "user@example.com", "display_name": "Alice" }
+  }
+}
+```
+
+**Two-phase login when 2FA is enabled.** When the user has 2FA active, the login response omits tokens and instead returns a short-lived `pending_token`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "requires_2fa": true,
+    "pending_token": "<short-lived-jwt>"
+  }
+}
+```
+
+Pass the `pending_token` to `POST /api/v1/auth/2fa/verify` (TOTP code) or `POST /api/v1/auth/2fa/recovery` (recovery code) to complete the login and receive real tokens.
+
+**Enforced enrollment.** When `REQUIRE_2FA=true` and the user has not yet set up 2FA, the response includes real tokens **and** a flag prompting the client to redirect to the 2FA setup flow:
+
+```json
+{
+  "success": true,
+  "data": {
+    "access_token": "<jwt>",
+    "refresh_token": "<token>",
+    "user": { "id": "<uuid>", "email": "user@example.com", "display_name": "Alice" },
+    "requires_2fa_setup": true
   }
 }
 ```
@@ -220,6 +257,80 @@ Response `data` fields:
 |---|---|---|---|
 | `old_password` | string | ✔ | Current password |
 | `new_password` | string | ✔ | New password (min 8 characters) |
+
+### Two-factor authentication (2FA) endpoints
+
+All `/me/2fa/*` endpoints require a valid `Authorization: Bearer <access_token>` header.
+The `/auth/2fa/*` endpoints require a `pending_token` (returned by `POST /auth/login` when 2FA is enabled) in the `Authorization: Bearer` header.
+
+**`GET /api/v1/me/2fa/status`** — returns the current user's 2FA status.
+
+Response `data` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `enabled` | bool | Whether 2FA is currently enabled for the user |
+| `require_2fa` | bool | Whether the server enforces 2FA for all users (`REQUIRE_2FA`) |
+
+**`POST /api/v1/me/2fa/setup`** — begin 2FA setup. Returns the TOTP secret, a base64-encoded QR code image, and a `otpauth://` provisioning URI to scan in an authenticator app.
+
+Response `data` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `secret` | string | Raw TOTP secret (for manual entry) |
+| `qr_code` | string | Base64-encoded PNG QR code |
+| `provisioning_uri` | string | `otpauth://totp/...` URI |
+
+**`POST /api/v1/me/2fa/confirm`** — confirm 2FA setup by submitting a valid TOTP code. Returns one-time recovery codes on success.
+
+```json
+{ "code": "123456" }
+```
+
+Response `data`:
+
+```json
+{ "recovery_codes": ["abcd-efgh-ijkl-mnop-qrst", "..."] }
+```
+
+Recovery codes are 80-bit random values in `xxxx-xxxx-xxxx-xxxx-xxxx` format. Store them securely — they are not shown again.
+
+**`POST /api/v1/me/2fa/disable`** — disable 2FA. Requires the user's current password.
+
+```json
+{ "password": "current-password" }
+```
+
+**`POST /api/v1/me/2fa/recovery-codes`** — regenerate recovery codes. Requires the current password. Invalidates all previous codes.
+
+```json
+{ "password": "current-password" }
+```
+
+Response `data`:
+
+```json
+{ "recovery_codes": ["abcd-efgh-ijkl-mnop-qrst", "..."] }
+```
+
+---
+
+**`POST /api/v1/auth/2fa/verify`** — complete a two-phase login with a TOTP code. Pass the `pending_token` in the `Authorization: Bearer` header.
+
+```json
+{ "code": "123456" }
+```
+
+Returns the same shape as a normal `POST /auth/login` success: `access_token`, `refresh_token`, and `user`.
+
+**`POST /api/v1/auth/2fa/recovery`** — complete a two-phase login with a recovery code. Pass the `pending_token` in the `Authorization: Bearer` header.
+
+```json
+{ "code": "abcd-efgh-ijkl-mnop-qrst" }
+```
+
+Returns `access_token`, `refresh_token`, and `user`. The used recovery code is consumed and cannot be reused.
 
 ### Admin user endpoints
 
@@ -316,9 +427,11 @@ Recipient responses (from `GET /api/v1/shares/{id}/recipients`) include:
 | `GET` | `/health` | — | Health check |
 | `GET` | `/swagger/*` | — | Swagger UI (requires `SWAGGER_ENABLED=true`) |
 | `POST` | `/api/v1/auth/register` | — | Create account |
-| `POST` | `/api/v1/auth/login` | — | Obtain JWT tokens |
+| `POST` | `/api/v1/auth/login` | — | Obtain JWT tokens (may return `pending_token` when 2FA is active) |
 | `POST` | `/api/v1/auth/refresh` | — | Refresh access token |
 | `POST` | `/api/v1/auth/logout` | — | Revoke refresh token |
+| `POST` | `/api/v1/auth/2fa/verify` | pending | Complete 2FA login with TOTP code |
+| `POST` | `/api/v1/auth/2fa/recovery` | pending | Complete 2FA login with recovery code |
 | `GET` | `/api/v1/auth/oidc/config` | — | OIDC feature flag |
 | `GET` | `/api/v1/auth/oidc/login` | — | Start OIDC flow |
 | `GET` | `/api/v1/auth/oidc/callback` | — | OIDC callback |
@@ -335,6 +448,11 @@ Recipient responses (from `GET /api/v1/shares/{id}/recipients`) include:
 | `GET` | `/api/v1/me` | ✔ | Get my profile |
 | `PATCH` | `/api/v1/me` | ✔ | Update my profile |
 | `PUT` | `/api/v1/me/password` | ✔ | Change password |
+| `GET` | `/api/v1/me/2fa/status` | ✔ | Get 2FA status |
+| `POST` | `/api/v1/me/2fa/setup` | ✔ | Begin 2FA setup (get QR code) |
+| `POST` | `/api/v1/me/2fa/confirm` | ✔ | Confirm 2FA setup and get recovery codes |
+| `POST` | `/api/v1/me/2fa/disable` | ✔ | Disable 2FA |
+| `POST` | `/api/v1/me/2fa/recovery-codes` | ✔ | Regenerate recovery codes |
 | `GET` | `/api/v1/me/oidc/link` | ✔ | Start OIDC link flow |
 | `GET` | `/api/v1/me/oidc/callback` | ✔ | OIDC link callback |
 | `DELETE` | `/api/v1/me/oidc` | ✔ | Unlink OIDC identity (requires a local password to be set) |
