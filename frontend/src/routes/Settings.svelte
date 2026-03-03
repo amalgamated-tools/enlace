@@ -216,6 +216,7 @@
       totpStatus = {
         enabled: true,
         require_2fa: totpStatus?.require_2fa || false,
+        oidc_user: totpStatus?.oidc_user || false,
       };
       toast.success("Two-factor authentication enabled");
     } catch (err) {
@@ -250,6 +251,7 @@
       totpStatus = {
         enabled: false,
         require_2fa: totpStatus?.require_2fa || false,
+        oidc_user: totpStatus?.oidc_user || false,
       };
       disablePassword = "";
       toast.success("Two-factor authentication disabled");
