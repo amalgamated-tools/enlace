@@ -11,7 +11,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Two-factor authentication** — per-user TOTP 2FA with QR-code setup, recovery codes, and optional admin-enforced enrollment (`REQUIRE_2FA`)
 - **Storage backends** — local filesystem or any S3-compatible object store
 - **Admin panel** — manage users from the UI
-- **Rate limiting** — IP-based rate limiting middleware included (not applied by default). Pre-built helpers in `internal/middleware/ratelimit.go`: `LoginRateLimiter` (5 req/min), `RegisterRateLimiter` (3 req/min), and `APIRateLimiter` (60 req/min).
+- **Rate limiting** — IP-based rate limiting middleware. `TFAVerifyRateLimiter` (5 req/min) is applied by default to the 2FA login endpoints; the additional pre-built helpers `LoginRateLimiter` (5 req/min), `RegisterRateLimiter` (3 req/min), and `APIRateLimiter` (60 req/min) in `internal/middleware/ratelimit.go` are available but not wired up by default.
 - **Email notifications** — optionally email share links to recipients via SMTP; resend from the share detail page
 - **Embeds frontend** — single binary ships the compiled Svelte app
 
@@ -124,6 +124,22 @@ Enlace supports TOTP-based 2FA. Users enable it in their account settings; admin
 
 See [OIDC.md](OIDC.md) for provider-specific setup guides.
 
+## CLI Flags
+
+The `enlace` binary accepts optional command-line flags that take precedence over environment variables:
+
+| Flag | Description |
+|---|---|
+| `-port <n>` | Override the `PORT` environment variable |
+| `-version` | Print the version string and exit |
+
+Example:
+
+```bash
+enlace -port 9090
+enlace -version
+```
+
 ## API
 
 All authenticated endpoints require an `Authorization: Bearer <access_token>` header.
@@ -226,6 +242,8 @@ Pass the `pending_token` to `POST /api/v1/auth/2fa/verify` (TOTP code) or `POST 
 ```json
 { "refresh_token": "<token>" }
 ```
+
+**`POST /api/v1/auth/logout`** — invalidates the session on the client side. Always returns HTTP 200. Discard stored tokens after calling this endpoint.
 
 ### User profile endpoints
 
@@ -347,9 +365,17 @@ All admin endpoints require authentication with an account that has `is_admin: t
 
 **`PATCH /api/v1/admin/users/{id}`** accepts the same fields (all optional). Omitted fields are unchanged.
 
+**`GET /api/v1/admin/users`** — list all users. Returns an array of admin user objects.
+
+**`GET /api/v1/admin/users/{id}`** — get a specific user by ID. Returns an admin user object.
+
+**`DELETE /api/v1/admin/users/{id}`** — delete a user. Returns HTTP 200 on success.
+
 Admin user responses include `id`, `email`, `display_name`, `is_admin`, `created_at`, and `updated_at`.
 
 ### Share endpoints
+
+**`GET /api/v1/shares`** — list all shares owned by the authenticated user. Returns an array of share objects.
 
 **`POST /api/v1/shares`**
 
@@ -366,6 +392,8 @@ Admin user responses include `id`, `email`, `display_name`, `is_admin`, `created
 | `recipients` | array of strings | | Email addresses to notify immediately (requires SMTP to be configured) |
 
 **`PATCH /api/v1/shares/{id}`** accepts the same fields (all optional). Use `"clear_password": true` or `"clear_expiry": true` to remove those constraints.
+
+**`DELETE /api/v1/shares/{id}`** — permanently delete a share and all its files. Returns HTTP 200 on success.
 
 Share responses include the following fields:
 
@@ -416,6 +444,8 @@ File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
 | `name` | string | Original filename |
 | `size` | int | File size in bytes |
 | `mime_type` | string | Detected MIME type |
+
+**`DELETE /api/v1/files/{id}`** — delete a file from a share you own. Returns HTTP 200 on success. Only the share owner can delete files.
 
 ### Public share endpoints
 
