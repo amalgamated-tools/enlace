@@ -38,6 +38,12 @@ func RequireAuth(authService *service.AuthService) func(http.Handler) http.Handl
 				return
 			}
 
+			// Reject pending 2FA tokens
+			if claims.TFA {
+				http.Error(w, `{"error":"2FA verification required"}`, http.StatusUnauthorized)
+				return
+			}
+
 			// Add user info to context
 			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 			ctx = context.WithValue(ctx, IsAdminKey, claims.IsAdmin)
