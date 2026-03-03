@@ -605,3 +605,123 @@ func TestAuthHandler_Refresh_InternalError(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
 	}
 }
+
+func TestAuthHandler_Login_OIDCUserSkips2FA(t *testing.T) {
+	mock := &mockAuthService{
+		loginFn: func(ctx context.Context, email, password string) (*service.TokenPair, error) {
+			return &service.TokenPair{
+				AccessToken:  "access-token-123",
+				RefreshToken: "refresh-token-456",
+			}, nil
+		},
+		getUserByEmailFn: func(ctx context.Context, email string) (*model.User, error) {
+			return &model.User{
+				ID:          "user-123",
+				Email:       email,
+				DisplayName: "OIDC User",
+				OIDCSubject: "sub-123",
+				OIDCIssuer:  "https://issuer.example.com",
+			}, nil
+		},
+	}
+
+	// Mock TOTP service that says 2FA is enabled — should be skipped for OIDC user
+	totpMock := &mockTOTPService{
+		getStatusFn: func(ctx context.Context, userID string) (bool, error) {
+			t.Error("GetStatus should not be called for OIDC user")
+			return true, nil
+		},
+	}
+
+	h := handler.NewAuthHandler(mock, totpMock, false)
+	router := setupAuthRouter(h)
+
+	body := `{"email": "oidc@example.com", "password": "password123"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var response struct {
+		Success bool `json:"success"`
+		Data    struct {
+			AccessToken  string `json:"access_token"`
+			RefreshToken string `json:"refresh_token"`
+			Requires2FA  bool   `json:"requires_2fa"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !response.Success {
+		t.Error("expected success to be true")
+	}
+	if response.Data.AccessToken != "access-token-123" {
+		t.Errorf("expected access_token, got %s", response.Data.AccessToken)
+	}
+	if response.Data.Requires2FA {
+		t.Error("expected requires_2fa to be false for OIDC user")
+	}
+}
+
+func TestAuthHandler_Login_OIDCUserSkipsRequire2FASetup(t *testing.T) {
+	mock := &mockAuthService{
+		loginFn: func(ctx context.Context, email, password string) (*service.TokenPair, error) {
+			return &service.TokenPair{
+				AccessToken:  "access-token-123",
+				RefreshToken: "refresh-token-456",
+			}, nil
+		},
+		getUserByEmailFn: func(ctx context.Context, email string) (*model.User, error) {
+			return &model.User{
+				ID:          "user-123",
+				Email:       email,
+				DisplayName: "OIDC User",
+				OIDCSubject: "sub-123",
+				OIDCIssuer:  "https://issuer.example.com",
+			}, nil
+		},
+	}
+
+	// require2FA is true, but should be skipped for OIDC user
+	h := handler.NewAuthHandler(mock, nil, true)
+	router := setupAuthRouter(h)
+
+	body := `{"email": "oidc@example.com", "password": "password123"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var response struct {
+		Success bool `json:"success"`
+		Data    struct {
+			AccessToken      string `json:"access_token"`
+			Requires2FASetup bool   `json:"requires_2fa_setup"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !response.Success {
+		t.Error("expected success to be true")
+	}
+	if response.Data.AccessToken != "access-token-123" {
+		t.Errorf("expected access_token, got %s", response.Data.AccessToken)
+	}
+	if response.Data.Requires2FASetup {
+		t.Error("expected requires_2fa_setup to be false for OIDC user")
+	}
+}

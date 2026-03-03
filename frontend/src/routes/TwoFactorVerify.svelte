@@ -13,9 +13,7 @@
   // Get pending token from sessionStorage (primary) or query string (fallback)
   $: params = new URLSearchParams($querystring);
   $: pendingToken =
-    sessionStorage.getItem("pending2FAToken") ||
-    params.get("token") ||
-    "";
+    sessionStorage.getItem("pending2FAToken") || params.get("token") || "";
 
   $: if (!pendingToken) {
     push("/login");

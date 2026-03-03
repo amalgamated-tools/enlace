@@ -122,7 +122,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	var oidcService *service.OIDCService
 	if cfg.OIDCEnabled {
 		var err error
-		oidcService, err = service.NewOIDCService(cfg, userRepo)
+		oidcService, err = service.NewOIDCService(cfg, userRepo, totpService)
 		if err != nil {
 			slog.WarnContext(cancelCtx, "failed to initialize OIDC", slog.Any("error", err))
 		} else {

@@ -94,7 +94,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	authHandler := NewAuthHandler(cfg.AuthService, totpServiceAdapter, cfg.Require2FA)
 	var totpHandler *TOTPHandler
 	if totpServiceAdapter != nil {
-		totpHandler = NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), newPasswordVerifierAdapter(cfg.AuthService), cfg.Require2FA)
+		totpHandler = NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), newPasswordVerifierAdapter(cfg.AuthService), cfg.Require2FA, cfg.AuthService)
 	}
 	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService, cfg.EmailService)
 	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService)

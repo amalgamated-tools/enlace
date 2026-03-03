@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -33,18 +34,25 @@ type OIDCUserInfo struct {
 	Issuer      string
 }
 
+// TOTPDisabler can remove 2FA configuration for a user.
+// SSO and 2FA are mutually exclusive, so 2FA is removed when OIDC is linked.
+type TOTPDisabler interface {
+	Disable(ctx context.Context, userID string) error
+}
+
 // OIDCService handles OIDC authentication operations.
 type OIDCService struct {
-	provider  *oidc.Provider
-	oauth2Cfg *oauth2.Config
-	verifier  *oidc.IDTokenVerifier
-	userRepo  *repository.UserRepository
-	issuerURL string
+	provider     *oidc.Provider
+	oauth2Cfg    *oauth2.Config
+	verifier     *oidc.IDTokenVerifier
+	userRepo     *repository.UserRepository
+	issuerURL    string
+	totpDisabler TOTPDisabler
 }
 
 // NewOIDCService creates a new OIDCService instance.
 // Returns nil if OIDC is not enabled.
-func NewOIDCService(cfg *config.Config, userRepo *repository.UserRepository) (*OIDCService, error) {
+func NewOIDCService(cfg *config.Config, userRepo *repository.UserRepository, totpDisabler TOTPDisabler) (*OIDCService, error) {
 	if !cfg.OIDCEnabled {
 		return nil, nil
 	}
@@ -71,11 +79,12 @@ func NewOIDCService(cfg *config.Config, userRepo *repository.UserRepository) (*O
 	verifier := provider.Verifier(&oidc.Config{ClientID: cfg.OIDCClientID})
 
 	return &OIDCService{
-		provider:  provider,
-		oauth2Cfg: oauth2Cfg,
-		verifier:  verifier,
-		userRepo:  userRepo,
-		issuerURL: cfg.OIDCIssuerURL,
+		provider:     provider,
+		oauth2Cfg:    oauth2Cfg,
+		verifier:     verifier,
+		userRepo:     userRepo,
+		issuerURL:    cfg.OIDCIssuerURL,
+		totpDisabler: totpDisabler,
 	}, nil
 }
 
@@ -192,6 +201,10 @@ func (s *OIDCService) FindOrCreateUser(ctx context.Context, info *OIDCUserInfo) 
 		if err := s.userRepo.Update(ctx, linkedUser); err != nil {
 			return nil, err
 		}
+		// SSO and 2FA are mutually exclusive — remove any existing 2FA
+		if err := s.disable2FA(ctx, user.ID); err != nil {
+			return nil, fmt.Errorf("failed to remove 2FA for OIDC-linked user: %w", err)
+		}
 		return linkedUser, nil
 	}
 	if !errors.Is(err, repository.ErrNotFound) {
@@ -240,7 +253,16 @@ func (s *OIDCService) LinkOIDC(ctx context.Context, userID string, info *OIDCUse
 		OIDCIssuer:   info.Issuer,
 		CreatedAt:    user.CreatedAt,
 	}
-	return s.userRepo.Update(ctx, linkedUser)
+	if err := s.userRepo.Update(ctx, linkedUser); err != nil {
+		return err
+	}
+
+	// SSO and 2FA are mutually exclusive — remove any existing 2FA
+	if err := s.disable2FA(ctx, userID); err != nil {
+		return fmt.Errorf("failed to remove 2FA for OIDC-linked user: %w", err)
+	}
+
+	return nil
 }
 
 // UnlinkOIDC removes OIDC identity from a user.
@@ -266,6 +288,15 @@ func (s *OIDCService) UnlinkOIDC(ctx context.Context, userID string) error {
 		CreatedAt:    user.CreatedAt,
 	}
 	return s.userRepo.Update(ctx, unlinkedUser)
+}
+
+// disable2FA removes 2FA configuration for a user if a TOTPDisabler is configured.
+// This is a no-op if no TOTPDisabler was provided.
+func (s *OIDCService) disable2FA(ctx context.Context, userID string) error {
+	if s.totpDisabler == nil {
+		return nil
+	}
+	return s.totpDisabler.Disable(ctx, userID)
 }
 
 // IsEnabled returns whether OIDC is enabled.

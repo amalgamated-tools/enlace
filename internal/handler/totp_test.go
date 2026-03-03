@@ -13,6 +13,7 @@ import (
 
 	"github.com/amalgamated-tools/enlace/internal/handler"
 	"github.com/amalgamated-tools/enlace/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
@@ -104,6 +105,18 @@ func (m *mockPasswordVerifier) VerifyPassword(ctx context.Context, userID, passw
 	return errors.New("not implemented")
 }
 
+// mockUserGetter implements handler.UserGetter for testing.
+type mockUserGetter struct {
+	getUserFn func(ctx context.Context, userID string) (*model.User, error)
+}
+
+func (m *mockUserGetter) GetUser(ctx context.Context, userID string) (*model.User, error) {
+	if m.getUserFn != nil {
+		return m.getUserFn(ctx, userID)
+	}
+	return &model.User{ID: userID}, nil
+}
+
 // setupTOTPRouter creates a chi router with TOTP routes for testing.
 // Authenticated routes under /me/2fa inject a test user ID into the context.
 func setupTOTPRouter(h *handler.TOTPHandler) *chi.Mux {
@@ -138,7 +151,7 @@ func TestTOTPHandler_GetStatus_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/me/2fa/status", nil)
@@ -179,7 +192,7 @@ func TestTOTPHandler_GetStatus_Enabled(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, true)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, true, nil)
 	router := setupTOTPRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/me/2fa/status", nil)
@@ -220,7 +233,7 @@ func TestTOTPHandler_BeginSetup_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	req := httptest.NewRequest(http.MethodPost, "/me/2fa/setup", nil)
@@ -265,7 +278,7 @@ func TestTOTPHandler_BeginSetup_AlreadyEnabled(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	req := httptest.NewRequest(http.MethodPost, "/me/2fa/setup", nil)
@@ -297,7 +310,7 @@ func TestTOTPHandler_ConfirmSetup_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"code": "123456"}`
@@ -332,7 +345,7 @@ func TestTOTPHandler_ConfirmSetup_Success(t *testing.T) {
 func TestTOTPHandler_ConfirmSetup_MissingCode(t *testing.T) {
 	totpMock := &mockTOTPService{}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{}`
@@ -370,7 +383,7 @@ func TestTOTPHandler_ConfirmSetup_InvalidCode(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"code": "000000"}`
@@ -409,7 +422,7 @@ func TestTOTPHandler_Disable_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, pwMock, false)
+	h := handler.NewTOTPHandler(totpMock, nil, pwMock, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"password": "correct-password"}`
@@ -438,7 +451,7 @@ func TestTOTPHandler_Disable_Success(t *testing.T) {
 func TestTOTPHandler_Disable_MissingPassword(t *testing.T) {
 	totpMock := &mockTOTPService{}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{}`
@@ -477,7 +490,7 @@ func TestTOTPHandler_Disable_WrongPassword(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, pwMock, false)
+	h := handler.NewTOTPHandler(totpMock, nil, pwMock, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"password": "wrong-password"}`
@@ -516,7 +529,7 @@ func TestTOTPHandler_RegenerateRecoveryCodes_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, pwMock, false)
+	h := handler.NewTOTPHandler(totpMock, nil, pwMock, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"password": "correct-password"}`
@@ -551,7 +564,7 @@ func TestTOTPHandler_RegenerateRecoveryCodes_Success(t *testing.T) {
 func TestTOTPHandler_RegenerateRecoveryCodes_MissingPassword(t *testing.T) {
 	totpMock := &mockTOTPService{}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{}`
@@ -590,7 +603,7 @@ func TestTOTPHandler_RegenerateRecoveryCodes_WrongPassword(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, pwMock, false)
+	h := handler.NewTOTPHandler(totpMock, nil, pwMock, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"password": "wrong-password"}`
@@ -634,7 +647,7 @@ func TestTOTPHandler_Verify_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, authTokenMock, nil, false)
+	h := handler.NewTOTPHandler(totpMock, authTokenMock, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"pending_token": "pending-token-123", "code": "123456"}`
@@ -673,7 +686,7 @@ func TestTOTPHandler_Verify_Success(t *testing.T) {
 func TestTOTPHandler_Verify_MissingFields(t *testing.T) {
 	totpMock := &mockTOTPService{}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{}`
@@ -714,7 +727,7 @@ func TestTOTPHandler_Verify_InvalidPendingToken(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"pending_token": "bad-token", "code": "123456"}`
@@ -751,7 +764,7 @@ func TestTOTPHandler_Verify_InvalidCode(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"pending_token": "pending-token-123", "code": "000000"}`
@@ -793,7 +806,7 @@ func TestTOTPHandler_Recovery_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, authTokenMock, nil, false)
+	h := handler.NewTOTPHandler(totpMock, authTokenMock, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"pending_token": "pending-token-123", "recovery_code": "recovery-code-1"}`
@@ -832,7 +845,7 @@ func TestTOTPHandler_Recovery_Success(t *testing.T) {
 func TestTOTPHandler_Recovery_MissingFields(t *testing.T) {
 	totpMock := &mockTOTPService{}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{}`
@@ -873,7 +886,7 @@ func TestTOTPHandler_Recovery_InvalidPendingToken(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"pending_token": "bad-token", "recovery_code": "recovery-code-1"}`
@@ -910,7 +923,7 @@ func TestTOTPHandler_Recovery_InvalidCode(t *testing.T) {
 		},
 	}
 
-	h := handler.NewTOTPHandler(totpMock, nil, nil, false)
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, nil)
 	router := setupTOTPRouter(h)
 
 	body := `{"pending_token": "pending-token-123", "recovery_code": "bad-code"}`
@@ -934,5 +947,114 @@ func TestTOTPHandler_Recovery_InvalidCode(t *testing.T) {
 
 	if response.Success {
 		t.Error("expected success to be false")
+	}
+}
+
+// --- OIDC user blocking tests ---
+
+func oidcUserGetter() *mockUserGetter {
+	return &mockUserGetter{
+		getUserFn: func(ctx context.Context, userID string) (*model.User, error) {
+			return &model.User{ID: userID, OIDCSubject: "sub-123", OIDCIssuer: "https://issuer.example.com"}, nil
+		},
+	}
+}
+
+func TestTOTPHandler_BeginSetup_OIDCUserBlocked(t *testing.T) {
+	totpMock := &mockTOTPService{}
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, oidcUserGetter())
+	router := setupTOTPRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/me/2fa/setup", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected status %d, got %d", http.StatusForbidden, w.Code)
+	}
+
+	var response struct {
+		Success bool   `json:"success"`
+		Error   string `json:"error"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if response.Success {
+		t.Error("expected success to be false")
+	}
+	if response.Error != "2FA is not available for SSO accounts" {
+		t.Errorf("expected SSO error message, got %s", response.Error)
+	}
+}
+
+func TestTOTPHandler_ConfirmSetup_OIDCUserBlocked(t *testing.T) {
+	totpMock := &mockTOTPService{}
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, oidcUserGetter())
+	router := setupTOTPRouter(h)
+
+	body := `{"code": "123456"}`
+	req := httptest.NewRequest(http.MethodPost, "/me/2fa/confirm", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected status %d, got %d", http.StatusForbidden, w.Code)
+	}
+}
+
+func TestTOTPHandler_Disable_OIDCUserBlocked(t *testing.T) {
+	totpMock := &mockTOTPService{}
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, oidcUserGetter())
+	router := setupTOTPRouter(h)
+
+	body := `{"password": "some-password"}`
+	req := httptest.NewRequest(http.MethodPost, "/me/2fa/disable", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected status %d, got %d", http.StatusForbidden, w.Code)
+	}
+}
+
+func TestTOTPHandler_RegenerateRecoveryCodes_OIDCUserBlocked(t *testing.T) {
+	totpMock := &mockTOTPService{}
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, oidcUserGetter())
+	router := setupTOTPRouter(h)
+
+	body := `{"password": "some-password"}`
+	req := httptest.NewRequest(http.MethodPost, "/me/2fa/recovery-codes", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected status %d, got %d", http.StatusForbidden, w.Code)
+	}
+}
+
+func TestTOTPHandler_GetStatus_OIDCUserAllowed(t *testing.T) {
+	totpMock := &mockTOTPService{
+		getStatusFn: func(ctx context.Context, userID string) (bool, error) {
+			return false, nil
+		},
+	}
+	h := handler.NewTOTPHandler(totpMock, nil, nil, false, oidcUserGetter())
+	router := setupTOTPRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/me/2fa/status", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
 	}
 }
