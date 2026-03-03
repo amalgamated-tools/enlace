@@ -53,11 +53,16 @@ func NewEmailService(cfg SMTPConfig, recipientRepo *repository.RecipientReposito
 			mail.WithPort(cfg.Port),
 			mail.WithTLSPortPolicy(parseTLSPolicy(cfg.TLSPolicy)),
 		}
-		if cfg.User != "" || cfg.Pass != "" {
+		if cfg.User != "" && cfg.Pass != "" {
 			opts = append(opts,
 				mail.WithSMTPAuth(mail.SMTPAuthPlain),
 				mail.WithUsername(cfg.User),
 				mail.WithPassword(cfg.Pass),
+			)
+		} else if cfg.User != "" || cfg.Pass != "" {
+			slog.Error("incomplete SMTP auth configuration: both user and pass must be set; skipping SMTP auth",
+				slog.String("user_set", fmt.Sprintf("%t", cfg.User != "")),
+				slog.String("pass_set", fmt.Sprintf("%t", cfg.Pass != "")),
 			)
 		}
 		client, err := mail.NewClient(cfg.Host, opts...)
