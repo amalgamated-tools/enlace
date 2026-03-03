@@ -96,7 +96,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	if totpServiceAdapter != nil {
 		totpHandler = NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), newPasswordVerifierAdapter(cfg.AuthService), cfg.Require2FA)
 	}
-	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService, emailSvc)
+	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService, cfg.EmailService)
 	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService)
 	userHandler := NewUserHandler(cfg.AuthService)
 	adminHandler := NewAdminHandler(cfg.UserRepo)
