@@ -77,6 +77,8 @@ func setupShareRouter(h *handler.ShareHandler) *chi.Mux {
 		r.Get("/{id}", h.Get)
 		r.Patch("/{id}", h.Update)
 		r.Delete("/{id}", h.Delete)
+		r.Post("/{id}/notify", h.SendNotification)
+		r.Get("/{id}/recipients", h.ListRecipients)
 	})
 	return r
 }
@@ -120,7 +122,7 @@ func TestShareHandler_List_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares", nil)
@@ -161,7 +163,7 @@ func TestShareHandler_List_EmptyList(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares", nil)
@@ -192,7 +194,7 @@ func TestShareHandler_List_EmptyList(t *testing.T) {
 
 func TestShareHandler_List_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares", nil)
@@ -215,7 +217,7 @@ func TestShareHandler_List_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares", nil)
@@ -247,7 +249,7 @@ func TestShareHandler_Create_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "My Share", "description": "A test share"}`
@@ -316,7 +318,7 @@ func TestShareHandler_Create_WithAllFields(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{
@@ -344,7 +346,7 @@ func TestShareHandler_Create_WithAllFields(t *testing.T) {
 func TestShareHandler_Create_ValidationErrors(t *testing.T) {
 	userID := "user-123"
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	tests := []struct {
@@ -419,7 +421,7 @@ func TestShareHandler_Create_ValidationErrors(t *testing.T) {
 func TestShareHandler_Create_InvalidExpiresAt(t *testing.T) {
 	userID := "user-123"
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test", "expires_at": "invalid-date"}`
@@ -455,7 +457,7 @@ func TestShareHandler_Create_SlugExists(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test", "slug": "existing-slug"}`
@@ -473,7 +475,7 @@ func TestShareHandler_Create_SlugExists(t *testing.T) {
 
 func TestShareHandler_Create_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -492,7 +494,7 @@ func TestShareHandler_Create_Unauthenticated(t *testing.T) {
 func TestShareHandler_Create_InvalidJSON(t *testing.T) {
 	userID := "user-123"
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares", bytes.NewBufferString(`{invalid`))
@@ -521,7 +523,7 @@ func TestShareHandler_Get_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID, nil)
@@ -564,7 +566,7 @@ func TestShareHandler_Get_NotFound(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID, nil)
@@ -590,7 +592,7 @@ func TestShareHandler_Get_NotOwner(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID, nil)
@@ -607,7 +609,7 @@ func TestShareHandler_Get_NotOwner(t *testing.T) {
 
 func TestShareHandler_Get_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/share-123", nil)
@@ -644,7 +646,7 @@ func TestShareHandler_Update_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Updated Name", "description": "Updated description"}`
@@ -698,7 +700,7 @@ func TestShareHandler_Update_ClearPassword(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"clear_password": true}`
@@ -728,7 +730,7 @@ func TestShareHandler_Update_NotFound(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -756,7 +758,7 @@ func TestShareHandler_Update_NotOwner(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -784,7 +786,7 @@ func TestShareHandler_Update_ValidationErrors(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	tests := []struct {
@@ -838,7 +840,7 @@ func TestShareHandler_Update_ValidationErrors(t *testing.T) {
 
 func TestShareHandler_Update_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -871,7 +873,7 @@ func TestShareHandler_Delete_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/"+shareID, nil)
@@ -906,7 +908,7 @@ func TestShareHandler_Delete_NotFound(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/"+shareID, nil)
@@ -932,7 +934,7 @@ func TestShareHandler_Delete_NotOwner(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/"+shareID, nil)
@@ -949,7 +951,7 @@ func TestShareHandler_Delete_NotOwner(t *testing.T) {
 
 func TestShareHandler_Delete_Unauthenticated(t *testing.T) {
 	mockShare := &mockShareService{}
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/share-123", nil)
@@ -977,7 +979,7 @@ func TestShareHandler_Delete_ServiceError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/"+shareID, nil)
@@ -1003,7 +1005,7 @@ func TestShareHandler_Get_NilCreatorID(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID, nil)
@@ -1028,7 +1030,7 @@ func TestShareHandler_Get_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID, nil)
@@ -1051,7 +1053,7 @@ func TestShareHandler_Create_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -1078,7 +1080,7 @@ func TestShareHandler_Update_InvalidJSON(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/shares/"+shareID, bytes.NewBufferString(`{invalid`))
@@ -1107,7 +1109,7 @@ func TestShareHandler_Update_InternalError(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	body := `{"name": "Test"}`
@@ -1133,7 +1135,7 @@ func TestShareHandler_Delete_InternalErrorOnGet(t *testing.T) {
 		},
 	}
 
-	h := handler.NewShareHandler(mockShare, nil)
+	h := handler.NewShareHandler(mockShare, nil, nil)
 	router := setupShareRouter(h)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/shares/"+shareID, nil)
@@ -1144,5 +1146,317 @@ func TestShareHandler_Delete_InternalErrorOnGet(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+// mockEmailService implements EmailServiceInterface for testing.
+type mockEmailService struct {
+	isConfigured bool
+	sendFn       func(ctx context.Context, share *model.Share, recipients []string) error
+	listFn       func(ctx context.Context, shareID string) ([]*model.ShareRecipient, error)
+}
+
+func (m *mockEmailService) IsConfigured() bool {
+	return m.isConfigured
+}
+
+func (m *mockEmailService) SendShareNotification(ctx context.Context, share *model.Share, recipients []string) error {
+	if m.sendFn != nil {
+		return m.sendFn(ctx, share, recipients)
+	}
+	return nil
+}
+
+func (m *mockEmailService) ListRecipients(ctx context.Context, shareID string) ([]*model.ShareRecipient, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, shareID)
+	}
+	return nil, nil
+}
+
+func TestShareHandler_SendNotification_Success(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	var sentRecipients []string
+	mockShare := &mockShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockEmail := &mockEmailService{
+		isConfigured: true,
+		sendFn: func(ctx context.Context, s *model.Share, recipients []string) error {
+			sentRecipients = recipients
+			return nil
+		},
+	}
+
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
+	router := setupShareRouter(h)
+
+	body := `{"recipients": ["test@example.com", "other@example.com"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares/"+shareID+"/notify", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	if len(sentRecipients) != 2 {
+		t.Errorf("expected 2 recipients sent, got %d", len(sentRecipients))
+	}
+}
+
+func TestShareHandler_SendNotification_NoRecipients(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShare := &mockShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockEmail := &mockEmailService{isConfigured: true}
+
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
+	router := setupShareRouter(h)
+
+	body := `{"recipients": []}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares/"+shareID+"/notify", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestShareHandler_SendNotification_NotOwner(t *testing.T) {
+	userID := "user-123"
+	otherUserID := "user-456"
+	shareID := "share-123"
+	share := newTestShare(shareID, otherUserID)
+
+	mockShare := &mockShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockEmail := &mockEmailService{isConfigured: true}
+
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
+	router := setupShareRouter(h)
+
+	body := `{"recipients": ["test@example.com"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares/"+shareID+"/notify", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status %d, got %d", http.StatusNotFound, w.Code)
+	}
+}
+
+func TestShareHandler_SendNotification_Unauthenticated(t *testing.T) {
+	mockShare := &mockShareService{}
+	mockEmail := &mockEmailService{isConfigured: true}
+
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
+	router := setupShareRouter(h)
+
+	body := `{"recipients": ["test@example.com"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares/share-123/notify", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected status %d, got %d", http.StatusUnauthorized, w.Code)
+	}
+}
+
+func TestShareHandler_ListRecipients_Success(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShare := &mockShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockEmail := &mockEmailService{
+		isConfigured: true,
+		listFn: func(ctx context.Context, sid string) ([]*model.ShareRecipient, error) {
+			return []*model.ShareRecipient{
+				{ID: "r-1", ShareID: sid, Email: "a@example.com", SentAt: time.Now()},
+				{ID: "r-2", ShareID: sid, Email: "b@example.com", SentAt: time.Now()},
+			}, nil
+		},
+	}
+
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
+	router := setupShareRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID+"/recipients", nil)
+	req = withUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var response struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID    string `json:"id"`
+			Email string `json:"email"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !response.Success {
+		t.Error("expected success to be true")
+	}
+	if len(response.Data) != 2 {
+		t.Errorf("expected 2 recipients, got %d", len(response.Data))
+	}
+}
+
+func TestShareHandler_ListRecipients_NotOwner(t *testing.T) {
+	userID := "user-123"
+	otherUserID := "user-456"
+	shareID := "share-123"
+	share := newTestShare(shareID, otherUserID)
+
+	mockShare := &mockShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockEmail := &mockEmailService{isConfigured: true}
+
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
+	router := setupShareRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID+"/recipients", nil)
+	req = withUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status %d, got %d", http.StatusNotFound, w.Code)
+	}
+}
+
+func TestShareHandler_ListRecipients_NilEmailService(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShare := &mockShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+
+	h := handler.NewShareHandler(mockShare, nil, nil)
+	router := setupShareRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/shares/"+shareID+"/recipients", nil)
+	req = withUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var response struct {
+		Success bool          `json:"success"`
+		Data    []interface{} `json:"data"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(response.Data) != 0 {
+		t.Errorf("expected 0 recipients, got %d", len(response.Data))
+	}
+}
+
+func TestShareHandler_SendNotification_InvalidEmail(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShare := &mockShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockEmail := &mockEmailService{isConfigured: true}
+
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
+	router := setupShareRouter(h)
+
+	body := `{"recipients": ["not-an-email"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares/"+shareID+"/notify", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestShareHandler_SendNotification_CRLFInjection(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShare := &mockShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockEmail := &mockEmailService{isConfigured: true}
+
+	h := handler.NewShareHandler(mockShare, nil, mockEmail)
+	router := setupShareRouter(h)
+
+	body := `{"recipients": ["evil@example.com\r\nBcc: victim@example.com"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares/"+shareID+"/notify", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
 	}
 }
