@@ -10,9 +10,12 @@
   let useRecovery = false;
   let errors: Record<string, string> = {};
 
-  // Get pending token from query string
+  // Get pending token from sessionStorage (primary) or query string (fallback)
   $: params = new URLSearchParams($querystring);
-  $: pendingToken = params.get("token") || "";
+  $: pendingToken =
+    sessionStorage.getItem("pending2FAToken") ||
+    params.get("token") ||
+    "";
 
   $: if (!pendingToken) {
     push("/login");
@@ -34,6 +37,7 @@
         throw new Error("Verification failed: no tokens received");
       }
       auth.setTokens(response.access_token, response.refresh_token);
+      sessionStorage.removeItem("pending2FAToken");
       toast.success("Logged in successfully");
       push("/");
     } catch (err) {
@@ -65,6 +69,7 @@
         throw new Error("Recovery failed: no tokens received");
       }
       auth.setTokens(response.access_token, response.refresh_token);
+      sessionStorage.removeItem("pending2FAToken");
       toast.success("Logged in successfully");
       push("/");
     } catch (err) {

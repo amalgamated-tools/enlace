@@ -126,9 +126,17 @@ func (r *TOTPRepository) GetRecoveryCodes(ctx context.Context, userID string) ([
 }
 
 // DeleteRecoveryCode deletes a single recovery code by ID (after use).
+// Returns ErrNotFound if the code does not exist (e.g., already consumed).
 func (r *TOTPRepository) DeleteRecoveryCode(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM user_recovery_codes WHERE id = ?`, id)
-	return err
+	result, err := r.db.ExecContext(ctx, `DELETE FROM user_recovery_codes WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // DeleteRecoveryCodesByUser deletes all recovery codes for a user.

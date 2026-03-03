@@ -179,7 +179,13 @@ func (s *TOTPService) VerifyRecoveryCode(ctx context.Context, userID, code strin
 	for _, stored := range codes {
 		if err := bcrypt.CompareHashAndPassword([]byte(stored.CodeHash), []byte(normalized)); err == nil {
 			// Code matches - consume it
-			return s.totpRepo.DeleteRecoveryCode(ctx, stored.ID)
+			if err := s.totpRepo.DeleteRecoveryCode(ctx, stored.ID); err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					return ErrInvalidRecoveryCode
+				}
+				return err
+			}
+			return nil
 		}
 	}
 
