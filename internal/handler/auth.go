@@ -165,7 +165,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Check 2FA status
 	if h.totpService != nil {
-		has2FA, _ := h.totpService.GetStatus(r.Context(), user.ID)
+		has2FA, err := h.totpService.GetStatus(r.Context(), user.ID)
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
 		if has2FA {
 			// 2FA is enabled - return pending token instead of real tokens
 			pendingToken, err := h.totpService.GeneratePendingToken(user.ID, user.IsAdmin)

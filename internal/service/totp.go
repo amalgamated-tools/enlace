@@ -60,8 +60,12 @@ func NewTOTPService(totpRepo *repository.TOTPRepository, userRepo *repository.Us
 func (s *TOTPService) BeginSetup(ctx context.Context, userID string) (string, string, string, error) {
 	// Check if 2FA is already enabled
 	existing, err := s.totpRepo.GetByUserID(ctx, userID)
-	if err == nil && existing.Enabled {
-		return "", "", "", ErrTOTPAlreadyEnabled
+	if err == nil {
+		if existing.Enabled {
+			return "", "", "", ErrTOTPAlreadyEnabled
+		}
+	} else if !errors.Is(err, repository.ErrNotFound) {
+		return "", "", "", fmt.Errorf("failed to get TOTP config: %w", err)
 	}
 
 	// Get user email for the TOTP account name
