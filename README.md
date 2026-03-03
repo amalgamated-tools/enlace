@@ -395,6 +395,8 @@ Admin user responses include `id`, `email`, `display_name`, `is_admin`, `created
 | `is_reverse_share` | bool | | Allow others to upload files to this share |
 | `recipients` | array of strings | | Email addresses to notify immediately (requires SMTP to be configured) |
 
+**`GET /api/v1/shares/{id}`** — retrieve a single share by ID. Returns the share object. Returns HTTP 404 if the share does not exist or is owned by another user.
+
 **`PATCH /api/v1/shares/{id}`** accepts the same fields (all optional). Use `"clear_password": true` or `"clear_expiry": true` to remove those constraints.
 
 **`DELETE /api/v1/shares/{id}`** — permanently delete a share and all its files. Returns HTTP 200 on success.
@@ -417,7 +419,9 @@ Share responses include the following fields:
 | `created_at` | string (RFC3339) | Creation timestamp |
 | `updated_at` | string (RFC3339) | Last-updated timestamp |
 
-### File upload
+### File endpoints
+
+**`GET /api/v1/shares/{id}/files`** — list files in a share you own. Returns an array of file objects.
 
 **`POST /api/v1/shares/{id}/files`** — upload one or more files to a share you own.
 
