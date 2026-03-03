@@ -9,12 +9,19 @@
     Modal,
   } from "../lib/components";
   import { auth, isAuthenticated, toast } from "../lib/stores";
-  import { sharesApi, filesApi, type Share, type FileInfo } from "../lib/api";
+  import {
+    sharesApi,
+    filesApi,
+    type Share,
+    type FileInfo,
+    type ShareRecipient,
+  } from "../lib/api";
 
   export let params: { id: string } = { id: "" };
 
   let share: Share | null = null;
   let files: FileInfo[] = [];
+  let recipients: ShareRecipient[] = [];
   let loading = true;
   let saving = false;
   let uploading = false;
@@ -29,6 +36,10 @@
 
   let deleteModal = false;
   let deleting = false;
+
+  let notifyModal = false;
+  let notifyEmails = "";
+  let notifying = false;
 
   $: if ($auth.initialized && !$isAuthenticated) {
     push("/login");
@@ -66,6 +77,13 @@
       const data = await response.json();
       if (data.success) {
         files = data.data || [];
+      }
+
+      try {
+        const recipientData = await sharesApi.getRecipients(params.id);
+        recipients = recipientData || [];
+      } catch {
+        recipients = [];
       }
     } catch (err) {
       const message =
@@ -153,6 +171,39 @@
   function copyShareLink() {
     navigator.clipboard.writeText(shareUrl);
     toast.success("Link copied to clipboard");
+  }
+
+  async function handleSendNotification() {
+    if (!share) return;
+
+    const emailList = notifyEmails
+      .split(",")
+      .map((e) => e.trim())
+      .filter((e) => e.length > 0);
+
+    if (emailList.length === 0) {
+      toast.error("Please enter at least one email address");
+      return;
+    }
+
+    notifying = true;
+    try {
+      await sharesApi.sendNotification(share.id, emailList);
+      toast.success("Notifications sent");
+      notifyModal = false;
+      notifyEmails = "";
+      try {
+        recipients = (await sharesApi.getRecipients(share.id)) || [];
+      } catch {
+        // ignore reload error
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to send notifications";
+      toast.error(message);
+    } finally {
+      notifying = false;
+    }
   }
 </script>
 
@@ -289,6 +340,11 @@
               <Button
                 variant="secondary"
                 size="sm"
+                on:click={() => (notifyModal = true)}>Send via Email</Button
+              >
+              <Button
+                variant="secondary"
+                size="sm"
                 on:click={() => (editMode = true)}>Edit</Button
               >
               <Button
@@ -321,6 +377,27 @@
           >
         </div>
       </div>
+
+      <!-- Notified recipients -->
+      {#if recipients.length > 0}
+        <div class="px-6 py-4 border-t border-slate-100">
+          <p
+            class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2"
+          >
+            Notified Recipients
+          </p>
+          <ul class="space-y-1">
+            {#each recipients as r (r.id)}
+              <li class="text-sm text-slate-600">
+                {r.email}
+                <span class="text-xs text-slate-400">
+                  - {new Date(r.sent_at).toLocaleDateString()}
+                </span>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
     </div>
 
     <!-- Files -->
@@ -357,5 +434,26 @@
     <Button variant="danger" loading={deleting} on:click={handleDeleteShare}
       >Delete</Button
     >
+  </div>
+</Modal>
+
+<Modal
+  open={notifyModal}
+  title="Send via Email"
+  on:close={() => (notifyModal = false)}
+>
+  <div class="space-y-4">
+    <Input
+      label="Recipients"
+      bind:value={notifyEmails}
+      placeholder="email1@example.com, email2@example.com"
+    />
+    <div class="flex gap-2 justify-end">
+      <Button variant="secondary" on:click={() => (notifyModal = false)}
+        >Cancel</Button
+      >
+      <Button loading={notifying} on:click={handleSendNotification}>Send</Button
+      >
+    </div>
   </div>
 </Modal>

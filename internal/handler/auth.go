@@ -79,7 +79,7 @@ var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]
 //	@Tags		auth
 //	@Accept		json
 //	@Produce	json
-//	@Param		body	body		registerRequest				true	"Registration details"
+//	@Param		body	body		registerRequest	true	"Registration details"
 //	@Success	201		{object}	APIResponse{data=userResponse}
 //	@Failure	400		{object}	ValidationErrorResponse
 //	@Failure	409		{object}	APIResponse
@@ -121,7 +121,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 //	@Tags			auth
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		loginRequest				true	"Login credentials"
+//	@Param			body	body		loginRequest	true	"Login credentials"
 //	@Success		200		{object}	APIResponse{data=loginResponse}
 //	@Failure		400		{object}	ValidationErrorResponse
 //	@Failure		401		{object}	APIResponse
@@ -179,7 +179,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 //	@Tags		auth
 //	@Accept		json
 //	@Produce	json
-//	@Param		body	body		refreshRequest				true	"Refresh token"
+//	@Param		body	body		refreshRequest	true	"Refresh token"
 //	@Success	200		{object}	APIResponse{data=tokenResponse}
 //	@Failure	400		{object}	ValidationErrorResponse
 //	@Failure	401		{object}	APIResponse

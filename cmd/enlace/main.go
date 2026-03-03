@@ -26,22 +26,22 @@ import (
 
 var version = "dev"
 
-// @title           Enlace API
-// @version         1.0
-// @description     File sharing API with support for password-protected shares, expiring links, reverse shares, and admin user management.
+//	@title			Enlace API
+//	@version		1.0
+//	@description	File sharing API with support for password-protected shares, expiring links, reverse shares, and admin user management.
 
-// @host      localhost:8080
-// @BasePath  /
+//	@host		localhost:8080
+//	@BasePath	/
 
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
-// @description Enter your Bearer token: Bearer {token}
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Enter your Bearer token: Bearer {token}
 
-// @securityDefinitions.apikey ShareToken
-// @in header
-// @name X-Share-Token
-// @description Share access token for password-protected shares
+// @securityDefinitions.apikey	ShareToken
+// @in							header
+// @name						X-Share-Token
+// @description				Share access token for password-protected shares
 func main() {
 	otel.SetupLogger(version)
 	cancelCtx, cancelAll := context.WithCancel(context.Background())
@@ -105,6 +105,17 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	shareService := service.NewShareService(shareRepo, fileRepo, store)
 	fileService := service.NewFileService(fileRepo, shareRepo, store)
 
+	// Initialize recipient repository and email service
+	recipientRepo := repository.NewRecipientRepository(db.DB())
+	emailService := service.NewEmailService(service.SMTPConfig{
+		Host:      cfg.SMTPHost,
+		Port:      cfg.SMTPPort,
+		User:      cfg.SMTPUser,
+		Pass:      cfg.SMTPPass,
+		From:      cfg.SMTPFrom,
+		TLSPolicy: cfg.SMTPTLSPolicy,
+	}, recipientRepo, cfg.BaseURL)
+
 	// Initialize OIDC service (optional, based on config)
 	var oidcService *service.OIDCService
 	if cfg.OIDCEnabled {
@@ -138,6 +149,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		AuthService:    authService,
 		ShareService:   shareService,
 		FileService:    fileService,
+		EmailService:   emailService,
 		UserRepo:       userRepo,
 		ShareRepo:      shareRepo,
 		FileRepo:       fileRepo,
