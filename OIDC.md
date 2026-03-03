@@ -28,6 +28,16 @@ Existing users can also link/unlink their OIDC identity from the **Settings** pa
 
 > **Note:** The OIDC provider must return an `email` claim. If it does not, authentication will fail.
 
+## OIDC and Two-Factor Authentication (2FA)
+
+OIDC authentication and TOTP-based 2FA are **mutually exclusive** in Enlace:
+
+- **Linking OIDC disables 2FA.** When you link an OIDC identity to an account that already has 2FA enabled, 2FA is automatically disabled. The OIDC provider is responsible for its own multi-factor authentication.
+- **OIDC accounts cannot enable 2FA.** The `POST /api/v1/me/2fa/setup`, `POST /api/v1/me/2fa/confirm`, `POST /api/v1/me/2fa/disable`, and `POST /api/v1/me/2fa/recovery-codes` endpoints return HTTP **403** for accounts with a linked OIDC identity.
+- **OIDC logins skip the 2FA verification step.** Even if `REQUIRE_2FA` is set to `true`, users authenticated via OIDC proceed directly to the application without a TOTP challenge.
+
+If you want 2FA enforcement for SSO users, configure MFA at the OIDC provider level.
+
 ## General Setup
 
 1. Register Enlace as a client/application in your OIDC provider.

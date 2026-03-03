@@ -280,6 +280,8 @@ Response `data` fields:
 
 ### Two-factor authentication (2FA) endpoints
 
+> **Note:** OIDC (SSO) and 2FA are mutually exclusive. Accounts with a linked OIDC identity cannot set up or use 2FA — the setup, confirm, disable, and recovery-code endpoints return HTTP 403 for those accounts. OIDC logins also bypass the 2FA verification step. See [OIDC.md](OIDC.md#oidc-and-two-factor-authentication-2fa) for details.
+
 All `/me/2fa/*` endpoints require a valid `Authorization: Bearer <access_token>` header.
 The `/auth/2fa/*` endpoints require a `pending_token` (returned by `POST /auth/login` when 2FA is enabled) in the `Authorization: Bearer` header.
 
