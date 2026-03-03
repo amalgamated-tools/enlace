@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -37,6 +38,10 @@ const (
 	recoveryBcryptCost = 10
 	totpIssuer         = "Enlace"
 	pendingTokenExpiry = 5 * time.Minute
+
+	// encryptedSecretPrefix tags secrets that were encrypted with AES-GCM.
+	// Secrets without this prefix are treated as legacy plaintext.
+	encryptedSecretPrefix = "enc:"
 )
 
 // TOTPService handles TOTP two-factor authentication operations.
@@ -347,7 +352,9 @@ func deriveEncryptionKey(jwtSecret []byte) []byte {
 	return hash[:]
 }
 
-// encryptSecret encrypts a TOTP secret using AES-GCM.
+// encryptSecret encrypts a TOTP secret using AES-GCM and tags the
+// output with encryptedSecretPrefix so decryptSecret can distinguish
+// encrypted values from legacy plaintext.
 func (s *TOTPService) encryptSecret(plaintext string) (string, error) {
 	key := deriveEncryptionKey(s.jwtSecret)
 	block, err := aes.NewCipher(key)
@@ -363,18 +370,49 @@ func (s *TOTPService) encryptSecret(plaintext string) (string, error) {
 		return "", err
 	}
 	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
-	return base64.StdEncoding.EncodeToString(ciphertext), nil
+	return encryptedSecretPrefix + base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
 // decryptSecret decrypts an AES-GCM encrypted TOTP secret.
-// If the input is not valid base64, it is treated as a legacy plaintext secret.
-// If base64 decoding succeeds but decryption fails, an error is returned
-// (indicating a corrupt ciphertext or wrong encryption key).
+// Tagged secrets (prefixed with "enc:") are decrypted; failures are
+// returned as errors. Untagged secrets are tried as old-format encrypted
+// values first; if that fails they are returned as legacy plaintext.
 func (s *TOTPService) decryptSecret(encoded string) (string, error) {
+	if strings.HasPrefix(encoded, encryptedSecretPrefix) {
+		return s.decryptAESGCM(strings.TrimPrefix(encoded, encryptedSecretPrefix))
+	}
+
+	// Untagged: try old-format (bare base64) decrypt, fall back to plaintext
 	data, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
-		// Not base64 — legacy plaintext secret
 		return encoded, nil
+	}
+	key := deriveEncryptionKey(s.jwtSecret)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return encoded, nil
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return encoded, nil
+	}
+	nonceSize := gcm.NonceSize()
+	if len(data) < nonceSize {
+		return encoded, nil
+	}
+	plaintext, err := gcm.Open(nil, data[:nonceSize], data[nonceSize:], nil)
+	if err != nil {
+		// base64-decodable but not valid ciphertext — legacy plaintext
+		return encoded, nil
+	}
+	return string(plaintext), nil
+}
+
+// decryptAESGCM decodes base64 and decrypts AES-GCM ciphertext.
+func (s *TOTPService) decryptAESGCM(b64 string) (string, error) {
+	data, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode encrypted secret: %w", err)
 	}
 	key := deriveEncryptionKey(s.jwtSecret)
 	block, err := aes.NewCipher(key)
@@ -387,8 +425,7 @@ func (s *TOTPService) decryptSecret(encoded string) (string, error) {
 	}
 	nonceSize := gcm.NonceSize()
 	if len(data) < nonceSize {
-		// Too short to be a valid ciphertext — legacy plaintext
-		return encoded, nil
+		return "", fmt.Errorf("encrypted secret too short")
 	}
 	plaintext, err := gcm.Open(nil, data[:nonceSize], data[nonceSize:], nil)
 	if err != nil {
