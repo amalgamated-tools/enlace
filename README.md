@@ -8,7 +8,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Reverse shares** — let others upload files to a link you control
 - **Access controls** — optional password protection, expiry date, download limit, and view limit per share
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
-- **Two-factor authentication** — per-user TOTP 2FA with QR-code setup, recovery codes, and optional admin-enforced enrollment (`REQUIRE_2FA`)
+- **Two-factor authentication** — per-user TOTP 2FA with QR-code setup, recovery codes, and optional admin-enforced enrollment (`REQUIRE_2FA`); mutually exclusive with SSO/OIDC
 - **Storage backends** — local filesystem or any S3-compatible object store
 - **Admin panel** — manage users from the UI
 - **Rate limiting** — IP-based rate limiting middleware included (not applied by default). Pre-built helpers in `internal/middleware/ratelimit.go`: `LoginRateLimiter` (5 req/min), `RegisterRateLimiter` (3 req/min), and `APIRateLimiter` (60 req/min).
@@ -110,6 +110,8 @@ Enlace supports TOTP-based 2FA. Users enable it in their account settings; admin
 | Variable | Default | Description |
 |---|---|---|
 | `REQUIRE_2FA` | `false` | Set to `true` to enforce 2FA enrollment for all users. Users who have not yet set up 2FA will receive `requires_2fa_setup: true` on login and must complete TOTP setup before proceeding. |
+
+> **Note:** 2FA and SSO/OIDC are mutually exclusive. When a user links an OIDC identity, any existing 2FA configuration is automatically removed. SSO-linked accounts cannot set up or use 2FA — the identity provider is trusted to handle second-factor concerns. All 2FA mutation endpoints (`/me/2fa/setup`, `/me/2fa/confirm`, `/me/2fa/disable`, `/me/2fa/recovery-codes`) return HTTP 403 for OIDC users, and the 2FA section is hidden in the UI for those accounts. See [OIDC.md](OIDC.md) for details.
 
 ### OIDC / SSO (optional)
 
