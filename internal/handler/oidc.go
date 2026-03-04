@@ -288,6 +288,13 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 // ExchangeOIDCTokens handles POST /api/v1/auth/oidc/exchange - exchanges the pending
 // HttpOnly cookie set during the OIDC callback for the actual JWT token pair.
 //
+// Security note: the response body contains JWTs readable by JavaScript. A same-origin
+// XSS vulnerability could therefore steal tokens from this endpoint. The risk is mitigated
+// by the single-use HMAC-signed cookie (2-minute TTL) that gates access — an attacker
+// would need to trigger the full OIDC redirect flow to obtain a fresh cookie before the
+// exchange can succeed. This is an accepted trade-off; the frontend SPA must receive the
+// tokens via JavaScript to store them for subsequent API calls.
+//
 //	@Summary		Exchange OIDC pending token
 //	@Description	Exchanges the short-lived HttpOnly pending-token cookie (set during OIDC callback) for the JWT access and refresh token pair. The cookie is consumed on first use.
 //	@Tags			oidc
@@ -336,6 +343,8 @@ func (h *OIDCHandler) ExchangeOIDCTokens(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 	Success(w, http.StatusOK, tokens)
 }
 

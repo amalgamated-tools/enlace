@@ -429,6 +429,14 @@ func TestOIDCHandler_ExchangeOIDCTokens_Success(t *testing.T) {
 	if !foundClearedCookie {
 		t.Error("expected oidc_pending clearing cookie to be present in response")
 	}
+
+	// Response must include anti-caching headers since the body contains JWTs.
+	if cc := rr.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("expected Cache-Control: no-store, got %q", cc)
+	}
+	if pragma := rr.Header().Get("Pragma"); pragma != "no-cache" {
+		t.Errorf("expected Pragma: no-cache, got %q", pragma)
+	}
 }
 
 func TestOIDCHandler_ExchangeOIDCTokens_NoPendingCookie(t *testing.T) {
