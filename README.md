@@ -399,7 +399,7 @@ Returns `access_token`, `refresh_token`, and `user`. The used recovery code is c
 
 All admin endpoints require authentication with an account that has `is_admin: true`. See [Quick Start](#quick-start-docker) for instructions on bootstrapping the first admin account.
 
-**`POST /api/v1/admin/users`** — create a user.
+**`POST /api/v1/admin/users`** — create a user. Returns HTTP 201 on success.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -568,7 +568,7 @@ Content-Type: application/pdf
 ------boundary--
 ```
 
-Returns an array of file objects (see [File object](#file-object) below).
+Returns HTTP 201 on success with an array of file objects (see [File object](#file-object) below).
 
 ### File object
 
@@ -648,7 +648,7 @@ For password-protected shares, include the access token as `X-Share-Token: <toke
 
 **`POST /s/{slug}/upload`** — upload files to a reverse share (no authentication required). The default maximum size per file is **100 MB**; the same admin-configured restrictions apply here as for authenticated uploads.
 
-Uses the same `multipart/form-data` format as the authenticated upload endpoint — attach files under the `files` field. Returns an array of uploaded file objects.
+Uses the same `multipart/form-data` format as the authenticated upload endpoint — attach files under the `files` field. Returns HTTP 201 on success with an array of uploaded file objects.
 
 ### Notification endpoints
 
