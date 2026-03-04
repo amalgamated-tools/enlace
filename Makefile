@@ -22,8 +22,7 @@ run-backend:
 	go run ./cmd/enlace
 
 # Live reload development (air + pnpm dev via Procfile.dev)
-dev: frontend-install
-	mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+dev: frontend-install ensure-embed-dir
 	goreman -f Procfile.dev start || overmind start -f Procfile.dev
 
 # Ensure frontend/dist exists for Go embed (placeholder for dev/test)
@@ -46,7 +45,7 @@ clean:
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
 	rm -rf uploads
-	mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+	@$(MAKE) ensure-embed-dir
 
 # Frontend development server
 frontend-dev:
