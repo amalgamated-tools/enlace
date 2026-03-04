@@ -385,6 +385,7 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 	w.Header().Set("Content-Length", strconv.FormatInt(file.Size, 10))
 	w.Header().Set("Content-Disposition", disposition+"; filename=\""+file.Name+"\"")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'")
 
 	// Stream content
 	if _, err := io.Copy(w, content); err != nil {
@@ -403,7 +404,8 @@ func isScriptableMimeType(mimeType string) bool {
 		"image/svg+xml",
 		"application/javascript",
 		"text/javascript",
-		"text/css":
+		"text/css",
+		"application/xml":
 		return true
 	}
 	return false

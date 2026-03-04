@@ -804,6 +804,10 @@ func TestPublicHandler_PreviewFile_Success(t *testing.T) {
 	if w.Header().Get("X-Content-Type-Options") != "nosniff" {
 		t.Errorf("expected X-Content-Type-Options: nosniff, got %s", w.Header().Get("X-Content-Type-Options"))
 	}
+
+	if w.Header().Get("Content-Security-Policy") != "default-src 'none'" {
+		t.Errorf("expected Content-Security-Policy: default-src 'none', got %s", w.Header().Get("Content-Security-Policy"))
+	}
 }
 
 // TestPublicHandler_PreviewFile_DangerousMimeType tests that dangerous MIME types are
@@ -819,6 +823,7 @@ func TestPublicHandler_PreviewFile_DangerousMimeType(t *testing.T) {
 		{"javascript-text", "text/javascript"},
 		{"xhtml", "application/xhtml+xml"},
 		{"css", "text/css"},
+		{"xml", "application/xml"},
 	}
 
 	for _, dt := range dangerousTypes {
@@ -880,6 +885,10 @@ func TestPublicHandler_PreviewFile_DangerousMimeType(t *testing.T) {
 
 			if w.Header().Get("X-Content-Type-Options") != "nosniff" {
 				t.Errorf("expected X-Content-Type-Options: nosniff, got %s", w.Header().Get("X-Content-Type-Options"))
+			}
+
+			if w.Header().Get("Content-Security-Policy") != "default-src 'none'" {
+				t.Errorf("expected Content-Security-Policy: default-src 'none', got %s", w.Header().Get("Content-Security-Policy"))
 			}
 		})
 	}
