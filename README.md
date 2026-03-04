@@ -310,6 +310,10 @@ Pass the `pending_token` to `POST /api/v1/auth/2fa/verify` (TOTP code) or `POST 
 
 **`POST /api/v1/auth/logout`** — invalidates the session on the client side. Always returns HTTP 200. Discard stored tokens after calling this endpoint.
 
+**`POST /api/v1/auth/oidc/exchange`** — exchanges the short-lived HttpOnly pending-token cookie (set during the OIDC callback redirect) for a JWT access and refresh token pair. The cookie is consumed on first use; calling this endpoint a second time returns HTTP 401. This endpoint is called automatically by the frontend SPA immediately after the OIDC redirect lands on `/#/auth/callback`. No request body is required — the cookie is sent automatically by the browser.
+
+Returns the same `access_token`, `refresh_token`, and `user` shape as a normal login success. Only available when `OIDC_ENABLED=true`.
+
 ### User profile endpoints
 
 **`GET /api/v1/me`** — returns the current user's profile.
@@ -712,7 +716,8 @@ Fields in each recipient object:
 | `POST` | `/api/v1/auth/2fa/recovery` | — | Complete 2FA login with recovery code (pass `pending_token` in body) |
 | `GET` | `/api/v1/auth/oidc/config` | — | OIDC feature flag |
 | `GET` | `/api/v1/auth/oidc/login` | — | Start OIDC flow |
-| `GET` | `/api/v1/auth/oidc/callback` | — | OIDC callback |
+| `GET` | `/api/v1/auth/oidc/callback` | — | OIDC callback (redirects to frontend with pending cookie) |
+| `POST` | `/api/v1/auth/oidc/exchange` | — | Exchange pending OIDC cookie for JWT token pair |
 | `GET` | `/api/v1/shares` | ✔ | List my shares |
 | `POST` | `/api/v1/shares` | ✔ | Create a share |
 | `GET` | `/api/v1/shares/{id}` | ✔ | Get share details |
