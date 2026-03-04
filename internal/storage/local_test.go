@@ -12,6 +12,16 @@ import (
 	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
+func newLocalStore(t *testing.T, basePath string) *storage.LocalStorage {
+	t.Helper()
+
+	store, err := storage.NewLocalStorage(basePath)
+	if err != nil {
+		t.Fatalf("failed to create local storage: %v", err)
+	}
+	return store
+}
+
 func TestLocalStorage_PutAndGet(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "storage-test")
 	if err != nil {
@@ -19,7 +29,7 @@ func TestLocalStorage_PutAndGet(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte("hello world")
@@ -50,7 +60,7 @@ func TestLocalStorage_Get_NotFound(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	_, err = store.Get(ctx, "nonexistent/file.txt")
@@ -66,7 +76,7 @@ func TestLocalStorage_Delete(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte("to be deleted")
@@ -93,7 +103,7 @@ func TestLocalStorage_Delete_NotFound(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	err = store.Delete(ctx, "nonexistent/file.txt")
@@ -109,7 +119,7 @@ func TestLocalStorage_Exists(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte("exists test")
@@ -134,7 +144,7 @@ func TestLocalStorage_Exists_NotFound(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	exists, err := store.Exists(ctx, "nonexistent/file.txt")
@@ -153,7 +163,7 @@ func TestLocalStorage_Put_NestedDirectories(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte("deeply nested content")
@@ -192,7 +202,7 @@ func TestLocalStorage_Put_Overwrite(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	// Write initial content
@@ -232,7 +242,7 @@ func TestLocalStorage_Put_EmptyContent(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte{}
@@ -271,7 +281,7 @@ func TestLocalStorage_Put_LargeFile(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	// Create a 1MB file
@@ -308,7 +318,7 @@ func TestLocalStorage_ContextCancellation(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
@@ -342,7 +352,7 @@ func TestLocalStorage_RootLevelFile(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte("root level content")
@@ -378,7 +388,7 @@ func TestLocalStorage_RejectsTraversalAndAbsoluteKeys(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	keys := []string{

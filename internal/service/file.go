@@ -73,7 +73,9 @@ func (s *FileService) Upload(ctx context.Context, input UploadInput) (*model.Fil
 	mimeType := detectMimeType(filename)
 
 	// Create storage key: {shareID}/{fileID}/{filename}
-	storageKey := path.Join(input.ShareID, fileID, filename)
+	// Storage keys are logical paths that use forward slashes across backends;
+	// validation is enforced by the storage implementation.
+	storageKey := input.ShareID + "/" + fileID + "/" + filename
 
 	// Store the file
 	if err := s.storage.Put(ctx, storageKey, input.Content, input.Size, mimeType); err != nil {
@@ -180,9 +182,13 @@ func sanitizeFilename(name string) (string, error) {
 		return "", ErrInvalidFilename
 	}
 
+	if strings.ContainsRune(trimmed, '\x00') {
+		return "", ErrInvalidFilename
+	}
+
 	normalized := strings.ReplaceAll(trimmed, "\\", "/")
 	base := path.Base(normalized)
-	if base == "." || base == "/" || base == "" || base == ".." {
+	if base == "." || base == "/" || base == ".." {
 		return "", ErrInvalidFilename
 	}
 

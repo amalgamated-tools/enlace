@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -18,12 +19,20 @@ type LocalStorage struct {
 
 // NewLocalStorage creates a new LocalStorage instance.
 // The basePath is the root directory where all files will be stored.
-func NewLocalStorage(basePath string) *LocalStorage {
+func NewLocalStorage(basePath string) (*LocalStorage, error) {
 	absBase, err := filepath.Abs(basePath)
 	if err != nil {
-		absBase = filepath.Clean(basePath)
+		return nil, fmt.Errorf("invalid local storage base path %q: %w", basePath, err)
 	}
-	return &LocalStorage{basePath: absBase}
+
+	if stat, statErr := os.Stat(absBase); statErr == nil && stat.IsDir() {
+		if realBase, evalErr := filepath.EvalSymlinks(absBase); evalErr == nil {
+			absBase = realBase
+		} else {
+			return nil, fmt.Errorf("failed to resolve storage base path %q: %w", absBase, evalErr)
+		}
+	}
+	return &LocalStorage{basePath: absBase}, nil
 }
 
 func (s *LocalStorage) resolveKey(key string) (string, error) {
@@ -34,13 +43,13 @@ func (s *LocalStorage) resolveKey(key string) (string, error) {
 	normalized := strings.ReplaceAll(key, "\\", "/")
 	cleanKey := path.Clean(normalized)
 
-	if cleanKey == "." || cleanKey == "/" || cleanKey == "" || cleanKey == ".." || strings.HasPrefix(cleanKey, "../") {
+	if cleanKey == "." || cleanKey == "/" || cleanKey == ".." || strings.HasPrefix(cleanKey, "../") {
 		return "", ErrInvalidKey
 	}
 	if strings.HasPrefix(cleanKey, "/") {
 		return "", ErrInvalidKey
 	}
-	if len(cleanKey) > 1 && cleanKey[1] == ':' {
+	if len(cleanKey) >= 2 && cleanKey[1] == ':' {
 		return "", ErrInvalidKey
 	}
 
@@ -50,18 +59,22 @@ func (s *LocalStorage) resolveKey(key string) (string, error) {
 		return "", ErrInvalidKey
 	}
 
-	cleanKey = filepath.Clean(osKey)
+	cleanOSKey := filepath.Clean(osKey)
 
-	fullPath := filepath.Join(s.basePath, cleanKey)
+	fullPath := filepath.Join(s.basePath, cleanOSKey)
 	fullPath = filepath.Clean(fullPath)
 
-	basePrefix := s.basePath
-	if !strings.HasSuffix(basePrefix, string(os.PathSeparator)) {
-		basePrefix += string(os.PathSeparator)
+	relPath, err := filepath.Rel(s.basePath, fullPath)
+	if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
+		return "", ErrInvalidKey
 	}
 
-	if !strings.HasPrefix(fullPath, basePrefix) {
-		return "", ErrInvalidKey
+	if resolvedPath, err := filepath.EvalSymlinks(fullPath); err == nil {
+		fullPath = resolvedPath
+		relPath, err = filepath.Rel(s.basePath, fullPath)
+		if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
+			return "", ErrInvalidKey
+		}
 	}
 
 	return fullPath, nil
