@@ -1,0 +1,201 @@
+package handler
+
+import (
+	"context"
+	"net/http"
+	"strings"
+)
+
+// storageSettingKeys are the known storage-related setting keys.
+var storageSettingKeys = []string{
+	"storage_type", "storage_local_path",
+	"s3_endpoint", "s3_bucket", "s3_access_key", "s3_secret_key", "s3_region", "s3_path_prefix",
+}
+
+// SettingsRepositoryInterface defines the interface for settings repository operations.
+type SettingsRepositoryInterface interface {
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key, value string) error
+	GetMultiple(ctx context.Context, keys []string) (map[string]string, error)
+	SetMultiple(ctx context.Context, settings map[string]string) error
+	DeleteMultiple(ctx context.Context, keys []string) error
+}
+
+// StorageConfigHandler handles admin storage configuration HTTP requests.
+type StorageConfigHandler struct {
+	settingsRepo SettingsRepositoryInterface
+}
+
+// NewStorageConfigHandler creates a new StorageConfigHandler.
+func NewStorageConfigHandler(settingsRepo SettingsRepositoryInterface) *StorageConfigHandler {
+	return &StorageConfigHandler{settingsRepo: settingsRepo}
+}
+
+// storageConfigResponse represents the GET response for storage configuration.
+type storageConfigResponse struct {
+	StorageType      string `json:"storage_type"`
+	StorageLocalPath string `json:"storage_local_path,omitempty"`
+	S3Endpoint       string `json:"s3_endpoint,omitempty"`
+	S3Bucket         string `json:"s3_bucket,omitempty"`
+	S3AccessKey      string `json:"s3_access_key,omitempty"`
+	S3SecretKeySet   bool   `json:"s3_secret_key_set"`
+	S3Region         string `json:"s3_region,omitempty"`
+	S3PathPrefix     string `json:"s3_path_prefix,omitempty"`
+}
+
+// updateStorageConfigRequest represents the PUT request body for updating storage configuration.
+type updateStorageConfigRequest struct {
+	StorageType      *string `json:"storage_type"`
+	StorageLocalPath *string `json:"storage_local_path"`
+	S3Endpoint       *string `json:"s3_endpoint"`
+	S3Bucket         *string `json:"s3_bucket"`
+	S3AccessKey      *string `json:"s3_access_key"`
+	S3SecretKey      *string `json:"s3_secret_key"`
+	S3Region         *string `json:"s3_region"`
+	S3PathPrefix     *string `json:"s3_path_prefix"`
+}
+
+// GetStorageConfig handles GET /api/v1/admin/storage - returns current DB storage settings.
+//
+//	@Summary		Get storage configuration
+//	@Description	Returns storage configuration overrides stored in the database. Requires admin role. The s3_secret_key value is never returned; use s3_secret_key_set to check if one is configured.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	APIResponse{data=storageConfigResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		403	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/admin/storage [get]
+func (h *StorageConfigHandler) GetStorageConfig(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.settingsRepo.GetMultiple(r.Context(), storageSettingKeys)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to retrieve storage settings")
+		return
+	}
+
+	resp := storageConfigResponse{
+		StorageType:      settings["storage_type"],
+		StorageLocalPath: settings["storage_local_path"],
+		S3Endpoint:       settings["s3_endpoint"],
+		S3Bucket:         settings["s3_bucket"],
+		S3AccessKey:      settings["s3_access_key"],
+		S3SecretKeySet:   len(settings["s3_secret_key"]) > 0,
+		S3Region:         settings["s3_region"],
+		S3PathPrefix:     settings["s3_path_prefix"],
+	}
+
+	Success(w, http.StatusOK, resp)
+}
+
+// UpdateStorageConfig handles PUT /api/v1/admin/storage - updates DB storage settings.
+//
+//	@Summary		Update storage configuration
+//	@Description	Updates storage configuration overrides in the database. Only provided fields are updated. Requires admin role. Changes take effect after restart.
+//	@Tags			admin
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		updateStorageConfigRequest	true	"Storage configuration fields to update"
+//	@Success		200		{object}	APIResponse{data=storageConfigResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		403		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/admin/storage [put]
+func (h *StorageConfigHandler) UpdateStorageConfig(w http.ResponseWriter, r *http.Request) {
+	var req updateStorageConfigRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Validate storage_type if provided
+	if req.StorageType != nil {
+		st := strings.TrimSpace(*req.StorageType)
+		if st != "local" && st != "s3" {
+			ValidationError(w, map[string]string{
+				"storage_type": "must be 'local' or 's3'",
+			})
+			return
+		}
+	}
+
+	// Build the map of settings to upsert (only non-nil fields)
+	toSet := make(map[string]string)
+	if req.StorageType != nil {
+		toSet["storage_type"] = strings.TrimSpace(*req.StorageType)
+	}
+	if req.StorageLocalPath != nil {
+		toSet["storage_local_path"] = strings.TrimSpace(*req.StorageLocalPath)
+	}
+	if req.S3Endpoint != nil {
+		toSet["s3_endpoint"] = strings.TrimSpace(*req.S3Endpoint)
+	}
+	if req.S3Bucket != nil {
+		toSet["s3_bucket"] = strings.TrimSpace(*req.S3Bucket)
+	}
+	if req.S3AccessKey != nil {
+		toSet["s3_access_key"] = strings.TrimSpace(*req.S3AccessKey)
+	}
+	if req.S3SecretKey != nil {
+		toSet["s3_secret_key"] = strings.TrimSpace(*req.S3SecretKey)
+	}
+	if req.S3Region != nil {
+		toSet["s3_region"] = strings.TrimSpace(*req.S3Region)
+	}
+	if req.S3PathPrefix != nil {
+		toSet["s3_path_prefix"] = strings.TrimSpace(*req.S3PathPrefix)
+	}
+
+	if len(toSet) == 0 {
+		Error(w, http.StatusBadRequest, "no settings to update")
+		return
+	}
+
+	if err := h.settingsRepo.SetMultiple(r.Context(), toSet); err != nil {
+		Error(w, http.StatusInternalServerError, "failed to update storage settings")
+		return
+	}
+
+	// Re-read from DB to return current state
+	settings, err := h.settingsRepo.GetMultiple(r.Context(), storageSettingKeys)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "settings saved but failed to retrieve updated state")
+		return
+	}
+
+	resp := storageConfigResponse{
+		StorageType:      settings["storage_type"],
+		StorageLocalPath: settings["storage_local_path"],
+		S3Endpoint:       settings["s3_endpoint"],
+		S3Bucket:         settings["s3_bucket"],
+		S3AccessKey:      settings["s3_access_key"],
+		S3SecretKeySet:   len(settings["s3_secret_key"]) > 0,
+		S3Region:         settings["s3_region"],
+		S3PathPrefix:     settings["s3_path_prefix"],
+	}
+
+	Success(w, http.StatusOK, resp)
+}
+
+// DeleteStorageConfig handles DELETE /api/v1/admin/storage - clears all DB storage overrides.
+//
+//	@Summary		Delete storage configuration
+//	@Description	Removes all storage configuration overrides from the database, reverting to environment variable configuration on next restart. Requires admin role.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	APIResponse
+//	@Failure		401	{object}	APIResponse
+//	@Failure		403	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/admin/storage [delete]
+func (h *StorageConfigHandler) DeleteStorageConfig(w http.ResponseWriter, r *http.Request) {
+	if err := h.settingsRepo.DeleteMultiple(r.Context(), storageSettingKeys); err != nil {
+		Error(w, http.StatusInternalServerError, "failed to delete storage settings")
+		return
+	}
+
+	Success(w, http.StatusOK, nil)
+}

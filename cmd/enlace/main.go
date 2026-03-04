@@ -83,17 +83,18 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	}
 	defer func() { _ = db.Close() }()
 
-	// Initialize storage
-	store, err := initStorage(cancelCtx, cfg)
-	if err != nil {
-		return err
-	}
-
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db.DB())
 	shareRepo := repository.NewShareRepository(db.DB())
 	fileRepo := repository.NewFileRepository(db.DB())
 	totpRepo := repository.NewTOTPRepository(db.DB())
+	settingsRepo := repository.NewSettingsRepository(db.DB())
+
+	// Initialize storage
+	store, err := initStorage(cancelCtx, cfg, settingsRepo)
+	if err != nil {
+		return err
+	}
 
 	// Initialize services
 	jwtSecret := []byte(cfg.JWTSecret)
@@ -151,6 +152,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		ShareRepo:      shareRepo,
 		FileRepo:       fileRepo,
 		Storage:        store,
+		SettingsRepo:   settingsRepo,
 		JWTSecret:      cfg.JWTSecret,
 		BaseURL:        cfg.BaseURL,
 		OIDCService:    oidcService,
@@ -198,22 +200,44 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 }
 
 // initStorage initializes the storage backend based on configuration.
-func initStorage(ctx context.Context, cfg *config.Config) (storage.Storage, error) {
-	switch cfg.StorageType {
+// It checks DB settings first, falling back to env-var config.
+func initStorage(ctx context.Context, cfg *config.Config, settingsRepo *repository.SettingsRepository) (storage.Storage, error) {
+	storageKeys := []string{
+		"storage_type", "storage_local_path",
+		"s3_endpoint", "s3_bucket", "s3_access_key", "s3_secret_key", "s3_region", "s3_path_prefix",
+	}
+
+	dbSettings, err := settingsRepo.GetMultiple(ctx, storageKeys)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to load storage settings from database, using env config", slog.Any("error", err))
+		dbSettings = map[string]string{}
+	}
+
+	// Helper: get from DB first, then fall back to config value
+	getVal := func(dbKey string, envVal string) string {
+		if v, ok := dbSettings[dbKey]; ok && v != "" {
+			return v
+		}
+		return envVal
+	}
+
+	storageType := getVal("storage_type", cfg.StorageType)
+
+	switch storageType {
 	case "s3":
 		s3Store, err := storage.NewS3Storage(ctx, storage.S3Config{
-			Endpoint:   cfg.S3Endpoint,
-			Bucket:     cfg.S3Bucket,
-			AccessKey:  cfg.S3AccessKey,
-			SecretKey:  cfg.S3SecretKey,
-			Region:     cfg.S3Region,
-			PathPrefix: cfg.S3PathPrefix,
+			Endpoint:   getVal("s3_endpoint", cfg.S3Endpoint),
+			Bucket:     getVal("s3_bucket", cfg.S3Bucket),
+			AccessKey:  getVal("s3_access_key", cfg.S3AccessKey),
+			SecretKey:  getVal("s3_secret_key", cfg.S3SecretKey),
+			Region:     getVal("s3_region", cfg.S3Region),
+			PathPrefix: getVal("s3_path_prefix", cfg.S3PathPrefix),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize S3 storage: %w", err)
 		}
 		return s3Store, nil
 	default:
-		return storage.NewLocalStorage(cfg.StorageLocalPath), nil
+		return storage.NewLocalStorage(getVal("storage_local_path", cfg.StorageLocalPath)), nil
 	}
 }
