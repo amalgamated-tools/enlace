@@ -920,7 +920,7 @@ const docTemplate = `{
                         }
                     }
                 },
-                "description": "Returns the current user's profile including email, display name, admin status, and 2FA/OIDC enrollment state."
+                "description": "Returns the current user's profile including email, display name, admin status, whether an OIDC identity is linked, and whether a local password is set. For 2FA enrollment state use GET /api/v1/me/2fa/status."
             },
             "patch": {
                 "security": [
