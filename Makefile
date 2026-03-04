@@ -28,10 +28,12 @@ dev: frontend-install
 
 # Run all tests
 test:
+	@mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 	go test ./... -v
 
 # Run tests with coverage
 test-coverage:
+	@mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 	go test ./... -cover -coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
