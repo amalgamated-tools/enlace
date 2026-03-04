@@ -55,7 +55,7 @@ The **Storage** layer sits alongside this stack, providing an interface for file
 
 - **Router**: [chi](https://github.com/go-chi/chi) with middleware for CORS, request ID, recovery, and timeouts
 - **Database**: SQLite via [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) (pure Go, no CGO)
-- **Authentication**: JWT access tokens (15-min expiry) + refresh tokens (7-day expiry), bcrypt password hashing; the JWT signing secret is auto-generated on first run and persisted to `DATA_DIR/jwt_secret` (never user-configurable)
+- **Authentication**: JWT access tokens (15-min expiry, `token_type: "access"`) + refresh tokens (7-day expiry, `token_type: "refresh"`); the `token_type` claim is enforced — access tokens are rejected by the refresh endpoint and refresh tokens are rejected by all other authenticated endpoints; bcrypt password hashing; the JWT signing secret is auto-generated on first run and persisted to `DATA_DIR/jwt_secret` (never user-configurable)
 - **OIDC/SSO**: Optional OpenID Connect via [go-oidc](https://github.com/coreos/go-oidc)
 - **2FA**: Optional TOTP with QR code setup and recovery codes
 - **Storage**: Local filesystem or any S3-compatible backend (AWS, MinIO, RustFS)
