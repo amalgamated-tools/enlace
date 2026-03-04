@@ -16,11 +16,16 @@ Enlace supports OpenID Connect (OIDC) for Single Sign-On (SSO). This allows user
 ## How It Works
 
 1. When OIDC is enabled, a **"Sign in with SSO"** button appears on the login page.
-2. Clicking it redirects the user to the OIDC provider for authentication.
-3. After successful authentication, the provider redirects back to Enlace's callback URL.
+2. Clicking it calls `GET /api/v1/auth/oidc/login`, which redirects the browser to the OIDC provider for authentication.
+3. After successful authentication, the provider redirects back to `GET /api/v1/auth/oidc/callback`.
 4. Enlace extracts the user's email, name, and subject from the ID token.
-5. If a local user with the same email exists, the OIDC identity is automatically linked.
-6. If no matching user exists, a new account is created.
+5. If a local user with the same email exists, the OIDC identity is automatically linked. If no matching user exists, a new account is created.
+6. Enlace encodes the resulting JWT token pair into a short-lived (2-minute), HMAC-signed, **HttpOnly** cookie (`oidc_pending`) and redirects the browser to `/#/auth/callback`.
+7. The frontend SPA calls `POST /api/v1/auth/oidc/exchange` to trade the HttpOnly cookie for the actual `access_token` and `refresh_token`. The cookie is consumed on first use; a second call returns HTTP 401.
+
+> **Secure cookies:** If `BASE_URL` starts with `https://`, the `oidc_pending` cookie (and all other OIDC state cookies) are set with the `Secure` flag, so they are only sent over HTTPS. Ensure your reverse proxy forwards requests correctly and does not strip cookies.
+
+> **Cookie lifetime:** The `oidc_pending` cookie has a 2-minute TTL. If the frontend does not call `/exchange` within this window (for example, because the tab was left idle), the exchange will fail and the user must restart the login flow.
 
 Existing users can also link/unlink their OIDC identity from the **Settings** page.
 
