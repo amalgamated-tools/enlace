@@ -422,7 +422,21 @@ Admin user responses include `id`, `email`, `display_name`, `is_admin`, `created
 
 **`GET /api/v1/shares/{id}`** — retrieve a single share by ID. Returns the share object. Returns HTTP 404 if the share does not exist or is owned by another user.
 
-**`PATCH /api/v1/shares/{id}`** accepts the same fields (all optional). Use `"clear_password": true` or `"clear_expiry": true` to remove those constraints.
+**`PATCH /api/v1/shares/{id}`** — update a share you own. All fields are optional; omitted fields are left unchanged.
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | New display name (max 255 chars) |
+| `description` | string | New description |
+| `password` | string | Set or change the share password |
+| `clear_password` | bool | Set to `true` to remove the password |
+| `expires_at` | string (RFC3339) | New expiry timestamp |
+| `clear_expiry` | bool | Set to `true` to remove the expiry |
+| `max_downloads` | int | New download limit (≥ 0) |
+| `max_views` | int | New view limit (≥ 0) |
+| `is_reverse_share` | bool | Enable or disable reverse-share uploads |
+
+> **Note:** `slug` cannot be changed after creation. To notify new recipients, use `POST /api/v1/shares/{id}/notify`.
 
 **`DELETE /api/v1/shares/{id}`** — permanently delete a share and all its files. Returns HTTP 200 on success.
 
@@ -448,7 +462,7 @@ Share responses include the following fields:
 
 **`GET /api/v1/shares/{id}/files`** — list files in a share you own. Returns an array of file objects.
 
-**`POST /api/v1/shares/{id}/files`** — upload one or more files to a share you own.
+**`POST /api/v1/shares/{id}/files`** — upload one or more files to a share you own. The maximum size per file is **100 MB**.
 
 The request must use `Content-Type: multipart/form-data`. Include each file under the `files` field (repeat the field for multiple files):
 
@@ -541,7 +555,7 @@ For password-protected shares, include the access token as `X-Share-Token: <toke
 
 ---
 
-**`POST /s/{slug}/upload`** — upload files to a reverse share (no authentication required).
+**`POST /s/{slug}/upload`** — upload files to a reverse share (no authentication required). The maximum size per file is **100 MB**.
 
 Uses the same `multipart/form-data` format as the authenticated upload endpoint — attach files under the `files` field. Returns an array of uploaded file objects.
 
