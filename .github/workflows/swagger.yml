@@ -1,0 +1,56 @@
+name: Swagger Docs
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  swagger:
+    runs-on: ubuntu-latest
+    name: Generate Swagger Docs
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6.2.0
+        with:
+          go-version: stable
+
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate Swagger docs
+        run: make swagger
+
+      - name: Format swagger docs
+        run: make swagger-fmt
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet docs/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Pull Request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "docs: regenerate swagger documentation"
+          title: "docs: update swagger documentation"
+          body: |
+            Auto-generated update to Swagger/OpenAPI documentation.
+
+            This PR was created because the generated docs in `docs/` are out of date
+            with the swagger annotations in the handler source code.
+          branch: auto/swagger-docs
+          delete-branch: true
+          labels: documentation
