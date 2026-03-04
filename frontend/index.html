@@ -11,6 +11,21 @@
       rel="stylesheet"
     />
     <title>Enlace</title>
+    <script>
+      // Apply theme before CSS loads to prevent FOUC
+      (function () {
+        try {
+          var p = localStorage.getItem("enlace.theme");
+          var theme =
+            p === "light" || p === "dark"
+              ? p
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {}
+      })();
+    </script>
   </head>
 
   <body>

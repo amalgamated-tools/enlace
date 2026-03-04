@@ -83,16 +83,18 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+<div
+  class="min-h-screen bg-surface-subtle flex items-center justify-center px-4"
+>
   <div class="w-full max-w-sm">
     <div class="text-center mb-8">
-      <h1 class="text-2xl font-semibold text-slate-900">enlace</h1>
-      <p class="text-sm text-slate-500 mt-1">Two-factor authentication</p>
+      <h1 class="text-2xl font-semibold text-text">enlace</h1>
+      <p class="text-sm text-muted mt-1">Two-factor authentication</p>
     </div>
 
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+    <div class="bg-surface rounded-xl border border-border shadow-sm p-8">
       {#if !useRecovery}
-        <p class="text-sm text-slate-600 mb-6">
+        <p class="text-sm text-muted mb-6">
           Enter the 6-digit code from your authenticator app.
         </p>
 
@@ -115,14 +117,12 @@
         <button
           type="button"
           on:click={() => (useRecovery = true)}
-          class="mt-4 w-full text-center text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          class="mt-4 w-full text-center text-sm text-muted hover:text-text transition-colors"
         >
           Use a recovery code
         </button>
       {:else}
-        <p class="text-sm text-slate-600 mb-6">
-          Enter one of your recovery codes.
-        </p>
+        <p class="text-sm text-muted mb-6">Enter one of your recovery codes.</p>
 
         <form on:submit={handleRecovery} class="space-y-5">
           <Input
@@ -143,15 +143,15 @@
         <button
           type="button"
           on:click={() => (useRecovery = false)}
-          class="mt-4 w-full text-center text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          class="mt-4 w-full text-center text-sm text-muted hover:text-text transition-colors"
         >
           Use authenticator code
         </button>
       {/if}
     </div>
 
-    <p class="mt-6 text-center text-sm text-slate-500">
-      <a href="#/login" class="text-slate-900 font-medium hover:underline"
+    <p class="mt-6 text-center text-sm text-muted">
+      <a href="#/login" class="text-text font-medium hover:underline"
         >Back to login</a
       >
     </p>

@@ -26,11 +26,11 @@
   });
 </script>
 
-<div class="min-h-screen bg-slate-50 flex items-center justify-center">
+<div class="min-h-screen bg-surface-subtle flex items-center justify-center">
   <div class="text-center">
     <div
-      class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto"
+      class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"
     ></div>
-    <p class="mt-4 text-slate-600">Completing login...</p>
+    <p class="mt-4 text-muted">Completing login...</p>
   </div>
 </div>

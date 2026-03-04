@@ -25,7 +25,7 @@
 </script>
 
 <div
-  class="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-sm transition-all duration-150 cursor-pointer"
+  class="bg-surface border border-border rounded-xl p-5 hover:border-border-strong hover:shadow-sm transition-all duration-150 cursor-pointer"
   on:click={handleClick}
   on:keydown={handleKeydown}
   role="button"
@@ -34,9 +34,9 @@
 >
   <div class="flex justify-between items-start">
     <div class="min-w-0 flex-1">
-      <h3 class="font-semibold text-slate-900">{share.name}</h3>
+      <h3 class="font-semibold text-text">{share.name}</h3>
       {#if share.description}
-        <p class="text-sm text-slate-500 mt-1 line-clamp-2">
+        <p class="text-sm text-muted mt-1 line-clamp-2">
           {share.description}
         </p>
       {/if}
@@ -44,7 +44,7 @@
     <div class="flex items-center gap-1.5 ml-3 flex-shrink-0">
       {#if share.has_password}
         <span
-          class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600"
+          class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-surface-muted text-muted"
           title="Password protected"
         >
           <svg
@@ -72,7 +72,7 @@
       {/if}
     </div>
   </div>
-  <div class="flex items-center gap-4 mt-3 text-xs text-slate-400">
+  <div class="flex items-center gap-4 mt-3 text-xs text-subtle">
     <span class="font-mono">/{share.slug}</span>
     <span>{share.view_count} view{share.view_count !== 1 ? "s" : ""}</span>
     <span

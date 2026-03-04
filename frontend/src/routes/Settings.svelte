@@ -294,11 +294,11 @@
 </script>
 
 <div>
-  <h2 class="text-lg font-semibold text-slate-900 mb-6">Settings</h2>
+  <h2 class="text-lg font-semibold text-text mb-6">Settings</h2>
 
-  <div class="bg-white rounded-xl border border-slate-200 mb-6">
-    <div class="px-6 py-4 border-b border-slate-100">
-      <h3 class="text-sm font-semibold text-slate-900">Profile</h3>
+  <div class="bg-surface rounded-xl border border-border mb-6">
+    <div class="px-6 py-4 border-b border-border">
+      <h3 class="text-sm font-semibold text-text">Profile</h3>
     </div>
     <div class="p-6">
       <form on:submit={handleUpdateProfile} class="space-y-5">
@@ -323,9 +323,9 @@
     </div>
   </div>
 
-  <div class="bg-white rounded-xl border border-slate-200">
-    <div class="px-6 py-4 border-b border-slate-100">
-      <h3 class="text-sm font-semibold text-slate-900">Change Password</h3>
+  <div class="bg-surface rounded-xl border border-border">
+    <div class="px-6 py-4 border-b border-border">
+      <h3 class="text-sm font-semibold text-text">Change Password</h3>
     </div>
     <div class="p-6">
       <form on:submit={handleChangePassword} class="space-y-5">
@@ -362,15 +362,15 @@
   </div>
 
   {#if totpStatus !== null && !$auth.user?.oidc_linked}
-    <div class="bg-white rounded-xl border border-slate-200 mt-6">
-      <div class="px-6 py-4 border-b border-slate-100">
-        <h3 class="text-sm font-semibold text-slate-900">
+    <div class="bg-surface rounded-xl border border-border mt-6">
+      <div class="px-6 py-4 border-b border-border">
+        <h3 class="text-sm font-semibold text-text">
           Two-Factor Authentication
         </h3>
       </div>
       <div class="p-6">
         {#if !totpStatus.enabled}
-          <p class="text-sm text-slate-600 mb-4">
+          <p class="text-sm text-muted mb-4">
             Add an extra layer of security to your account by enabling
             two-factor authentication with an authenticator app.
           </p>
@@ -396,7 +396,7 @@
             >
               Enabled
             </span>
-            <span class="text-sm text-slate-600"
+            <span class="text-sm text-muted"
               >Two-factor authentication is active.</span
             >
           </div>
@@ -409,8 +409,8 @@
             </Button>
           </div>
 
-          <div class="mt-6 pt-6 border-t border-slate-100">
-            <p class="text-sm text-slate-600 mb-3">
+          <div class="mt-6 pt-6 border-t border-border">
+            <p class="text-sm text-muted mb-3">
               Enter your password to disable two-factor authentication.
             </p>
             <form
@@ -438,16 +438,16 @@
 
   {#if showSetupModal}
     <div
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+      class="fixed inset-0 bg-overlay/50 flex items-center justify-center z-50 px-4"
     >
       <div
-        class="bg-white rounded-xl border border-slate-200 shadow-lg w-full max-w-md p-6"
+        class="bg-surface rounded-xl border border-border shadow-lg w-full max-w-md p-6"
       >
         {#if setupStep === "qr"}
-          <h3 class="text-base font-semibold text-slate-900 mb-4">
+          <h3 class="text-base font-semibold text-text mb-4">
             Set up authenticator
           </h3>
-          <p class="text-sm text-slate-600 mb-4">
+          <p class="text-sm text-muted mb-4">
             Scan this QR code with your authenticator app (Google Authenticator,
             Authy, 1Password, etc.)
           </p>
@@ -459,13 +459,11 @@
             />
           </div>
           <details class="mb-4">
-            <summary
-              class="text-xs text-slate-500 cursor-pointer hover:text-slate-700"
-            >
+            <summary class="text-xs text-muted cursor-pointer hover:text-text">
               Can't scan? Enter this key manually
             </summary>
             <code
-              class="block mt-2 text-xs bg-slate-50 p-2 rounded break-all select-all"
+              class="block mt-2 text-xs bg-surface-subtle p-2 rounded break-all select-all"
               >{setupSecret}</code
             >
           </details>
@@ -476,10 +474,8 @@
             <Button on:click={() => (setupStep = "verify")}>Next</Button>
           </div>
         {:else if setupStep === "verify"}
-          <h3 class="text-base font-semibold text-slate-900 mb-4">
-            Verify setup
-          </h3>
-          <p class="text-sm text-slate-600 mb-4">
+          <h3 class="text-base font-semibold text-text mb-4">Verify setup</h3>
+          <p class="text-sm text-muted mb-4">
             Enter the 6-digit code from your authenticator app to confirm setup.
           </p>
           <form on:submit|preventDefault={handleConfirmSetup} class="space-y-4">
@@ -502,17 +498,17 @@
             </div>
           </form>
         {:else if setupStep === "recovery"}
-          <h3 class="text-base font-semibold text-slate-900 mb-4">
+          <h3 class="text-base font-semibold text-text mb-4">
             Save your recovery codes
           </h3>
-          <p class="text-sm text-slate-600 mb-4">
+          <p class="text-sm text-muted mb-4">
             Store these codes in a safe place. Each code can only be used once.
             You'll need them if you lose access to your authenticator app.
           </p>
-          <div class="bg-slate-50 rounded-lg p-4 mb-4">
+          <div class="bg-surface-subtle rounded-lg p-4 mb-4">
             <div class="grid grid-cols-2 gap-2">
               {#each setupRecoveryCodes as code}
-                <code class="text-sm font-mono text-slate-700">{code}</code>
+                <code class="text-sm font-mono text-text">{code}</code>
               {/each}
             </div>
           </div>
@@ -526,15 +522,15 @@
 
   {#if showRegenerateModal}
     <div
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+      class="fixed inset-0 bg-overlay/50 flex items-center justify-center z-50 px-4"
     >
       <div
-        class="bg-white rounded-xl border border-slate-200 shadow-lg w-full max-w-md p-6"
+        class="bg-surface rounded-xl border border-border shadow-lg w-full max-w-md p-6"
       >
-        <h3 class="text-base font-semibold text-slate-900 mb-4">
+        <h3 class="text-base font-semibold text-text mb-4">
           Regenerate recovery codes
         </h3>
-        <p class="text-sm text-slate-600 mb-4">
+        <p class="text-sm text-muted mb-4">
           This will invalidate your existing recovery codes and generate new
           ones. Enter your password to confirm.
         </p>
@@ -571,13 +567,13 @@
   {/if}
 
   {#if oidcEnabled}
-    <div class="bg-white rounded-xl border border-slate-200 mt-6">
-      <div class="px-6 py-4 border-b border-slate-100">
-        <h3 class="text-sm font-semibold text-slate-900">Single Sign-On</h3>
+    <div class="bg-surface rounded-xl border border-border mt-6">
+      <div class="px-6 py-4 border-b border-border">
+        <h3 class="text-sm font-semibold text-text">Single Sign-On</h3>
       </div>
       <div class="p-6">
         {#if $auth.user?.oidc_linked}
-          <p class="text-sm text-slate-600 mb-4">
+          <p class="text-sm text-muted mb-4">
             Your account is linked to an external identity provider.
           </p>
           {#if $auth.user?.has_password}
@@ -589,12 +585,12 @@
               {unlinkingOIDC ? "Unlinking..." : "Unlink SSO Account"}
             </Button>
           {:else}
-            <p class="text-xs text-slate-400">
+            <p class="text-xs text-subtle">
               Set a password before unlinking SSO to avoid being locked out.
             </p>
           {/if}
         {:else}
-          <p class="text-sm text-slate-600 mb-4">
+          <p class="text-sm text-muted mb-4">
             Link your account to an external identity provider for easier login.
           </p>
           <Button variant="secondary" on:click={handleLinkOIDC}>

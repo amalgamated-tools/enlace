@@ -6,11 +6,11 @@
   export let type: "button" | "submit" = "button";
 
   const variants = {
-    primary: "bg-slate-900 hover:bg-slate-800 text-white shadow-sm",
+    primary: "bg-accent hover:bg-accent-hover text-accent-contrast shadow-sm",
     secondary:
-      "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm",
-    danger: "bg-red-600 hover:bg-red-700 text-white shadow-sm",
-    ghost: "hover:bg-slate-100 text-slate-600",
+      "bg-surface hover:bg-surface-subtle text-text border border-border shadow-sm",
+    danger: "bg-danger hover:bg-danger-hover text-white shadow-sm",
+    ghost: "hover:bg-surface-muted text-muted",
   };
 
   const sizes = {

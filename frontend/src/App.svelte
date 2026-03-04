@@ -2,12 +2,25 @@
   import Router, { location } from "svelte-spa-router";
   import routes from "./routes";
   import { Toast } from "./lib/components";
-  import { auth, isAuthenticated } from "./lib/stores";
+  import {
+    auth,
+    cycleThemePreference,
+    destroyTheme,
+    initTheme,
+    isAuthenticated,
+    themeEffective,
+    themePreference,
+  } from "./lib/stores";
   import { push } from "svelte-spa-router";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
 
   onMount(() => {
+    initTheme();
     auth.init();
+  });
+
+  onDestroy(() => {
+    destroyTheme();
   });
 
   function handleLogout() {
@@ -33,7 +46,7 @@
 
 {#if !$auth.initialized}
   <div class="min-h-screen flex items-center justify-center">
-    <div class="flex items-center gap-3 text-slate-400">
+    <div class="flex items-center gap-3 text-subtle">
       <svg
         class="animate-spin h-5 w-5"
         xmlns="http://www.w3.org/2000/svg"
@@ -58,15 +71,13 @@
     </div>
   </div>
 {:else if showLayout}
-  <div class="min-h-screen bg-slate-50">
-    <header class="bg-white border-b border-slate-200">
+  <div class="min-h-screen bg-surface-subtle">
+    <header class="bg-surface border-b border-border">
       <div
         class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between"
       >
         <div class="flex items-center gap-8">
-          <a
-            href="#/"
-            class="text-base font-semibold text-slate-900 tracking-tight"
+          <a href="#/" class="text-base font-semibold text-text tracking-tight"
             >enlace</a
           >
           <nav class="flex items-center gap-1">
@@ -75,8 +86,8 @@
               class="px-3 py-1.5 text-sm rounded-md transition-colors {isActive(
                 '/',
               )
-                ? 'text-slate-900 bg-slate-100 font-medium'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}"
+                ? 'text-text bg-surface-muted font-medium'
+                : 'text-muted hover:text-text hover:bg-surface-subtle'}"
             >
               Dashboard
             </a>
@@ -85,8 +96,8 @@
               class="px-3 py-1.5 text-sm rounded-md transition-colors {isActive(
                 '/shares',
               )
-                ? 'text-slate-900 bg-slate-100 font-medium'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}"
+                ? 'text-text bg-surface-muted font-medium'
+                : 'text-muted hover:text-text hover:bg-surface-subtle'}"
             >
               Shares
             </a>
@@ -95,8 +106,8 @@
               class="px-3 py-1.5 text-sm rounded-md transition-colors {isActive(
                 '/settings',
               )
-                ? 'text-slate-900 bg-slate-100 font-medium'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}"
+                ? 'text-text bg-surface-muted font-medium'
+                : 'text-muted hover:text-text hover:bg-surface-subtle'}"
             >
               Settings
             </a>
@@ -106,8 +117,8 @@
                 class="px-3 py-1.5 text-sm rounded-md transition-colors {isActive(
                   '/admin',
                 )
-                  ? 'text-slate-900 bg-slate-100 font-medium'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}"
+                  ? 'text-text bg-surface-muted font-medium'
+                  : 'text-muted hover:text-text hover:bg-surface-subtle'}"
               >
                 Admin
               </a>
@@ -115,10 +126,67 @@
           </nav>
         </div>
         <div class="flex items-center gap-4">
-          <span class="text-sm text-slate-500">{$auth.user?.display_name}</span>
+          <button
+            on:click={cycleThemePreference}
+            class="flex items-center gap-2 text-xs font-medium text-muted hover:text-text transition-colors"
+            aria-label={`Theme: ${$themePreference}`}
+            title={`Theme: ${$themePreference}`}
+          >
+            {#if $themePreference === "system"}
+              <svg
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+                <path d="M8 20h8"></path>
+                <path d="M12 16v4"></path>
+              </svg>
+              <span>System</span>
+            {:else if $themeEffective === "dark"}
+              <svg
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"></path>
+              </svg>
+              <span>Dark</span>
+            {:else}
+              <svg
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2"></path>
+                <path d="M12 20v2"></path>
+                <path d="M4.93 4.93l1.41 1.41"></path>
+                <path d="M17.66 17.66l1.41 1.41"></path>
+                <path d="M2 12h2"></path>
+                <path d="M20 12h2"></path>
+                <path d="M6.34 17.66l-1.41 1.41"></path>
+                <path d="M19.07 4.93l-1.41 1.41"></path>
+              </svg>
+              <span>Light</span>
+            {/if}
+          </button>
+          <span class="text-sm text-muted">{$auth.user?.display_name}</span>
           <button
             on:click={handleLogout}
-            class="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+            class="text-sm text-muted hover:text-text transition-colors"
           >
             Sign out
           </button>
