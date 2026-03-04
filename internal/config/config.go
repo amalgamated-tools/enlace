@@ -10,6 +10,8 @@ import (
 	"strconv"
 )
 
+const redacted = "***"
+
 var (
 	_,
 	b, _, _ = runtime.Caller(0)
@@ -79,6 +81,48 @@ func Load() *Config {
 		CORSOrigins:      getEnv("CORS_ORIGINS", ""),
 		Require2FA:       getEnvBool("REQUIRE_2FA", false),
 	}
+}
+
+// LogValue implements slog.LogValuer so that logging a *Config never exposes
+// secret fields. All credential-like values are replaced with "***".
+func (c *Config) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Int("port", c.Port),
+		slog.String("database_path", c.DatabasePath),
+		slog.String("jwt_secret", maskSecret(c.JWTSecret)),
+		slog.String("base_url", c.BaseURL),
+		slog.String("storage_type", c.StorageType),
+		slog.String("storage_local_path", c.StorageLocalPath),
+		slog.String("s3_endpoint", c.S3Endpoint),
+		slog.String("s3_bucket", c.S3Bucket),
+		slog.String("s3_access_key", maskSecret(c.S3AccessKey)),
+		slog.String("s3_secret_key", maskSecret(c.S3SecretKey)),
+		slog.String("s3_region", c.S3Region),
+		slog.String("s3_path_prefix", c.S3PathPrefix),
+		slog.String("smtp_host", c.SMTPHost),
+		slog.Int("smtp_port", c.SMTPPort),
+		slog.String("smtp_user", maskSecret(c.SMTPUser)),
+		slog.String("smtp_pass", maskSecret(c.SMTPPass)),
+		slog.String("smtp_from", c.SMTPFrom),
+		slog.String("smtp_tls_policy", c.SMTPTLSPolicy),
+		slog.Bool("oidc_enabled", c.OIDCEnabled),
+		slog.String("oidc_issuer_url", c.OIDCIssuerURL),
+		slog.String("oidc_client_id", c.OIDCClientID),
+		slog.String("oidc_client_secret", maskSecret(c.OIDCClientSecret)),
+		slog.String("oidc_redirect_url", c.OIDCRedirectURL),
+		slog.String("oidc_scopes", c.OIDCScopes),
+		slog.Bool("swagger_enabled", c.SwaggerEnabled),
+		slog.String("cors_origins", c.CORSOrigins),
+		slog.Bool("require_2fa", c.Require2FA),
+	)
+}
+
+// maskSecret returns redacted when s is non-empty, or an empty string otherwise.
+func maskSecret(s string) string {
+	if s == "" {
+		return ""
+	}
+	return redacted
 }
 
 func getEnv(key, defaultVal string) string {
