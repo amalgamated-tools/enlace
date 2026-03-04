@@ -642,7 +642,7 @@ The token is valid for **1 hour**. Pass it in subsequent requests to the same sh
 
 For password-protected shares, include the access token as `X-Share-Token: <token>` or `?token=<token>`.
 
-**`GET /s/{slug}/files/{fileId}/preview`** — preview a file inline. Identical to the download endpoint but serves the file with `Content-Disposition: inline`, suitable for in-browser preview.
+**`GET /s/{slug}/files/{fileId}/preview`** — preview a file inline. Serves the file with `Content-Disposition: inline` for safe MIME types (images, PDFs, plain text, etc.), suitable for in-browser preview. **Scriptable MIME types** — `text/html`, `application/xhtml+xml`, `image/svg+xml`, `application/javascript`, `text/javascript`, `text/css`, and `application/xml` — are always forced to `Content-Disposition: attachment` regardless of the endpoint used, to prevent cross-site scripting via inline script execution. All served files also include a `Content-Security-Policy: default-src 'none'` header as defense-in-depth.
 
 ---
 
