@@ -501,3 +501,47 @@ func TestIsExtensionBlocked_EmptyBlockedList(t *testing.T) {
 		t.Error("expected false for empty blocked list")
 	}
 }
+
+func TestFileRestrictionsHandler_GetFileRestrictions_NormalizesOnRead(t *testing.T) {
+	// Simulate DB containing unnormalized values (e.g., manual edit or old data)
+	mock := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{
+				"blocked_extensions": "exe, BAT ,.sh,exe",
+			}, nil
+		},
+	}
+
+	h := handler.NewFileRestrictionsHandler(mock)
+	router := setupFileRestrictionsRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/files", nil)
+	req = withAdminRequestContext(req)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var response struct {
+		Data struct {
+			BlockedExtensions []string `json:"blocked_extensions"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should be normalized: dot-prefixed, lowercase, deduplicated
+	expected := []string{".exe", ".bat", ".sh"}
+	if len(response.Data.BlockedExtensions) != len(expected) {
+		t.Fatalf("expected %d extensions, got %d: %v", len(expected), len(response.Data.BlockedExtensions), response.Data.BlockedExtensions)
+	}
+	for i, ext := range expected {
+		if response.Data.BlockedExtensions[i] != ext {
+			t.Errorf("expected extension[%d] = %q, got %q", i, ext, response.Data.BlockedExtensions[i])
+		}
+	}
+}

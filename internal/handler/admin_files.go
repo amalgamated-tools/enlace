@@ -153,12 +153,7 @@ func buildFileRestrictionsResponse(settings map[string]string) fileRestrictionsR
 	}
 
 	if v, ok := settings["blocked_extensions"]; ok && v != "" {
-		for _, ext := range strings.Split(v, ",") {
-			ext = strings.TrimSpace(strings.ToLower(ext))
-			if ext != "" {
-				resp.BlockedExtensions = append(resp.BlockedExtensions, ext)
-			}
-		}
+		resp.BlockedExtensions = parseExtensions(v)
 	}
 
 	return resp
@@ -167,8 +162,15 @@ func buildFileRestrictionsResponse(settings map[string]string) fileRestrictionsR
 // normalizeExtensions takes a comma-separated string of extensions, trims whitespace,
 // lowercases, ensures a dot prefix, and returns the normalized comma-separated string.
 func normalizeExtensions(raw string) string {
+	return strings.Join(parseExtensions(raw), ",")
+}
+
+// parseExtensions splits a comma-separated extension string, normalizes each entry
+// (lowercase, trim, dot-prefix), and deduplicates the result.
+func parseExtensions(raw string) []string {
 	parts := strings.Split(raw, ",")
-	normalized := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+	result := make([]string, 0, len(parts))
 	for _, ext := range parts {
 		ext = strings.TrimSpace(strings.ToLower(ext))
 		if ext == "" {
@@ -177,9 +179,13 @@ func normalizeExtensions(raw string) string {
 		if !strings.HasPrefix(ext, ".") {
 			ext = "." + ext
 		}
-		normalized = append(normalized, ext)
+		if _, exists := seen[ext]; exists {
+			continue
+		}
+		seen[ext] = struct{}{}
+		result = append(result, ext)
 	}
-	return strings.Join(normalized, ",")
+	return result
 }
 
 // LoadFileRestrictions reads current file restriction settings from the database.
@@ -198,12 +204,7 @@ func LoadFileRestrictions(ctx context.Context, settingsRepo SettingsRepositoryIn
 	}
 
 	if v, ok := settings["blocked_extensions"]; ok && v != "" {
-		for _, ext := range strings.Split(v, ",") {
-			ext = strings.TrimSpace(strings.ToLower(ext))
-			if ext != "" {
-				blockedExtensions = append(blockedExtensions, ext)
-			}
-		}
+		blockedExtensions = parseExtensions(v)
 	}
 
 	return maxFileSize, blockedExtensions, nil
