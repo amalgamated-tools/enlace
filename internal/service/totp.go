@@ -254,9 +254,10 @@ func (s *TOTPService) GetStatus(ctx context.Context, userID string) (bool, error
 func (s *TOTPService) GeneratePendingToken(userID string, isAdmin bool) (string, error) {
 	now := time.Now()
 	claims := &Claims{
-		UserID:  userID,
-		IsAdmin: isAdmin,
-		TFA:     true,
+		UserID:    userID,
+		IsAdmin:   isAdmin,
+		TFA:       true,
+		TokenType: TokenTypeAccess,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(pendingTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(now),

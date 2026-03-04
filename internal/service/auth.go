@@ -144,8 +144,8 @@ func (s *AuthService) RefreshTokens(ctx context.Context, refreshToken string) (*
 		return nil, ErrInvalidToken
 	}
 
-	// Only accept refresh tokens
-	if claims.TokenType != TokenTypeRefresh {
+	// Reject access tokens; allow refresh tokens (and legacy tokens without a type)
+	if claims.TokenType == TokenTypeAccess {
 		return nil, ErrInvalidToken
 	}
 
