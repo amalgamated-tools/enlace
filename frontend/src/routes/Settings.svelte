@@ -35,6 +35,25 @@
   let regeneratePassword = "";
   let showRegenerateModal = false;
   let setupErrors: Record<string, string> = {};
+  let codesCopied = false;
+
+  function copyRecoveryCodes() {
+    navigator.clipboard.writeText(setupRecoveryCodes.join("\n"));
+    toast.success("Recovery codes copied to clipboard");
+    codesCopied = true;
+    setTimeout(() => (codesCopied = false), 2000);
+  }
+
+  function downloadRecoveryCodes() {
+    const content = setupRecoveryCodes.join("\n");
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "enlace-2fa.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   onMount(async () => {
     // Check for oidc=linked query param (from successful OIDC linking)
@@ -516,7 +535,17 @@
               {/each}
             </div>
           </div>
-          <div class="flex justify-end">
+          <div class="flex justify-end gap-3">
+            <Button variant="secondary" size="sm" on:click={copyRecoveryCodes}>
+              {codesCopied ? "Copied!" : "Copy Codes"}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              on:click={downloadRecoveryCodes}
+            >
+              Download
+            </Button>
             <Button on:click={handleCloseSetup}>Done</Button>
           </div>
         {/if}
