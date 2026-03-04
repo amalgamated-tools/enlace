@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,7 +11,8 @@ import (
 )
 
 var (
-	_, b, _, _ = runtime.Caller(0)
+	_,
+	b, _, _ = runtime.Caller(0)
 )
 
 type Config struct {
@@ -105,18 +107,19 @@ func getEnvBool(key string, defaultVal bool) bool {
 func loadJWTSecret() string {
 	// this value is stored in a file to ensure it persists across restarts but is not easily accessible as an environment variable
 	dataDir := getEnv("DATA_DIR", GetProjectRoot()+"/data")
-	secretPath := dataDir + "/jwt_secret"
-	if _, err := os.Stat(secretPath); err == nil {
-		secretBytes, err := os.ReadFile(secretPath)
-		if err == nil {
-			return string(secretBytes)
-		}
+	secretPath := filepath.Join(dataDir, "jwt_secret")
+	if secretBytes, err := os.ReadFile(secretPath); err == nil {
+		return string(secretBytes)
 	}
 	// If the file doesn't exist or can't be read, generate a new secret and save it
 	secret := uuid.New().String()
-	os.MkdirAll(dataDir, 0700)
-	os.WriteFile(secretPath, []byte(secret), 0600)
-	return secret
+	if err := os.MkdirAll(dataDir, 0700); err == nil {
+		if err := os.WriteFile(secretPath, []byte(secret), 0600); err == nil {
+			return secret
+		}
+	}
+	slog.Error("Failed to load or save JWT secret, check file permissions and ensure the data directory is writable")
+	return secret // return the generated secret even if we couldn't save it, to ensure the application can still run
 }
 
 // GetProjectRoot returns the root directory of the project.
