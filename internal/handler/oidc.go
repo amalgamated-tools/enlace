@@ -2,17 +2,26 @@ package handler
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/amalgamated-tools/enlace/internal/middleware"
 )
 
 const (
-	oidcStateCookie    = "oidc_state"
-	oidcVerifierCookie = "oidc_verifier"
-	oidcLinkCookie     = "oidc_link"
-	stateCookieMaxAge  = 10 * 60 // 10 minutes
+	oidcStateCookie     = "oidc_state"
+	oidcVerifierCookie  = "oidc_verifier"
+	oidcLinkCookie      = "oidc_link"
+	oidcPendingCookie   = "oidc_pending"
+	stateCookieMaxAge   = 10 * 60 // 10 minutes
+	pendingCookieMaxAge = 2 * 60  // 2 minutes
 )
 
 // OIDCUserInfo contains user information from the OIDC provider.
@@ -53,24 +62,60 @@ type AuthTokenServiceInterface interface {
 
 // TokenPair represents an access and refresh token pair.
 type TokenPair struct {
-	AccessToken  string
-	RefreshToken string
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // OIDCHandler handles OIDC authentication requests.
 type OIDCHandler struct {
-	oidcService OIDCServiceInterface
-	authService AuthTokenServiceInterface
-	baseURL     string
+	oidcService   OIDCServiceInterface
+	authService   AuthTokenServiceInterface
+	baseURL       string
+	secureCookies bool
+	cookieSecret  []byte
 }
 
 // NewOIDCHandler creates a new OIDCHandler instance.
-func NewOIDCHandler(oidcService OIDCServiceInterface, authService AuthTokenServiceInterface, baseURL string) *OIDCHandler {
+func NewOIDCHandler(oidcService OIDCServiceInterface, authService AuthTokenServiceInterface, baseURL string, cookieSecret []byte) *OIDCHandler {
 	return &OIDCHandler{
-		oidcService: oidcService,
-		authService: authService,
-		baseURL:     baseURL,
+		oidcService:   oidcService,
+		authService:   authService,
+		baseURL:       baseURL,
+		secureCookies: strings.HasPrefix(baseURL, "https://"),
+		cookieSecret:  cookieSecret,
 	}
+}
+
+// signCookieValue produces "payload.hmacHex" from a raw payload string.
+func (h *OIDCHandler) signCookieValue(payload string) string {
+	mac := hmac.New(sha256.New, append([]byte("oidc-pending-cookie:"), h.cookieSecret...))
+	mac.Write([]byte(payload))
+	sig := hex.EncodeToString(mac.Sum(nil))
+	return payload + "." + sig
+}
+
+// verifyCookieValue splits "payload.hmacHex", verifies the HMAC, and returns the payload.
+func (h *OIDCHandler) verifyCookieValue(signed string) (string, error) {
+	idx := strings.LastIndex(signed, ".")
+	if idx < 0 {
+		return "", fmt.Errorf("malformed signed cookie")
+	}
+	payload := signed[:idx]
+	sigHex := signed[idx+1:]
+
+	sigBytes, err := hex.DecodeString(sigHex)
+	if err != nil {
+		return "", fmt.Errorf("invalid signature encoding")
+	}
+
+	mac := hmac.New(sha256.New, append([]byte("oidc-pending-cookie:"), h.cookieSecret...))
+	mac.Write([]byte(payload))
+	expected := mac.Sum(nil)
+
+	if !hmac.Equal(sigBytes, expected) {
+		return "", fmt.Errorf("invalid cookie signature")
+	}
+	return payload, nil
 }
 
 // oidcConfigResponse represents the OIDC configuration response.
@@ -125,7 +170,7 @@ func (h *OIDCHandler) Login(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   stateCookieMaxAge,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   h.secureCookies || r.TLS != nil,
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name:     oidcVerifierCookie,
@@ -134,7 +179,7 @@ func (h *OIDCHandler) Login(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   stateCookieMaxAge,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   h.secureCookies || r.TLS != nil,
 	})
 
 	authURL := h.oidcService.GetAuthURL(state, codeVerifier)
@@ -183,6 +228,8 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 			Path:     "/",
 			MaxAge:   -1,
 			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   h.secureCookies || r.TLS != nil,
 		})
 	}
 
@@ -217,9 +264,88 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := h.baseURL + "/#/auth/callback?token=" + url.QueryEscape(tokens.AccessToken) +
-		"&refresh=" + url.QueryEscape(tokens.RefreshToken)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	// Store tokens in a short-lived HttpOnly cookie for secure one-time exchange.
+	// This avoids passing sensitive tokens via query parameters (browser history,
+	// referrer headers, server logs).
+	pending, err := json.Marshal(tokens)
+	if err != nil {
+		h.redirectWithError(w, r, "failed to generate tokens")
+		return
+	}
+	encodedPending := base64.StdEncoding.EncodeToString(pending)
+	http.SetCookie(w, &http.Cookie{
+		Name:     oidcPendingCookie,
+		Value:    h.signCookieValue(encodedPending),
+		Path:     "/",
+		MaxAge:   pendingCookieMaxAge,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   h.secureCookies || r.TLS != nil,
+	})
+	http.Redirect(w, r, h.baseURL+"/#/auth/callback", http.StatusFound)
+}
+
+// ExchangeOIDCTokens handles POST /api/v1/auth/oidc/exchange - exchanges the pending
+// HttpOnly cookie set during the OIDC callback for the actual JWT token pair.
+//
+// Security note: the response body contains JWTs readable by JavaScript. A same-origin
+// XSS vulnerability could therefore steal tokens from this endpoint. The risk is mitigated
+// by the single-use HMAC-signed cookie (2-minute TTL) that gates access — an attacker
+// would need to trigger the full OIDC redirect flow to obtain a fresh cookie before the
+// exchange can succeed. This is an accepted trade-off; the frontend SPA must receive the
+// tokens via JavaScript to store them for subsequent API calls.
+//
+//	@Summary		Exchange OIDC pending token
+//	@Description	Exchanges the short-lived HttpOnly pending-token cookie (set during OIDC callback) for the JWT access and refresh token pair. The cookie is consumed on first use.
+//	@Tags			oidc
+//	@Produce		json
+//	@Success		200	{object}	APIResponse{data=TokenPair}
+//	@Failure		401	{object}	APIResponse
+//	@Router		/api/v1/auth/oidc/exchange [post]
+func (h *OIDCHandler) ExchangeOIDCTokens(w http.ResponseWriter, r *http.Request) {
+	if h.oidcService == nil {
+		Error(w, http.StatusNotFound, "OIDC is not enabled")
+		return
+	}
+
+	cookie, err := r.Cookie(oidcPendingCookie)
+	if err != nil {
+		Error(w, http.StatusUnauthorized, "no pending token")
+		return
+	}
+
+	// Clear the cookie immediately — it is single-use.
+	http.SetCookie(w, &http.Cookie{
+		Name:     oidcPendingCookie,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   h.secureCookies || r.TLS != nil,
+	})
+
+	// Verify the HMAC signature to ensure the cookie was set by this server.
+	payload, err := h.verifyCookieValue(cookie.Value)
+	if err != nil {
+		Error(w, http.StatusUnauthorized, "invalid pending token")
+		return
+	}
+
+	var tokens TokenPair
+	decoded, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		Error(w, http.StatusUnauthorized, "invalid pending token")
+		return
+	}
+	if err := json.Unmarshal(decoded, &tokens); err != nil {
+		Error(w, http.StatusUnauthorized, "invalid pending token")
+		return
+	}
+
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	Success(w, http.StatusOK, tokens)
 }
 
 // Link initiates the OIDC account linking flow.
@@ -264,7 +390,7 @@ func (h *OIDCHandler) Link(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   stateCookieMaxAge,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   h.secureCookies || r.TLS != nil,
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name:     oidcVerifierCookie,
@@ -273,7 +399,7 @@ func (h *OIDCHandler) Link(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   stateCookieMaxAge,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   h.secureCookies || r.TLS != nil,
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name:     oidcLinkCookie,
@@ -282,7 +408,7 @@ func (h *OIDCHandler) Link(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   stateCookieMaxAge,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   h.secureCookies || r.TLS != nil,
 	})
 
 	authURL := h.oidcService.GetLinkAuthURL(state, codeVerifier)
@@ -338,6 +464,8 @@ func (h *OIDCHandler) LinkCallback(w http.ResponseWriter, r *http.Request) {
 			Path:     "/",
 			MaxAge:   -1,
 			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   h.secureCookies || r.TLS != nil,
 		})
 	}
 
