@@ -666,4 +666,4 @@ frontend/          # Svelte + TypeScript + Vite app
 
 ## License
 
-See [LICENSE](LICENSE) if present.
+Enlace is released under the [MIT License](LICENSE).

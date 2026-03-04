@@ -112,22 +112,25 @@ cd frontend && pnpm test  # Frontend unit tests (Vitest)
 
 ## API Response Format
 
-All API endpoints return a consistent JSON envelope:
+All API endpoints return a consistent JSON envelope. The `data` and `error` fields are mutually exclusive — `data` appears on success, `error` on failure:
+
+```json
+// Success
+{ "success": true, "data": { ... } }
+
+// Error
+{ "success": false, "error": "<message>" }
+
+// Validation error (HTTP 400)
+{ "success": false, "error": "validation failed", "fields": { "<field>": "<reason>" } }
+```
+
+Paginated list endpoints additionally include a `meta` object:
 
 ```json
 {
   "success": true,
-  "data": { ... },
-  "error": "optional error message"
-}
-```
-
-Validation errors include an additional `fields` map with per-field error details:
-
-```json
-{
-  "success": false,
-  "error": "validation failed",
-  "fields": { "email": "is required", "password": "too short" }
+  "data": [...],
+  "meta": { "total": 42, "page": 1, "per_page": 20 }
 }
 ```
