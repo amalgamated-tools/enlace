@@ -100,11 +100,16 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		totpHandler = NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), newPasswordVerifierAdapter(cfg.AuthService), cfg.Require2FA, cfg.AuthService)
 	}
 	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService, cfg.EmailService)
-	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService)
+	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService, WithSettingsRepo(cfg.SettingsRepo))
 	userHandler := NewUserHandler(cfg.AuthService)
 	adminHandler := NewAdminHandler(cfg.UserRepo)
-	storageConfigHandler := NewStorageConfigHandler(cfg.SettingsRepo, []byte(cfg.JWTSecret))
-	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret))
+	var storageConfigHandler *StorageConfigHandler
+	var fileRestrictionsHandler *FileRestrictionsHandler
+	if cfg.SettingsRepo != nil {
+		storageConfigHandler = NewStorageConfigHandler(cfg.SettingsRepo, []byte(cfg.JWTSecret))
+		fileRestrictionsHandler = NewFileRestrictionsHandler(cfg.SettingsRepo)
+	}
+	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret), WithPublicSettingsRepo(cfg.SettingsRepo))
 	oidcHandler := NewOIDCHandler(newOIDCServiceAdapter(cfg.OIDCService), newAuthTokenAdapter(cfg.AuthService), cfg.BaseURL)
 
 	// Rate limiters
@@ -198,11 +203,20 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 				r.Patch("/{id}", adminHandler.UpdateUser)
 				r.Delete("/{id}", adminHandler.DeleteUser)
 			})
-			r.Route("/storage", func(r chi.Router) {
-				r.Get("/", storageConfigHandler.GetStorageConfig)
-				r.Put("/", storageConfigHandler.UpdateStorageConfig)
-				r.Delete("/", storageConfigHandler.DeleteStorageConfig)
-			})
+			if storageConfigHandler != nil {
+				r.Route("/storage", func(r chi.Router) {
+					r.Get("/", storageConfigHandler.GetStorageConfig)
+					r.Put("/", storageConfigHandler.UpdateStorageConfig)
+					r.Delete("/", storageConfigHandler.DeleteStorageConfig)
+				})
+			}
+			if fileRestrictionsHandler != nil {
+				r.Route("/files", func(r chi.Router) {
+					r.Get("/", fileRestrictionsHandler.GetFileRestrictions)
+					r.Put("/", fileRestrictionsHandler.UpdateFileRestrictions)
+					r.Delete("/", fileRestrictionsHandler.DeleteFileRestrictions)
+				})
+			}
 		})
 	})
 
