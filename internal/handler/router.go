@@ -69,7 +69,6 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 	// Standard middleware stack
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
