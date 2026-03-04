@@ -226,8 +226,9 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 // healthHandler returns the health status of the service.
 //
-//	@Summary	Health check
-//	@Tags		system
+//	@Summary		Health check
+//	@Description	Returns the application health status. Used by load balancers and container orchestrators to verify the service is running.
+//	@Tags			system
 //	@Produce	json
 //	@Success	200	{object}	APIResponse
 //	@Router		/health [get]

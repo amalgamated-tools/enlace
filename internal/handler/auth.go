@@ -83,8 +83,9 @@ var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]
 
 // Register handles user registration requests.
 //
-//	@Summary	Register a new user
-//	@Tags		auth
+//	@Summary		Register a new user
+//	@Description	Creates a new user account. Email must be a valid address format and password must be at least 8 characters.
+//	@Tags			auth
 //	@Accept		json
 //	@Produce	json
 //	@Param		body	body		registerRequest	true	"Registration details"
@@ -213,8 +214,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 // Refresh handles token refresh requests.
 //
-//	@Summary	Refresh tokens
-//	@Tags		auth
+//	@Summary		Refresh tokens
+//	@Description	Exchanges a valid refresh token for a new access token and refresh token pair.
+//	@Tags			auth
 //	@Accept		json
 //	@Produce	json
 //	@Param		body	body		refreshRequest	true	"Refresh token"
@@ -252,8 +254,9 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 // Logout handles user logout requests. JWT logout is client-side.
 //
-//	@Summary	Logout
-//	@Tags		auth
+//	@Summary		Logout
+//	@Description	Invalidates the current session. Since Enlace uses stateless JWTs, this endpoint always succeeds and the client is responsible for discarding the tokens.
+//	@Tags			auth
 //	@Produce	json
 //	@Success	200	{object}	APIResponse
 //	@Router		/api/v1/auth/logout [post]
