@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -341,12 +342,113 @@ func TestOIDCHandler_Callback_Success(t *testing.T) {
 		t.Errorf("expected status 302, got %d", rr.Code)
 	}
 
+	// Tokens must NOT appear in the redirect URL (prevents leakage via history/referrer).
 	location := rr.Header().Get("Location")
-	if !strings.Contains(location, "token=access-token-abc") {
-		t.Errorf("expected redirect with access token, got %s", location)
+	if strings.Contains(location, "token=") {
+		t.Errorf("tokens must not appear in redirect URL, got %s", location)
 	}
-	if !strings.Contains(location, "refresh=refresh-token-xyz") {
-		t.Errorf("expected redirect with refresh token, got %s", location)
+	if strings.Contains(location, "refresh=") {
+		t.Errorf("refresh token must not appear in redirect URL, got %s", location)
+	}
+	if !strings.Contains(location, "/#/auth/callback") {
+		t.Errorf("expected redirect to /#/auth/callback, got %s", location)
+	}
+
+	// Tokens must be stored in the oidc_pending HttpOnly cookie.
+	var foundPendingCookie bool
+	for _, c := range rr.Result().Cookies() {
+		if c.Name == "oidc_pending" {
+			foundPendingCookie = true
+			if !c.HttpOnly {
+				t.Error("expected oidc_pending cookie to be HttpOnly")
+			}
+			if c.Value == "" {
+				t.Error("expected oidc_pending cookie to be non-empty")
+			}
+		}
+	}
+	if !foundPendingCookie {
+		t.Error("expected oidc_pending cookie to be set")
+	}
+}
+
+func TestOIDCHandler_ExchangeOIDCTokens_Success(t *testing.T) {
+	mockOIDC := &mockOIDCService{}
+	h := handler.NewOIDCHandler(mockOIDC, nil, "http://localhost:8080")
+
+	// Simulate the pending cookie set during Callback (base64-encoded JSON).
+	raw := `{"access_token":"access-token-abc","refresh_token":"refresh-token-xyz"}`
+	pendingValue := base64.StdEncoding.EncodeToString([]byte(raw))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oidc/exchange", nil)
+	req.AddCookie(&http.Cookie{Name: "oidc_pending", Value: pendingValue})
+	rr := httptest.NewRecorder()
+
+	h.ExchangeOIDCTokens(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+
+	var response struct {
+		Success bool `json:"success"`
+		Data    struct {
+			AccessToken  string `json:"access_token"`
+			RefreshToken string `json:"refresh_token"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !response.Success {
+		t.Error("expected success to be true")
+	}
+	if response.Data.AccessToken != "access-token-abc" {
+		t.Errorf("expected access token access-token-abc, got %s", response.Data.AccessToken)
+	}
+	if response.Data.RefreshToken != "refresh-token-xyz" {
+		t.Errorf("expected refresh token refresh-token-xyz, got %s", response.Data.RefreshToken)
+	}
+
+	// The pending cookie must be cleared after exchange (MaxAge=-1 instructs browser to delete it).
+	var foundClearedCookie bool
+	for _, c := range rr.Result().Cookies() {
+		if c.Name == "oidc_pending" {
+			if c.MaxAge == -1 {
+				foundClearedCookie = true
+			} else {
+				t.Errorf("expected oidc_pending cookie to be cleared (MaxAge=-1), got MaxAge=%d", c.MaxAge)
+			}
+		}
+	}
+	if !foundClearedCookie {
+		t.Error("expected oidc_pending clearing cookie to be present in response")
+	}
+}
+
+func TestOIDCHandler_ExchangeOIDCTokens_NoPendingCookie(t *testing.T) {
+	mockOIDC := &mockOIDCService{}
+	h := handler.NewOIDCHandler(mockOIDC, nil, "http://localhost:8080")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oidc/exchange", nil)
+	rr := httptest.NewRecorder()
+
+	h.ExchangeOIDCTokens(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected status 401, got %d", rr.Code)
+	}
+}
+
+func TestOIDCHandler_ExchangeOIDCTokens_Disabled(t *testing.T) {
+	h := handler.NewOIDCHandler(nil, nil, "http://localhost:8080")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oidc/exchange", nil)
+	rr := httptest.NewRecorder()
+
+	h.ExchangeOIDCTokens(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", rr.Code)
 	}
 }
 

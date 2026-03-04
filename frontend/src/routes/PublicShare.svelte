@@ -120,18 +120,12 @@
     if (!share) return;
 
     for (const file of files) {
-      const url = shareToken
-        ? `/s/${params.slug}/files/${file.id}?token=${encodeURIComponent(shareToken)}`
-        : `/s/${params.slug}/files/${file.id}`;
-      window.open(url, "_blank");
+      window.open(`/s/${params.slug}/files/${file.id}`, "_blank");
     }
   }
 
   async function downloadFile(fileId: string) {
-    const url = shareToken
-      ? `/s/${params.slug}/files/${fileId}?token=${encodeURIComponent(shareToken)}`
-      : `/s/${params.slug}/files/${fileId}`;
-    window.location.href = url;
+    window.location.href = `/s/${params.slug}/files/${fileId}`;
   }
 
   function formatSize(bytes: number): string {

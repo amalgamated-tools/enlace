@@ -264,18 +264,29 @@ func (h *PublicHandler) VerifyPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set an HttpOnly, path-scoped cookie so browser-initiated downloads (window.open,
+	// window.location.href) are authenticated without exposing the token in the URL.
+	http.SetCookie(w, &http.Cookie{
+		Name:     "share_token",
+		Value:    token,
+		Path:     "/s/" + slug,
+		MaxAge:   int(shareAccessTokenExpiry.Seconds()),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   r.TLS != nil,
+	})
+
 	Success(w, http.StatusOK, verifyPasswordResponse{Token: token})
 }
 
 // DownloadFile handles GET /s/{slug}/files/{fileId} - downloads a file.
 //
 //	@Summary		Download a file
-//	@Description	Downloads a file from a public share. Use X-Share-Token header or token query param for password-protected shares.
+//	@Description	Downloads a file from a public share. Use X-Share-Token header or the share_token cookie for password-protected shares.
 //	@Tags			public
 //	@Produce		octet-stream
 //	@Param			slug	path		string	true	"Share slug"
 //	@Param			fileId	path		string	true	"File ID (UUID)"
-//	@Param			token	query		string	false	"Share access token"
 //	@Success		200		{file}		binary
 //	@Failure		401		{object}	APIResponse
 //	@Failure		404		{object}	APIResponse
@@ -289,12 +300,11 @@ func (h *PublicHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 // PreviewFile handles GET /s/{slug}/files/{fileId}/preview - previews a file.
 //
 //	@Summary		Preview a file
-//	@Description	Previews a file inline. Use X-Share-Token header or token query param for password-protected shares.
+//	@Description	Previews a file inline. Use X-Share-Token header or the share_token cookie for password-protected shares.
 //	@Tags			public
 //	@Produce		octet-stream
 //	@Param			slug	path		string	true	"Share slug"
 //	@Param			fileId	path		string	true	"File ID (UUID)"
-//	@Param			token	query		string	false	"Share access token"
 //	@Success		200		{file}		binary
 //	@Failure		401		{object}	APIResponse
 //	@Failure		404		{object}	APIResponse
@@ -375,6 +385,7 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 	defer func() { _ = content.Close() }()
 
 	// Set headers
+	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Content-Type", file.MimeType)
 	w.Header().Set("Content-Length", strconv.FormatInt(file.Size, 10))
 	w.Header().Set("Content-Disposition", disposition+"; filename=\""+file.Name+"\"")
@@ -516,14 +527,19 @@ func (h *PublicHandler) generateShareAccessToken(shareID string) (string, error)
 	return token.SignedString(h.jwtSecret)
 }
 
-// validateShareToken validates the share access token from header or query parameter.
-// It checks the X-Share-Token header first, then falls back to the ?token= query parameter.
-// The query parameter fallback is needed for browser-initiated downloads (window.open, etc.)
-// where custom headers cannot be set.
+// validateShareToken validates the share access token from header or cookie.
+// It checks the X-Share-Token header first, then falls back to the path-scoped
+// share_token cookie set by VerifyPassword. The ?token= query parameter is no
+// longer accepted to prevent token leakage via browser history and referrer headers.
 func (h *PublicHandler) validateShareToken(r *http.Request, expectedShareID string) error {
 	tokenStr := r.Header.Get("X-Share-Token")
 	if tokenStr == "" {
-		tokenStr = r.URL.Query().Get("token")
+		// Fall back to the path-scoped cookie set during password verification.
+		// The browser only sends this cookie for requests under /s/{slug}/, so
+		// it is automatically scoped to the correct share.
+		if cookie, err := r.Cookie("share_token"); err == nil {
+			tokenStr = cookie.Value
+		}
 	}
 	if tokenStr == "" {
 		return errors.New("share token required")

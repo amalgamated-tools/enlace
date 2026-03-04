@@ -1,26 +1,27 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { push, querystring } from "svelte-spa-router";
+  import { push } from "svelte-spa-router";
   import { auth, toast } from "../lib/stores";
 
-  onMount(() => {
-    const params = new URLSearchParams($querystring);
-    const token = params.get("token");
-    const refresh = params.get("refresh");
-    const error = params.get("error");
+  onMount(async () => {
+    try {
+      const response = await fetch("/api/v1/auth/oidc/exchange", {
+        method: "POST",
+      });
+      const data = await response.json();
 
-    if (error) {
-      toast.error(decodeURIComponent(error));
-      push("/login");
-      return;
-    }
+      if (!response.ok || !data.success) {
+        toast.error(data.error || "Authentication failed");
+        push("/login");
+        return;
+      }
 
-    if (token && refresh) {
-      auth.setTokens(token, refresh);
+      auth.setTokens(data.data.access_token, data.data.refresh_token);
       toast.success("Logged in successfully");
       push("/");
-    } else {
-      toast.error("Invalid callback");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Authentication failed";
+      toast.error(message);
       push("/login");
     }
   });

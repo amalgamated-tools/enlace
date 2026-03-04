@@ -140,6 +140,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 				r.Get("/config", oidcHandler.Config)
 				r.Get("/login", oidcHandler.Login)
 				r.Get("/callback", oidcHandler.Callback)
+				r.Post("/exchange", oidcHandler.ExchangeOIDCTokens)
 			})
 		})
 

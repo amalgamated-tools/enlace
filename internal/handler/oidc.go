@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/url"
 
@@ -9,10 +11,12 @@ import (
 )
 
 const (
-	oidcStateCookie    = "oidc_state"
-	oidcVerifierCookie = "oidc_verifier"
-	oidcLinkCookie     = "oidc_link"
-	stateCookieMaxAge  = 10 * 60 // 10 minutes
+	oidcStateCookie     = "oidc_state"
+	oidcVerifierCookie  = "oidc_verifier"
+	oidcLinkCookie      = "oidc_link"
+	oidcPendingCookie   = "oidc_pending"
+	stateCookieMaxAge   = 10 * 60 // 10 minutes
+	pendingCookieMaxAge = 2 * 60  // 2 minutes
 )
 
 // OIDCUserInfo contains user information from the OIDC provider.
@@ -53,8 +57,8 @@ type AuthTokenServiceInterface interface {
 
 // TokenPair represents an access and refresh token pair.
 type TokenPair struct {
-	AccessToken  string
-	RefreshToken string
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // OIDCHandler handles OIDC authentication requests.
@@ -217,9 +221,69 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := h.baseURL + "/#/auth/callback?token=" + url.QueryEscape(tokens.AccessToken) +
-		"&refresh=" + url.QueryEscape(tokens.RefreshToken)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	// Store tokens in a short-lived HttpOnly cookie for secure one-time exchange.
+	// This avoids passing sensitive tokens via query parameters (browser history,
+	// referrer headers, server logs).
+	pending, err := json.Marshal(tokens)
+	if err != nil {
+		h.redirectWithError(w, r, "failed to generate tokens")
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     oidcPendingCookie,
+		Value:    base64.StdEncoding.EncodeToString(pending),
+		Path:     "/",
+		MaxAge:   pendingCookieMaxAge,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   r.TLS != nil,
+	})
+	http.Redirect(w, r, h.baseURL+"/#/auth/callback", http.StatusFound)
+}
+
+// ExchangeOIDCTokens handles POST /api/v1/auth/oidc/exchange - exchanges the pending
+// HttpOnly cookie set during the OIDC callback for the actual JWT token pair.
+//
+//	@Summary		Exchange OIDC pending token
+//	@Description	Exchanges the short-lived HttpOnly pending-token cookie (set during OIDC callback) for the JWT access and refresh token pair. The cookie is consumed on first use.
+//	@Tags			oidc
+//	@Produce		json
+//	@Success		200	{object}	APIResponse{data=TokenPair}
+//	@Failure		401	{object}	APIResponse
+//	@Router		/api/v1/auth/oidc/exchange [post]
+func (h *OIDCHandler) ExchangeOIDCTokens(w http.ResponseWriter, r *http.Request) {
+	if h.oidcService == nil {
+		Error(w, http.StatusNotFound, "OIDC is not enabled")
+		return
+	}
+
+	cookie, err := r.Cookie(oidcPendingCookie)
+	if err != nil {
+		Error(w, http.StatusUnauthorized, "no pending token")
+		return
+	}
+
+	// Clear the cookie immediately — it is single-use.
+	http.SetCookie(w, &http.Cookie{
+		Name:     oidcPendingCookie,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
+
+	var tokens TokenPair
+	decoded, err := base64.StdEncoding.DecodeString(cookie.Value)
+	if err != nil {
+		Error(w, http.StatusUnauthorized, "invalid pending token")
+		return
+	}
+	if err := json.Unmarshal(decoded, &tokens); err != nil {
+		Error(w, http.StatusUnauthorized, "invalid pending token")
+		return
+	}
+
+	Success(w, http.StatusOK, tokens)
 }
 
 // Link initiates the OIDC account linking flow.
