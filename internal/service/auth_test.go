@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/amalgamated-tools/enlace/internal/database"
@@ -270,6 +271,86 @@ func TestAuthService_RefreshTokens_RejectsAccessToken(t *testing.T) {
 	_, err = svc.RefreshTokens(ctx, tokens.AccessToken)
 	if err != service.ErrInvalidToken {
 		t.Errorf("expected ErrInvalidToken when using access token for refresh, got %v", err)
+	}
+}
+
+func TestAuthService_RefreshTokens_RefreshTokenHasCorrectType(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	_, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	tokens, err := svc.Login(ctx, "test@example.com", "password123")
+	if err != nil {
+		t.Fatalf("failed to login: %v", err)
+	}
+
+	claims, err := svc.ValidateToken(tokens.RefreshToken)
+	if err != nil {
+		t.Fatalf("failed to validate refresh token: %v", err)
+	}
+
+	if claims.TokenType != service.TokenTypeRefresh {
+		t.Errorf("expected refresh token to have token type %q, got %q", service.TokenTypeRefresh, claims.TokenType)
+	}
+}
+
+func TestAuthService_RefreshTokens_RejectsUnknownTokenType(t *testing.T) {
+	ctx := context.Background()
+	jwtSecret := []byte("test-secret-key-for-jwt-signing")
+
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	svc := service.NewAuthService(userRepo, jwtSecret)
+
+	user, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		tokenType string
+	}{
+		{"empty token type", ""},
+		{"unknown token type", "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			now := time.Now()
+			claims := &jwt.MapClaims{
+				"uid":        user.ID,
+				"adm":        false,
+				"exp":        jwt.NewNumericDate(now.Add(7 * 24 * time.Hour)),
+				"iat":        jwt.NewNumericDate(now),
+				"nbf":        jwt.NewNumericDate(now),
+			}
+			if tt.tokenType != "" {
+				(*claims)["token_type"] = tt.tokenType
+			}
+
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+			tokenStr, err := token.SignedString(jwtSecret)
+			if err != nil {
+				t.Fatalf("failed to sign token: %v", err)
+			}
+
+			_, err = svc.RefreshTokens(ctx, tokenStr)
+			if err != service.ErrInvalidToken {
+				t.Errorf("expected ErrInvalidToken for %s, got %v", tt.name, err)
+			}
+		})
 	}
 }
 
