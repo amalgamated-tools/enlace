@@ -1,4 +1,4 @@
-.PHONY: all build run test clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs swagger swagger-fmt help
+.PHONY: all build run test clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs swagger swagger-fmt help ensure-embed-dir
 
 # Default target
 all: build
@@ -26,14 +26,16 @@ dev: frontend-install
 	mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 	goreman -f Procfile.dev start || overmind start -f Procfile.dev
 
-# Run all tests
-test:
+# Ensure frontend/dist exists for Go embed (placeholder for dev/test)
+ensure-embed-dir:
 	@mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+
+# Run all tests
+test: ensure-embed-dir
 	go test ./... -v
 
 # Run tests with coverage
-test-coverage:
-	@mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+test-coverage: ensure-embed-dir
 	go test ./... -cover -coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
@@ -78,7 +80,7 @@ docker-logs:
 	docker-compose logs -f
 
 # Lint Go code
-lint:
+lint: ensure-embed-dir
 	go vet ./...
 
 # Format Go code
