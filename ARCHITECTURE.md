@@ -113,6 +113,8 @@ make test-coverage     # Go tests with coverage report
 cd frontend && pnpm test  # Frontend unit tests (Vitest)
 ```
 
+The repository tracks `frontend/dist/.gitkeep` so that the `//go:embed all:frontend/dist` directive in `embed.go` is satisfied on a fresh clone. This means `go test ./...` works without a prior frontend build — useful in IDE test runners and backend-only CI jobs. The `ensure-embed-dir` Makefile target recreates the placeholder if the directory is removed (e.g., after `make clean`).
+
 ## API Response Format
 
 All API endpoints return a consistent JSON envelope. The `data` and `error` fields are mutually exclusive — `data` appears on success, `error` on failure:

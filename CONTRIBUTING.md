@@ -35,6 +35,8 @@ make test-coverage
 cd frontend && pnpm test
 ```
 
+> **Tip:** `go test ./...` also works directly without building the frontend first. A committed `frontend/dist/.gitkeep` placeholder satisfies the `//go:embed all:frontend/dist` directive in `embed.go`, so a full frontend build is not required just to run Go tests. The `make test` target calls `ensure-embed-dir` to recreate it if it was removed (e.g., after `make clean`).
+
 ## Code style
 
 ### Go
