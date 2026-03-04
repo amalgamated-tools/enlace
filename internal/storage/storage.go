@@ -12,6 +12,9 @@ import (
 // ErrNotFound is returned when a requested file does not exist in storage.
 var ErrNotFound = errors.New("file not found")
 
+// ErrInvalidKey is returned when a storage key is malformed or would escape the storage root.
+var ErrInvalidKey = errors.New("invalid storage key")
+
 // Storage defines the interface for file storage operations.
 // Implementations must be safe for concurrent use.
 type Storage interface {

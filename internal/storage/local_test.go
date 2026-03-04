@@ -3,6 +3,7 @@ package storage_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -368,4 +369,54 @@ func TestLocalStorage_RootLevelFile(t *testing.T) {
 func TestLocalStorage_InterfaceCompliance(t *testing.T) {
 	// Verify that LocalStorage implements the Storage interface
 	var _ storage.Storage = (*storage.LocalStorage)(nil)
+}
+
+func TestLocalStorage_RejectsTraversalAndAbsoluteKeys(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "storage-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	store := storage.NewLocalStorage(tmpDir)
+	ctx := context.Background()
+
+	keys := []string{
+		"../evil.txt",
+		"..\\evil.txt",
+		"/absolute.txt",
+		"../../nested/evil.txt",
+		"\\windows-style.txt",
+		"C:\\evil.txt",
+		"C:/evil.txt",
+	}
+
+	for _, key := range keys {
+		t.Run(key, func(t *testing.T) {
+			data := []byte("should be rejected")
+			if err := store.Put(ctx, key, bytes.NewReader(data), int64(len(data)), "text/plain"); !errors.Is(err, storage.ErrInvalidKey) {
+				t.Fatalf("expected ErrInvalidKey from Put, got %v", err)
+			}
+
+			if _, err := store.Get(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+				t.Fatalf("expected ErrInvalidKey from Get, got %v", err)
+			}
+
+			if err := store.Delete(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+				t.Fatalf("expected ErrInvalidKey from Delete, got %v", err)
+			}
+
+			if _, err := store.Exists(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+				t.Fatalf("expected ErrInvalidKey from Exists, got %v", err)
+			}
+
+			entries, err := os.ReadDir(tmpDir)
+			if err != nil {
+				t.Fatalf("failed to read base dir: %v", err)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("expected no files to be created, found %d", len(entries))
+			}
+		})
+	}
 }

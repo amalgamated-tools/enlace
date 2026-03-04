@@ -10,6 +10,7 @@ import (
 	"github.com/amalgamated-tools/enlace/internal/middleware"
 	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 // Default limits for file uploads.
@@ -180,6 +181,10 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		_ = file.Close()
 
 		if err != nil {
+			if errors.Is(err, service.ErrInvalidFilename) || errors.Is(err, storage.ErrInvalidKey) {
+				Error(w, http.StatusBadRequest, "invalid filename")
+				return
+			}
 			Error(w, http.StatusInternalServerError, "failed to upload file")
 			return
 		}

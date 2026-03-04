@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 )
 
 // LocalStorage implements the Storage interface using the local filesystem.
@@ -17,7 +19,52 @@ type LocalStorage struct {
 // NewLocalStorage creates a new LocalStorage instance.
 // The basePath is the root directory where all files will be stored.
 func NewLocalStorage(basePath string) *LocalStorage {
-	return &LocalStorage{basePath: basePath}
+	absBase, err := filepath.Abs(basePath)
+	if err != nil {
+		absBase = filepath.Clean(basePath)
+	}
+	return &LocalStorage{basePath: absBase}
+}
+
+func (s *LocalStorage) resolveKey(key string) (string, error) {
+	if key == "" {
+		return "", ErrInvalidKey
+	}
+
+	normalized := strings.ReplaceAll(key, "\\", "/")
+	cleanKey := path.Clean(normalized)
+
+	if cleanKey == "." || cleanKey == "/" || cleanKey == "" || cleanKey == ".." || strings.HasPrefix(cleanKey, "../") {
+		return "", ErrInvalidKey
+	}
+	if strings.HasPrefix(cleanKey, "/") {
+		return "", ErrInvalidKey
+	}
+	if len(cleanKey) > 1 && cleanKey[1] == ':' {
+		return "", ErrInvalidKey
+	}
+
+	// Convert to OS-specific separators for final path construction.
+	osKey := filepath.FromSlash(cleanKey)
+	if filepath.IsAbs(osKey) || filepath.VolumeName(osKey) != "" {
+		return "", ErrInvalidKey
+	}
+
+	cleanKey = filepath.Clean(osKey)
+
+	fullPath := filepath.Join(s.basePath, cleanKey)
+	fullPath = filepath.Clean(fullPath)
+
+	basePrefix := s.basePath
+	if !strings.HasSuffix(basePrefix, string(os.PathSeparator)) {
+		basePrefix += string(os.PathSeparator)
+	}
+
+	if !strings.HasPrefix(fullPath, basePrefix) {
+		return "", ErrInvalidKey
+	}
+
+	return fullPath, nil
 }
 
 // Put stores data from reader at {basePath}/{key}.
@@ -28,7 +75,10 @@ func (s *LocalStorage) Put(ctx context.Context, key string, reader io.Reader, si
 		return err
 	}
 
-	fullPath := filepath.Join(s.basePath, key)
+	fullPath, err := s.resolveKey(key)
+	if err != nil {
+		return err
+	}
 	dir := filepath.Dir(fullPath)
 
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -59,7 +109,10 @@ func (s *LocalStorage) Get(ctx context.Context, key string) (io.ReadCloser, erro
 		return nil, err
 	}
 
-	fullPath := filepath.Join(s.basePath, key)
+	fullPath, err := s.resolveKey(key)
+	if err != nil {
+		return nil, err
+	}
 
 	file, err := os.Open(fullPath)
 	if err != nil {
@@ -79,9 +132,12 @@ func (s *LocalStorage) Delete(ctx context.Context, key string) error {
 		return err
 	}
 
-	fullPath := filepath.Join(s.basePath, key)
+	fullPath, err := s.resolveKey(key)
+	if err != nil {
+		return err
+	}
 
-	err := os.Remove(fullPath)
+	err = os.Remove(fullPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return ErrNotFound
@@ -98,9 +154,12 @@ func (s *LocalStorage) Exists(ctx context.Context, key string) (bool, error) {
 		return false, err
 	}
 
-	fullPath := filepath.Join(s.basePath, key)
+	fullPath, err := s.resolveKey(key)
+	if err != nil {
+		return false, err
+	}
 
-	_, err := os.Stat(fullPath)
+	_, err = os.Stat(fullPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil

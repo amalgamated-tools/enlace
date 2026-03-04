@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -16,6 +17,9 @@ import (
 
 // ErrFileNotFound is returned when a requested file does not exist.
 var ErrFileNotFound = errors.New("file not found")
+
+// ErrInvalidFilename is returned when an uploaded filename is not valid.
+var ErrInvalidFilename = errors.New("invalid filename")
 
 // FileService handles file-related business logic.
 type FileService struct {
@@ -60,11 +64,16 @@ func (s *FileService) Upload(ctx context.Context, input UploadInput) (*model.Fil
 	// Generate file ID
 	fileID := uuid.NewString()
 
+	filename, err := sanitizeFilename(input.Filename)
+	if err != nil {
+		return nil, err
+	}
+
 	// Detect MIME type from file extension
-	mimeType := detectMimeType(input.Filename)
+	mimeType := detectMimeType(filename)
 
 	// Create storage key: {shareID}/{fileID}/{filename}
-	storageKey := input.ShareID + "/" + fileID + "/" + input.Filename
+	storageKey := path.Join(input.ShareID, fileID, filename)
 
 	// Store the file
 	if err := s.storage.Put(ctx, storageKey, input.Content, input.Size, mimeType); err != nil {
@@ -81,7 +90,7 @@ func (s *FileService) Upload(ctx context.Context, input UploadInput) (*model.Fil
 		ID:         fileID,
 		ShareID:    input.ShareID,
 		UploaderID: uploaderID,
-		Name:       input.Filename,
+		Name:       filename,
 		Size:       input.Size,
 		MimeType:   mimeType,
 		StorageKey: storageKey,
@@ -163,6 +172,21 @@ func (s *FileService) GetContent(ctx context.Context, id string) (io.ReadCloser,
 // Returns true for: images (jpeg, png, gif, svg, webp), PDF, and text files.
 func (s *FileService) IsPreviewable(file *model.File) bool {
 	return isPreviewableMimeType(file.MimeType)
+}
+
+func sanitizeFilename(name string) (string, error) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return "", ErrInvalidFilename
+	}
+
+	normalized := strings.ReplaceAll(trimmed, "\\", "/")
+	base := path.Base(normalized)
+	if base == "." || base == "/" || base == "" || base == ".." {
+		return "", ErrInvalidFilename
+	}
+
+	return base, nil
 }
 
 // detectMimeType determines the MIME type based on file extension.
