@@ -483,6 +483,8 @@ Returns the current storage configuration after the update (same shape as `GET`)
 | `is_reverse_share` | bool | | Allow others to upload files to this share |
 | `recipients` | array of strings | | Email addresses to notify immediately (requires SMTP to be configured) |
 
+Returns HTTP 201 on success. Returns HTTP 409 if the specified `slug` is already taken by another share.
+
 **`GET /api/v1/shares/{id}`** — retrieve a single share by ID. Returns the share object. Returns HTTP 404 if the share does not exist or is owned by another user.
 
 **`PATCH /api/v1/shares/{id}`** — update a share you own. All fields are optional; omitted fields are left unchanged.
@@ -560,6 +562,8 @@ File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
 ### Public share endpoints
 
 The following endpoints are publicly accessible (no authentication) and are used to view and interact with shares via their slug.
+
+> **HTTP 410 Gone:** All public share endpoints return HTTP 410 when the share has **expired** (`expires_at` is in the past), the **download limit** has been reached (`download_count >= max_downloads`), or the **view limit** has been reached (`view_count >= max_views`). Clients should handle 410 as a terminal "share no longer accessible" state distinct from 404 (share does not exist).
 
 **`GET /s/{slug}`** — retrieve a share's metadata and file list.
 
