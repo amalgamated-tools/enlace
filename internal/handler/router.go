@@ -114,13 +114,15 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 	// Rate limiters
 	tfaRateLimiter := intMiddleware.TFAVerifyRateLimiter()
+	loginRateLimiter := intMiddleware.LoginRateLimiter()
+	registerRateLimiter := intMiddleware.RegisterRateLimiter()
 
 	// API v1 routes
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth routes (public)
 		r.Route("/auth", func(r chi.Router) {
-			r.Post("/register", authHandler.Register)
-			r.Post("/login", authHandler.Login)
+			r.With(registerRateLimiter.Limit).Post("/register", authHandler.Register)
+			r.With(loginRateLimiter.Limit).Post("/login", authHandler.Login)
 			r.Post("/refresh", authHandler.Refresh)
 			r.Post("/logout", authHandler.Logout)
 
