@@ -98,14 +98,15 @@ type shareResponse struct {
 
 // List handles GET /api/v1/shares - lists all shares for the authenticated user.
 //
-//	@Summary	List shares
-//	@Tags		shares
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Success	200	{object}	APIResponse{data=[]shareResponse}
-//	@Failure	401	{object}	APIResponse
-//	@Failure	500	{object}	APIResponse
-//	@Router		/api/v1/shares [get]
+//	@Summary		List shares
+//	@Description	Returns all shares created by the current user.
+//	@Tags			shares
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	APIResponse{data=[]shareResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/shares [get]
 func (h *ShareHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -130,8 +131,9 @@ func (h *ShareHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Create handles POST /api/v1/shares - creates a new share.
 //
-//	@Summary	Create a share
-//	@Tags		shares
+//	@Summary		Create a share
+//	@Description	Creates a new share. When recipients are supplied, notification emails are sent immediately on creation.
+//	@Tags			shares
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth
@@ -226,8 +228,9 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/shares/{id} - retrieves a specific share.
 //
-//	@Summary	Get a share
-//	@Tags		shares
+//	@Summary		Get a share
+//	@Description	Returns full details of a share owned by the current user. Returns 404 for shares that do not exist or are not owned by the requester.
+//	@Tags			shares
 //	@Produce	json
 //	@Security	BearerAuth
 //	@Param		id	path		string	true	"Share ID (UUID)"
@@ -271,8 +274,9 @@ func (h *ShareHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PATCH /api/v1/shares/{id} - updates an existing share.
 //
-//	@Summary	Update a share
-//	@Tags		shares
+//	@Summary		Update a share
+//	@Description	Updates one or more fields of an existing share. Only the share owner may call this endpoint.
+//	@Tags			shares
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth
@@ -368,8 +372,9 @@ func (h *ShareHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/shares/{id} - deletes a share.
 //
-//	@Summary	Delete a share
-//	@Tags		shares
+//	@Summary		Delete a share
+//	@Description	Permanently deletes a share and all its associated files. Only the share owner may call this endpoint.
+//	@Tags			shares
 //	@Produce	json
 //	@Security	BearerAuth
 //	@Param		id	path		string	true	"Share ID (UUID)"
@@ -564,8 +569,9 @@ func validateEmail(email string) bool {
 
 // SendNotification handles POST /api/v1/shares/{id}/notify - sends email notifications for a share.
 //
-//	@Summary	Send share notification emails
-//	@Tags		shares
+//	@Summary		Send share notification emails
+//	@Description	Sends or resends share notification emails to the specified recipients and records each delivery.
+//	@Tags			shares
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth
@@ -646,8 +652,9 @@ func (h *ShareHandler) SendNotification(w http.ResponseWriter, r *http.Request) 
 
 // ListRecipients handles GET /api/v1/shares/{id}/recipients - lists notification recipients for a share.
 //
-//	@Summary	List share notification recipients
-//	@Tags		shares
+//	@Summary		List share notification recipients
+//	@Description	Returns the list of email addresses that have been notified about this share, along with their delivery timestamps.
+//	@Tags			shares
 //	@Produce	json
 //	@Security	BearerAuth
 //	@Param		id	path		string	true	"Share ID (UUID)"

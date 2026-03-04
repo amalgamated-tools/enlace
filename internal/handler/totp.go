@@ -117,8 +117,9 @@ type totpRecoveryRequest struct {
 
 // GetStatus handles GET /api/v1/me/2fa/status - returns the user's 2FA status.
 //
-//	@Summary	Get 2FA status
-//	@Tags		2fa
+//	@Summary		Get 2FA status
+//	@Description	Returns the current user's 2FA enrollment status and whether the administrator has required 2FA.
+//	@Tags			2fa
 //	@Produce	json
 //	@Security	BearerAuth
 //	@Success	200	{object}	APIResponse{data=totpStatusResponse}

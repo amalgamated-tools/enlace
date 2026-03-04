@@ -80,8 +80,9 @@ type oidcConfigResponse struct {
 
 // Config returns OIDC configuration for the frontend.
 //
-//	@Summary	Get OIDC configuration
-//	@Tags		oidc
+//	@Summary		Get OIDC configuration
+//	@Description	Returns whether OIDC/SSO login is enabled for this Enlace instance.
+//	@Tags			oidc
 //	@Produce	json
 //	@Success	200	{object}	APIResponse{data=oidcConfigResponse}
 //	@Router		/api/v1/auth/oidc/config [get]
@@ -92,8 +93,9 @@ func (h *OIDCHandler) Config(w http.ResponseWriter, r *http.Request) {
 
 // Login initiates the OIDC login flow.
 //
-//	@Summary	Start OIDC login
-//	@Tags		oidc
+//	@Summary		Start OIDC login
+//	@Description	Initiates the OIDC authorization code flow with PKCE. Redirects the browser to the configured identity provider.
+//	@Tags			oidc
 //	@Success	302	{string}	string	"Redirects to OIDC provider"
 //	@Failure	404	{object}	APIResponse
 //	@Failure	500	{object}	APIResponse
@@ -141,8 +143,9 @@ func (h *OIDCHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 // Callback handles the OIDC provider callback.
 //
-//	@Summary	OIDC callback
-//	@Tags		oidc
+//	@Summary		OIDC callback
+//	@Description	Handles the OAuth 2.0 authorization code callback. Verifies state, exchanges the code for tokens, and redirects to the frontend with JWT tokens or an error fragment.
+//	@Tags			oidc
 //	@Param		code	query		string	true	"Authorization code"
 //	@Param		state	query		string	true	"State parameter"
 //	@Success	302		{string}	string	"Redirects to frontend with tokens"
@@ -221,8 +224,9 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 // Link initiates the OIDC account linking flow.
 //
-//	@Summary	Start OIDC account linking
-//	@Tags		oidc
+//	@Summary		Start OIDC account linking
+//	@Description	Initiates the OIDC authorization code flow to link an external identity to the current user account.
+//	@Tags			oidc
 //	@Security	BearerAuth
 //	@Success	302	{string}	string	"Redirects to OIDC provider"
 //	@Failure	401	{object}	APIResponse
@@ -287,8 +291,9 @@ func (h *OIDCHandler) Link(w http.ResponseWriter, r *http.Request) {
 
 // LinkCallback handles the OIDC account linking callback.
 //
-//	@Summary	OIDC link callback
-//	@Tags		oidc
+//	@Summary		OIDC link callback
+//	@Description	Handles the OAuth 2.0 callback for account linking. Verifies state, exchanges the code, and links the OIDC identity to the current user account.
+//	@Tags			oidc
 //	@Param		code	query		string	true	"Authorization code"
 //	@Param		state	query		string	true	"State parameter"
 //	@Success	302		{string}	string	"Redirects to settings"
@@ -358,8 +363,9 @@ func (h *OIDCHandler) LinkCallback(w http.ResponseWriter, r *http.Request) {
 
 // Unlink removes OIDC from the user's account.
 //
-//	@Summary	Unlink OIDC account
-//	@Tags		oidc
+//	@Summary		Unlink OIDC account
+//	@Description	Removes the OIDC identity link from the current user account. Requires that the account has a local password set.
+//	@Tags			oidc
 //	@Produce	json
 //	@Security	BearerAuth
 //	@Success	200	{object}	APIResponse

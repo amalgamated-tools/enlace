@@ -590,7 +590,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Invalidates the current session. Since Enlace uses stateless JWTs, this endpoint always succeeds and the client is responsible for discarding the tokens."
             }
         },
         "/api/v1/auth/oidc/callback": {
@@ -622,7 +623,8 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
-                }
+                },
+                "description": "Handles the OAuth 2.0 authorization code callback. Verifies state, exchanges the code for tokens, and redirects to the frontend with JWT tokens or an error fragment."
             }
         },
         "/api/v1/auth/oidc/config": {
@@ -653,7 +655,8 @@ const docTemplate = `{
                             ]
                         }
                     }
-                }
+                },
+                "description": "Returns whether OIDC/SSO login is enabled for this Enlace instance."
             }
         },
         "/api/v1/auth/oidc/login": {
@@ -681,7 +684,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Initiates the OIDC authorization code flow with PKCE. Redirects the browser to the configured identity provider."
             }
         },
         "/api/v1/auth/refresh": {
@@ -744,7 +748,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Exchanges a valid refresh token for a new access token and refresh token pair."
             }
         },
         "/api/v1/auth/register": {
@@ -807,7 +812,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Creates a new user account. Email must be a valid address format and password must be at least 8 characters."
             }
         },
         "/api/v1/files/{id}": {
@@ -858,7 +864,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Permanently deletes a file. Only the owner of the share containing this file may delete it."
             }
         },
         "/api/v1/me": {
@@ -912,7 +919,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Returns the current user's profile including email, display name, admin status, and 2FA/OIDC enrollment state."
             },
             "patch": {
                 "security": [
@@ -984,7 +992,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Updates the current user's display name and/or email address. At least one field must be provided."
             }
         },
         "/api/v1/me/2fa/confirm": {
@@ -1288,7 +1297,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Returns the current user's 2FA enrollment status and whether the administrator has required 2FA."
             }
         },
         "/api/v1/me/oidc": {
@@ -1330,7 +1340,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Removes the OIDC identity link from the current user account. Requires that the account has a local password set."
             }
         },
         "/api/v1/me/oidc/callback": {
@@ -1362,7 +1373,8 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
-                }
+                },
+                "description": "Handles the OAuth 2.0 callback for account linking. Verifies state, exchanges the code, and links the OIDC identity to the current user account."
             }
         },
         "/api/v1/me/oidc/link": {
@@ -1401,7 +1413,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Initiates the OIDC authorization code flow to link an external identity to the current user account."
             }
         },
         "/api/v1/me/password": {
@@ -1457,7 +1470,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Changes the current user's password. Requires the existing password for verification."
             }
         },
         "/api/v1/shares": {
@@ -1508,7 +1522,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Returns all shares created by the current user."
             },
             "post": {
                 "security": [
@@ -1580,7 +1595,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Creates a new share. When recipients are supplied, notification emails are sent immediately on creation."
             }
         },
         "/api/v1/shares/{id}": {
@@ -1643,7 +1659,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Returns full details of a share owned by the current user. Returns 404 for shares that do not exist or are not owned by the requester."
             },
             "delete": {
                 "security": [
@@ -1692,7 +1709,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Permanently deletes a share and all its associated files. Only the share owner may call this endpoint."
             },
             "patch": {
                 "security": [
@@ -1771,7 +1789,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Updates one or more fields of an existing share. Only the share owner may call this endpoint."
             }
         },
         "/api/v1/shares/{id}/files": {
@@ -1837,7 +1856,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Returns all files attached to a share owned by the current user."
             },
             "post": {
                 "security": [
@@ -1917,7 +1937,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Uploads one or more files to a share using multipart/form-data. Only the share owner may upload files."
             }
         },
         "/api/v1/shares/{id}/notify": {
@@ -1986,7 +2007,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Sends or resends share notification emails to the specified recipients and records each delivery."
             }
         },
         "/api/v1/shares/{id}/recipients": {
@@ -2052,7 +2074,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Returns the list of email addresses that have been notified about this share, along with their delivery timestamps."
             }
         },
         "/health": {
@@ -2071,7 +2094,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                }
+                },
+                "description": "Returns the application health status. Used by load balancers and container orchestrators to verify the service is running."
             }
         },
         "/s/{slug}": {
