@@ -55,14 +55,16 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+<div
+  class="min-h-screen bg-surface-subtle flex items-center justify-center px-4"
+>
   <div class="w-full max-w-sm">
     <div class="text-center mb-8">
-      <h1 class="text-2xl font-semibold text-slate-900">enlace</h1>
-      <p class="text-sm text-slate-500 mt-1">Create a new account</p>
+      <h1 class="text-2xl font-semibold text-text">enlace</h1>
+      <p class="text-sm text-muted mt-1">Create a new account</p>
     </div>
 
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+    <div class="bg-surface rounded-xl border border-border shadow-sm p-8">
       <form on:submit={handleSubmit} class="space-y-5">
         <Input
           type="text"
@@ -110,10 +112,9 @@
       </form>
     </div>
 
-    <p class="mt-6 text-center text-sm text-slate-500">
+    <p class="mt-6 text-center text-sm text-muted">
       Already have an account?
-      <a href="#/login" class="text-slate-900 font-medium hover:underline"
-        >Sign in</a
+      <a href="#/login" class="text-text font-medium hover:underline">Sign in</a
       >
     </p>
   </div>
