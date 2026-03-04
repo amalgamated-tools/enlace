@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -135,7 +136,8 @@ func TestRateLimiter_DifferentIPsHaveSeparateLimits(t *testing.T) {
 }
 
 func TestRateLimiter_ExtractsIPFromXForwardedFor(t *testing.T) {
-	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1)
+	// Trust 127.0.0.1 so the forwarded header is honoured.
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1, "127.0.0.1/32")
 	defer rl.Stop()
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -144,9 +146,9 @@ func TestRateLimiter_ExtractsIPFromXForwardedFor(t *testing.T) {
 
 	handler := rl.Limit(testHandler)
 
-	// Request with X-Forwarded-For header
+	// Request with X-Forwarded-For header from a trusted proxy
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.RemoteAddr = "127.0.0.1:12345" // Local proxy
+	req.RemoteAddr = "127.0.0.1:12345" // trusted proxy
 	req.Header.Set("X-Forwarded-For", "203.0.113.195, 70.41.3.18, 150.172.238.178")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -168,7 +170,8 @@ func TestRateLimiter_ExtractsIPFromXForwardedFor(t *testing.T) {
 }
 
 func TestRateLimiter_ExtractsIPFromXRealIP(t *testing.T) {
-	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1)
+	// Trust 127.0.0.1 so the X-Real-IP header is honoured.
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1, "127.0.0.1/32")
 	defer rl.Stop()
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -177,7 +180,7 @@ func TestRateLimiter_ExtractsIPFromXRealIP(t *testing.T) {
 
 	handler := rl.Limit(testHandler)
 
-	// Request with X-Real-IP header
+	// Request with X-Real-IP header from a trusted proxy
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.RemoteAddr = "127.0.0.1:12345"
 	req.Header.Set("X-Real-IP", "203.0.113.195")
@@ -201,7 +204,8 @@ func TestRateLimiter_ExtractsIPFromXRealIP(t *testing.T) {
 }
 
 func TestRateLimiter_XForwardedForTakesPrecedence(t *testing.T) {
-	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1)
+	// Trust 127.0.0.1 so forwarded headers are honoured.
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1, "127.0.0.1/32")
 	defer rl.Stop()
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -497,7 +501,8 @@ func TestRateLimiter_EmptyXForwardedFor(t *testing.T) {
 }
 
 func TestRateLimiter_SingleIPInXForwardedFor(t *testing.T) {
-	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1)
+	// Trust 127.0.0.1 so the forwarded header is honoured.
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1, "127.0.0.1/32")
 	defer rl.Stop()
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -553,5 +558,145 @@ func TestRateLimiter_ChainWithOtherMiddleware(t *testing.T) {
 	// Logging middleware should have been called for each request
 	if logCalls != 3 {
 		t.Errorf("expected logging middleware to be called 3 times, got %d", logCalls)
+	}
+}
+
+// TestRateLimiter_IgnoresSpoofedHeadersFromUntrustedProxy verifies that a client
+// connecting directly (not through a trusted proxy) cannot spoof X-Forwarded-For or
+// X-Real-IP to evade rate limiting.
+func TestRateLimiter_IgnoresSpoofedHeadersFromUntrustedProxy(t *testing.T) {
+	// No trusted proxies configured: headers are never trusted.
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1)
+	defer rl.Stop()
+
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := rl.Limit(testHandler)
+
+	// Client spoofs X-Forwarded-For to appear as a different IP on each request.
+	// Without trusted-proxy validation the rate limiter would use the spoofed IP,
+	// allowing the client to bypass the limit. With the fix it must use RemoteAddr.
+	for i := 0; i < 3; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = "203.0.113.50:9000" // same real client every time
+		// Rotate the spoofed IP to try to get a fresh bucket each request.
+		req.Header.Set("X-Forwarded-For", fmt.Sprintf("10.0.0.%d", i+1))
+		req.Header.Set("X-Real-IP", fmt.Sprintf("10.0.0.%d", i+1))
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if i == 0 {
+			if rec.Code != http.StatusOK {
+				t.Errorf("first request: expected status %d, got %d", http.StatusOK, rec.Code)
+			}
+		} else {
+			// All subsequent requests must be blocked because RemoteAddr is the key.
+			if rec.Code != http.StatusTooManyRequests {
+				t.Errorf("request %d: expected status %d, got %d (header spoofing should be ignored)",
+					i+1, http.StatusTooManyRequests, rec.Code)
+			}
+		}
+	}
+}
+
+// TestRateLimiter_TrustedProxyCIDRRange verifies that a limiter configured with
+// a CIDR range trusts headers from any address inside that range.
+func TestRateLimiter_TrustedProxyCIDRRange(t *testing.T) {
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1, "10.0.0.0/8")
+	defer rl.Stop()
+
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := rl.Limit(testHandler)
+
+	// Proxy at 10.1.2.3 is inside the trusted CIDR — header should be honoured.
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "10.1.2.3:8080"
+	req.Header.Set("X-Forwarded-For", "203.0.113.77")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("first request: expected %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	// Same client IP from the same trusted proxy — should be rate-limited.
+	req2 := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req2.RemoteAddr = "10.1.2.3:8081"
+	req2.Header.Set("X-Forwarded-For", "203.0.113.77")
+	rec2 := httptest.NewRecorder()
+	handler.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusTooManyRequests {
+		t.Errorf("second request: expected %d, got %d", http.StatusTooManyRequests, rec2.Code)
+	}
+}
+
+// TestRateLimiter_UntrustedProxyHeaderIgnored verifies that a request arriving from
+// outside the trusted-proxy CIDR list is rate-limited by its own RemoteAddr even
+// when it sets X-Forwarded-For.
+func TestRateLimiter_UntrustedProxyHeaderIgnored(t *testing.T) {
+	// Only trust the 10.0.0.0/8 range.
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1, "10.0.0.0/8")
+	defer rl.Stop()
+
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := rl.Limit(testHandler)
+
+	// Requests come from 203.0.113.50 — outside trusted range.
+	// They supply different X-Forwarded-For values to try to evade the limiter.
+	makeReq := func(xff string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = "203.0.113.50:1234"
+		req.Header.Set("X-Forwarded-For", xff)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := makeReq("1.2.3.4"); rec.Code != http.StatusOK {
+		t.Errorf("first request: expected %d, got %d", http.StatusOK, rec.Code)
+	}
+	// Header changes, but RemoteAddr is the same — must still be blocked.
+	if rec := makeReq("5.6.7.8"); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("second request (different XFF, same RemoteAddr): expected %d, got %d",
+			http.StatusTooManyRequests, rec.Code)
+	}
+}
+
+// TestRateLimiter_RemoteAddrNormalization verifies that two connections from the same
+// IP but different source ports are treated as the same visitor.
+func TestRateLimiter_RemoteAddrNormalization(t *testing.T) {
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1)
+	defer rl.Stop()
+
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := rl.Limit(testHandler)
+
+	// First connection from 192.0.2.1 — port 1111.
+	req1 := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req1.RemoteAddr = "192.0.2.1:1111"
+	rec1 := httptest.NewRecorder()
+	handler.ServeHTTP(rec1, req1)
+	if rec1.Code != http.StatusOK {
+		t.Errorf("first request: expected %d, got %d", http.StatusOK, rec1.Code)
+	}
+
+	// Second connection from 192.0.2.1 — different port, same IP; must be blocked.
+	req2 := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req2.RemoteAddr = "192.0.2.1:2222"
+	rec2 := httptest.NewRecorder()
+	handler.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusTooManyRequests {
+		t.Errorf("second request (different port, same IP): expected %d, got %d",
+			http.StatusTooManyRequests, rec2.Code)
 	}
 }
