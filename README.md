@@ -20,7 +20,6 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 ```bash
 docker run -d \
   -p 8080:8080 \
-  -e JWT_SECRET=change-me \
   -v enlace-db:/app/data \
   -v enlace-uploads:/app/uploads \
   enlace:latest
@@ -45,7 +44,6 @@ All settings are read from environment variables (or a `.env` file when running 
 |---|---|---|
 | `PORT` | `8080` | HTTP port the server listens on |
 | `DATABASE_PATH` | `./enlace.db` | Path to the SQLite database file |
-| `JWT_SECRET` | *(required)* | Secret used to sign JWT tokens |
 | `BASE_URL` | `http://localhost:8080` | Public base URL (used in share links) |
 
 ### Storage
@@ -94,7 +92,7 @@ Enlace collects **opt-in, anonymous** telemetry to help improve the project. Tel
 |---|---|---|
 | `TELEMETRY_ENABLED` | `false` | Set to `true` to enable anonymous telemetry |
 | `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Endpoint that receives the telemetry ping (override for self-hosted collection) |
-| `DATA_DIR` | `./data` | Directory used to store the install ID file that prevents duplicate telemetry pings |
+| `DATA_DIR` | `./data` | Directory for persistent runtime state: the auto-generated JWT signing secret and the telemetry install ID. **Security-sensitive** — losing or changing this directory will invalidate all existing JWT tokens (logging out every user) and trigger a new telemetry ping |
 
 ### API & CORS
 

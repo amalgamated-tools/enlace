@@ -1,7 +1,9 @@
 package config_test
 
 import (
+	"encoding/base64"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/amalgamated-tools/enlace/internal/config"
@@ -23,19 +25,14 @@ func TestLoad_Defaults(t *testing.T) {
 
 func TestLoad_FromEnv(t *testing.T) {
 	os.Setenv("PORT", "9000")
-	os.Setenv("JWT_SECRET", "testsecret")
 	defer func() {
 		os.Unsetenv("PORT")
-		os.Unsetenv("JWT_SECRET")
 	}()
 
 	cfg := config.Load()
 
 	if cfg.Port != 9000 {
 		t.Errorf("expected port 9000, got %d", cfg.Port)
-	}
-	if cfg.JWTSecret != "testsecret" {
-		t.Errorf("expected JWT secret testsecret, got %s", cfg.JWTSecret)
 	}
 }
 
@@ -80,5 +77,64 @@ func TestLoad_OIDCDefaults(t *testing.T) {
 	}
 	if cfg.OIDCScopes != "openid email profile" {
 		t.Errorf("expected default scopes 'openid email profile', got %s", cfg.OIDCScopes)
+	}
+}
+
+func TestLoad_JWTSecret_GeneratesAndPersists(t *testing.T) {
+	dataDir := t.TempDir()
+	t.Setenv("DATA_DIR", dataDir)
+
+	cfg := config.Load()
+
+	if cfg.JWTSecret == "" {
+		t.Fatal("expected a non-empty JWT secret")
+	}
+
+	// Verify the secret is valid base64url with 256 bits (32 bytes) of entropy
+	decoded, err := base64.RawURLEncoding.DecodeString(cfg.JWTSecret)
+	if err != nil {
+		t.Fatalf("JWT secret is not valid base64url: %v", err)
+	}
+	if len(decoded) != 32 {
+		t.Errorf("expected 32 bytes of key material, got %d", len(decoded))
+	}
+
+	// Verify the secret was persisted to disk
+	secretPath := filepath.Join(dataDir, "jwt_secret")
+	written, err := os.ReadFile(secretPath)
+	if err != nil {
+		t.Fatalf("expected jwt_secret file to exist: %v", err)
+	}
+	if string(written) != cfg.JWTSecret {
+		t.Errorf("persisted secret %q does not match loaded secret %q", string(written), cfg.JWTSecret)
+	}
+}
+
+func TestLoad_JWTSecret_ReadsExistingFile(t *testing.T) {
+	dataDir := t.TempDir()
+	t.Setenv("DATA_DIR", dataDir)
+
+	existingSecret := "my-pre-existing-secret-value"
+	secretPath := filepath.Join(dataDir, "jwt_secret")
+	if err := os.WriteFile(secretPath, []byte(existingSecret), 0600); err != nil {
+		t.Fatalf("failed to write test secret file: %v", err)
+	}
+
+	cfg := config.Load()
+
+	if cfg.JWTSecret != existingSecret {
+		t.Errorf("expected JWT secret %q, got %q", existingSecret, cfg.JWTSecret)
+	}
+}
+
+func TestLoad_JWTSecret_StableAcrossCalls(t *testing.T) {
+	dataDir := t.TempDir()
+	t.Setenv("DATA_DIR", dataDir)
+
+	cfg1 := config.Load()
+	cfg2 := config.Load()
+
+	if cfg1.JWTSecret != cfg2.JWTSecret {
+		t.Errorf("JWT secret changed between Load() calls: %q vs %q", cfg1.JWTSecret, cfg2.JWTSecret)
 	}
 }

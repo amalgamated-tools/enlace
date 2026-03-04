@@ -15,11 +15,11 @@ build-backend:
 
 # Run the application locally
 run: build
-	JWT_SECRET=dev-secret ./enlace
+	./enlace
 
 # Run backend only (assumes frontend is already built)
 run-backend:
-	JWT_SECRET=dev-secret go run ./cmd/enlace
+	go run ./cmd/enlace
 
 # Live reload development (air + pnpm dev via Procfile.dev)
 dev: frontend-install
@@ -61,7 +61,7 @@ docker-build:
 
 # Run Docker container
 docker-run:
-	docker run -p 8080:8080 -e JWT_SECRET=dev-secret enlace:latest
+	docker run -p 8080:8080 enlace:latest
 
 # Run with docker-compose
 docker-up:

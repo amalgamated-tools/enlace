@@ -74,11 +74,6 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	}
 	slog.Info("enlace", slog.String("version", version))
 	cfg := config.Load()
-
-	// Validate required config
-	if cfg.JWTSecret == "" {
-		return fmt.Errorf("JWT_SECRET environment variable is required")
-	}
 	slog.DebugContext(cancelCtx, "configuration loaded", slog.Any("config", cfg))
 
 	// Initialize database
