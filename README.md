@@ -646,6 +646,95 @@ make docker-run     # run the image locally
 
 The `Dockerfile` uses a multi-stage build: Node 22 compiles the Svelte frontend, then Go embeds the compiled assets and produces a minimal final image.
 
+## Deploying Behind a Reverse Proxy
+
+Enlace is commonly deployed behind a reverse proxy to terminate TLS and serve traffic on port 443. Regardless of which proxy you use, always set `BASE_URL` to the public-facing HTTPS URL so that share links, OIDC redirects, and CORS are generated correctly.
+
+### Important headers
+
+Your proxy must forward these headers so Enlace can reconstruct the correct public URL:
+
+| Header | Purpose |
+|---|---|
+| `X-Forwarded-For` | Original client IP address (used by rate limiting) |
+| `X-Forwarded-Proto` | Original scheme (`https`); enables secure cookie flags |
+| `Host` | Original hostname |
+
+### Nginx
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name enlace.example.com;
+
+    # TLS configuration (replace with your cert paths or use certbot)
+    ssl_certificate     /etc/letsencrypt/live/enlace.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/enlace.example.com/privkey.pem;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Allow large file uploads; tune to your needs
+        client_max_body_size 512m;
+        proxy_read_timeout   300s;
+        proxy_send_timeout   300s;
+    }
+}
+```
+
+### Caddy
+
+```caddyfile
+enlace.example.com {
+    reverse_proxy 127.0.0.1:8080
+
+    # Caddy automatically provisions and renews TLS certificates.
+    # Large uploads may need a longer timeout:
+    # request_body {
+    #     max_size 512MB
+    # }
+}
+```
+
+Caddy sets `X-Forwarded-For` and `X-Forwarded-Proto` automatically.
+
+### Traefik (Docker labels)
+
+```yaml
+services:
+  enlace:
+    image: enlace:latest
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.enlace.rule=Host(`enlace.example.com`)"
+      - "traefik.http.routers.enlace.entrypoints=websecure"
+      - "traefik.http.routers.enlace.tls.certresolver=letsencrypt"
+      - "traefik.http.services.enlace.loadbalancer.server.port=8080"
+    environment:
+      - BASE_URL=https://enlace.example.com
+      - JWT_SECRET=change-me
+    volumes:
+      - enlace-db:/app/data
+      - enlace-uploads:/app/uploads
+```
+
+Traefik automatically passes `X-Forwarded-For` and `X-Forwarded-Proto` headers when using the built-in `web` and `websecure` entrypoints.
+
+### Environment variables for production
+
+When running behind a reverse proxy, set these variables in addition to the core settings:
+
+| Variable | Example | Notes |
+|---|---|---|
+| `BASE_URL` | `https://enlace.example.com` | Must match the public URL — used in share links and OIDC redirects |
+| `CORS_ORIGINS` | `https://enlace.example.com` | Defaults to `BASE_URL`; set explicitly if you serve the API from a different domain |
+
 ## Project Layout
 
 ```

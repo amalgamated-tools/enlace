@@ -41,10 +41,13 @@ If you want 2FA enforcement for SSO users, configure MFA at the OIDC provider le
 ## General Setup
 
 1. Register Enlace as a client/application in your OIDC provider.
-2. Set the callback/redirect URL to: `https://<your-enlace-domain>/api/v1/auth/oidc/callback`
+2. Add both of the following as allowed callback/redirect URLs in your OIDC provider:
+   - `https://<your-enlace-domain>/api/v1/auth/oidc/callback` — used for sign-in
+   - `https://<your-enlace-domain>/api/v1/me/oidc/callback` — used when linking an OIDC identity from the Settings page
 3. Copy the **Client ID** and **Client Secret** from the provider.
 4. Note the provider's **Issuer URL** (the base URL that serves `/.well-known/openid-configuration`).
-5. Configure the environment variables and restart Enlace.
+5. Set `OIDC_REDIRECT_URL` to the **sign-in** callback (`/api/v1/auth/oidc/callback`).
+6. Configure the remaining environment variables and restart Enlace.
 
 ### Example `.env`
 
@@ -86,7 +89,9 @@ volumes:
 1. Log in to your Pocket ID admin panel.
 2. Navigate to **OIDC Clients** and create a new client.
 3. Set the **Name** to `Enlace` (or any name you prefer).
-4. Set the **Callback URL** to: `https://<your-enlace-domain>/api/v1/auth/oidc/callback`
+4. Add **both** of the following as allowed callback URLs:
+   - `https://<your-enlace-domain>/api/v1/auth/oidc/callback`
+   - `https://<your-enlace-domain>/api/v1/me/oidc/callback`
 5. Copy the **Client ID** and **Client Secret**.
 6. Note the **OIDC Discovery URL** — the issuer URL will be your Pocket ID domain (e.g., `https://auth.example.com`).
 
