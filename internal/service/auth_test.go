@@ -330,11 +330,11 @@ func TestAuthService_RefreshTokens_RejectsUnknownTokenType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			now := time.Now()
 			claims := &jwt.MapClaims{
-				"uid":        user.ID,
-				"adm":        false,
-				"exp":        jwt.NewNumericDate(now.Add(7 * 24 * time.Hour)),
-				"iat":        jwt.NewNumericDate(now),
-				"nbf":        jwt.NewNumericDate(now),
+				"uid": user.ID,
+				"adm": false,
+				"exp": jwt.NewNumericDate(now.Add(7 * 24 * time.Hour)),
+				"iat": jwt.NewNumericDate(now),
+				"nbf": jwt.NewNumericDate(now),
 			}
 			if tt.tokenType != "" {
 				(*claims)["token_type"] = tt.tokenType
