@@ -13,6 +13,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Admin panel** — manage users from the UI
 - **Rate limiting** — IP-based rate limiting middleware. `TFAVerifyRateLimiter` (5 req/min) is applied by default to the 2FA login endpoints; the additional pre-built helpers `LoginRateLimiter` (5 req/min), `RegisterRateLimiter` (3 req/min), and `APIRateLimiter` (60 req/min) in `internal/middleware/ratelimit.go` are available but not wired up by default.
 - **Email notifications** — optionally email share links to recipients via SMTP; resend from the share detail page
+- **Dark mode** — three-way theme toggle (system, light, dark) with preference persisted in the browser
 - **Embeds frontend** — single binary ships the compiled Svelte app
 
 ## Quick Start (Docker)
