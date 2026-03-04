@@ -42,7 +42,7 @@ const (
 	TokenTypeRefresh = "refresh"
 )
 
-// Claims represents the JWT claims for access tokens.
+// Claims represents the JWT claims used for all token types (access, refresh, and pending 2FA).
 type Claims struct {
 	UserID    string `json:"uid"`
 	IsAdmin   bool   `json:"adm"`
