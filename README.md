@@ -187,11 +187,21 @@ Full validation error example:
 
 ### Auth endpoints
 
-**`POST /api/v1/auth/register`**
+**`POST /api/v1/auth/register`** — create a new user account. All fields are required.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | string | ✔ | Email address |
+| `password` | string | ✔ | Password (minimum 8 characters) |
+| `display_name` | string | ✔ | Display name |
+
+Returns HTTP 201 on success with the created user:
 
 ```json
-{ "email": "user@example.com", "password": "secret", "display_name": "Alice" }
+{ "success": true, "data": { "id": "<uuid>", "email": "user@example.com", "display_name": "Alice" } }
 ```
+
+Returns HTTP 409 if the email address is already registered.
 
 **`POST /api/v1/auth/login`** — authenticates the user. Returns `access_token`, `refresh_token`, and `user` on success, or a `pending_token` when 2FA verification is required.
 
