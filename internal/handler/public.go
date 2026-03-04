@@ -374,8 +374,8 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 	}
 	defer func() { _ = content.Close() }()
 
-	// Prevent inline serving of types that can execute script on the app origin.
-	// Force attachment disposition for dangerous MIME types.
+	// Only non-scriptable MIME types are served inline. For scriptable types that could
+	// execute code on the app origin, always force an attachment disposition.
 	if disposition == "inline" && isScriptableMimeType(file.MimeType) {
 		disposition = "attachment"
 	}
