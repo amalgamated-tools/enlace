@@ -59,8 +59,9 @@ var userEmailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z
 
 // GetProfile handles GET /api/v1/me - get current user profile.
 //
-//	@Summary	Get current user profile
-//	@Tags		user
+//	@Summary		Get current user profile
+//	@Description	Returns the current user's profile including email, display name, admin status, and 2FA/OIDC enrollment state.
+//	@Tags			user
 //	@Produce	json
 //	@Security	BearerAuth
 //	@Success	200	{object}	APIResponse{data=profileResponse}
@@ -93,8 +94,9 @@ func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 // UpdateProfile handles PATCH /api/v1/me - update user profile.
 //
-//	@Summary	Update current user profile
-//	@Tags		user
+//	@Summary		Update current user profile
+//	@Description	Updates the current user's display name and/or email address. At least one field must be provided.
+//	@Tags			user
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth
@@ -159,8 +161,9 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 // UpdatePassword handles PUT /api/v1/me/password - change user password.
 //
-//	@Summary	Change password
-//	@Tags		user
+//	@Summary		Change password
+//	@Description	Changes the current user's password. Requires the existing password for verification.
+//	@Tags			user
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth

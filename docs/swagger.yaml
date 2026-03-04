@@ -714,6 +714,9 @@ paths:
       - auth
   /api/v1/auth/logout:
     post:
+      description: Invalidates the current session. Since Enlace uses stateless JWTs, this
+        endpoint always succeeds and the client is responsible for discarding the
+        tokens.
       produces:
       - application/json
       responses:
@@ -726,6 +729,9 @@ paths:
       - auth
   /api/v1/auth/oidc/callback:
     get:
+      description: Handles the OAuth 2.0 authorization code callback. Verifies state, exchanges
+        the code for tokens, and redirects to the frontend with JWT tokens or an error
+        fragment.
       parameters:
       - description: Authorization code
         in: query
@@ -747,6 +753,7 @@ paths:
       - oidc
   /api/v1/auth/oidc/config:
     get:
+      description: Returns whether OIDC/SSO login is enabled for this Enlace instance.
       produces:
       - application/json
       responses:
@@ -764,6 +771,8 @@ paths:
       - oidc
   /api/v1/auth/oidc/login:
     get:
+      description: Initiates the OIDC authorization code flow with PKCE. Redirects the browser to
+        the configured identity provider.
       responses:
         "302":
           description: Redirects to OIDC provider
@@ -782,6 +791,7 @@ paths:
       - oidc
   /api/v1/auth/refresh:
     post:
+      description: Exchanges a valid refresh token for a new access token and refresh token pair.
       consumes:
       - application/json
       parameters:
@@ -820,6 +830,8 @@ paths:
       - auth
   /api/v1/auth/register:
     post:
+      description: Creates a new user account. Email must be a valid address format and password
+        must be at least 8 characters.
       consumes:
       - application/json
       parameters:
@@ -858,6 +870,8 @@ paths:
       - auth
   /api/v1/files/{id}:
     delete:
+      description: Permanently deletes a file. Only the owner of the share containing this file
+        may delete it.
       parameters:
       - description: File ID (UUID)
         in: path
@@ -890,6 +904,8 @@ paths:
       - files
   /api/v1/me:
     get:
+      description: Returns the current user's profile including email, display name, admin status,
+        and 2FA/OIDC enrollment state.
       produces:
       - application/json
       responses:
@@ -920,6 +936,8 @@ paths:
       tags:
       - user
     patch:
+      description: Updates the current user's display name and/or email address. At least one
+        field must be provided.
       consumes:
       - application/json
       parameters:
@@ -1121,6 +1139,8 @@ paths:
       - 2fa
   /api/v1/me/2fa/status:
     get:
+      description: Returns the current user's 2FA enrollment status and whether the administrator
+        has required 2FA.
       produces:
       - application/json
       responses:
@@ -1148,6 +1168,8 @@ paths:
       - 2fa
   /api/v1/me/oidc:
     delete:
+      description: Removes the OIDC identity link from the current user account. Requires that the
+        account has a local password set.
       produces:
       - application/json
       responses:
@@ -1174,6 +1196,8 @@ paths:
       - oidc
   /api/v1/me/oidc/callback:
     get:
+      description: Handles the OAuth 2.0 callback for account linking. Verifies state, exchanges
+        the code, and links the OIDC identity to the current user account.
       parameters:
       - description: Authorization code
         in: query
@@ -1195,6 +1219,8 @@ paths:
       - oidc
   /api/v1/me/oidc/link:
     get:
+      description: Initiates the OIDC authorization code flow to link an external identity to the
+        current user account.
       responses:
         "302":
           description: Redirects to OIDC provider
@@ -1219,6 +1245,8 @@ paths:
       - oidc
   /api/v1/me/password:
     put:
+      description: Changes the current user's password. Requires the existing password for
+        verification.
       consumes:
       - application/json
       parameters:
@@ -1254,6 +1282,7 @@ paths:
       - user
   /api/v1/shares:
     get:
+      description: Returns all shares created by the current user.
       produces:
       - application/json
       responses:
@@ -1282,6 +1311,8 @@ paths:
       tags:
       - shares
     post:
+      description: Creates a new share. When recipients are supplied, notification emails are sent
+        immediately on creation.
       consumes:
       - application/json
       parameters:
@@ -1326,6 +1357,8 @@ paths:
       - shares
   /api/v1/shares/{id}:
     delete:
+      description: Permanently deletes a share and all its associated files. Only the share owner
+        may call this endpoint.
       parameters:
       - description: Share ID (UUID)
         in: path
@@ -1357,6 +1390,8 @@ paths:
       tags:
       - shares
     get:
+      description: Returns full details of a share owned by the current user. Returns 404 for
+        shares that do not exist or are not owned by the requester.
       parameters:
       - description: Share ID (UUID)
         in: path
@@ -1393,6 +1428,8 @@ paths:
       tags:
       - shares
     patch:
+      description: Updates one or more fields of an existing share. Only the share owner may call
+        this endpoint.
       consumes:
       - application/json
       parameters:
@@ -1442,6 +1479,7 @@ paths:
       - shares
   /api/v1/shares/{id}/files:
     get:
+      description: Returns all files attached to a share owned by the current user.
       parameters:
       - description: Share ID (UUID)
         in: path
@@ -1480,6 +1518,8 @@ paths:
       tags:
       - files
     post:
+      description: Uploads one or more files to a share using multipart/form-data. Only the share
+        owner may upload files.
       consumes:
       - multipart/form-data
       parameters:
@@ -1530,6 +1570,8 @@ paths:
       - files
   /api/v1/shares/{id}/notify:
     post:
+      description: Sends or resends share notification emails to the specified recipients and
+        records each delivery.
       consumes:
       - application/json
       parameters:
@@ -1574,6 +1616,8 @@ paths:
       - shares
   /api/v1/shares/{id}/recipients:
     get:
+      description: Returns the list of email addresses that have been notified about this share,
+        along with their delivery timestamps.
       parameters:
       - description: Share ID (UUID)
         in: path
@@ -1613,6 +1657,8 @@ paths:
       - shares
   /health:
     get:
+      description: Returns the application health status. Used by load balancers and container
+        orchestrators to verify the service is running.
       produces:
       - application/json
       responses:
