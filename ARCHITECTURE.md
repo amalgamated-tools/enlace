@@ -54,7 +54,7 @@ The **Storage** layer sits alongside this stack, providing an interface for file
 
 - **Router**: [chi](https://github.com/go-chi/chi) with middleware for CORS, request ID, recovery, and timeouts
 - **Database**: SQLite via [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) (pure Go, no CGO)
-- **Authentication**: JWT access tokens (15-min expiry) + refresh tokens (7-day expiry), bcrypt password hashing
+- **Authentication**: JWT access tokens (15-min expiry) + refresh tokens (7-day expiry), bcrypt password hashing; the JWT signing secret is auto-generated on first run and persisted to `DATA_DIR/jwt_secret` (never user-configurable)
 - **OIDC/SSO**: Optional OpenID Connect via [go-oidc](https://github.com/coreos/go-oidc)
 - **2FA**: Optional TOTP with QR code setup and recovery codes
 - **Storage**: Local filesystem or any S3-compatible backend (AWS, MinIO, RustFS)
@@ -63,7 +63,7 @@ The **Storage** layer sits alongside this stack, providing an interface for file
 
 ### Configuration
 
-All configuration is done through environment variables. See `.env.sample` for the full list. Key settings include storage backend selection, OIDC provider details, SMTP credentials, and 2FA enforcement.
+All configuration is done through environment variables. See `.env.sample` for the full list. Key settings include storage backend selection, OIDC provider details, SMTP credentials, and 2FA enforcement. The JWT signing secret is not an environment variable — it is auto-generated and persisted in `DATA_DIR/jwt_secret` (default `./data/jwt_secret`).
 
 ## Frontend
 
