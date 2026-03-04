@@ -1,4 +1,4 @@
-.PHONY: all build run test clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs swagger swagger-fmt help
+.PHONY: all build run test clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs swagger swagger-fmt help ensure-embed-dir
 
 # Default target
 all: build
@@ -22,16 +22,19 @@ run-backend:
 	go run ./cmd/enlace
 
 # Live reload development (air + pnpm dev via Procfile.dev)
-dev: frontend-install
-	mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+dev: frontend-install ensure-embed-dir
 	goreman -f Procfile.dev start || overmind start -f Procfile.dev
 
+# Ensure frontend/dist exists for Go embed (placeholder for dev/test)
+ensure-embed-dir:
+	@mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+
 # Run all tests
-test:
+test: ensure-embed-dir
 	go test ./... -v
 
 # Run tests with coverage
-test-coverage:
+test-coverage: ensure-embed-dir
 	go test ./... -cover -coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
@@ -42,7 +45,7 @@ clean:
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
 	rm -rf uploads
-	mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+	@$(MAKE) ensure-embed-dir
 
 # Frontend development server
 frontend-dev:
@@ -76,7 +79,7 @@ docker-logs:
 	docker-compose logs -f
 
 # Lint Go code
-lint:
+lint: ensure-embed-dir
 	go vet ./...
 
 # Format Go code
