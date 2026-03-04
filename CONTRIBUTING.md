@@ -8,6 +8,7 @@ Thank you for your interest in contributing! This document covers how to set up 
 - Node.js 22+ with [pnpm](https://pnpm.io/)
 - [Air](https://github.com/air-verse/air) for live reload
 - [goreman](https://github.com/mattn/goreman) or [overmind](https://github.com/DarthSim/overmind) for `make dev`
+- [swag](https://github.com/swaggo/swag) (optional; only needed to regenerate the OpenAPI/Swagger docs)
 
 ## Development setup
 
@@ -43,6 +44,7 @@ cd frontend && pnpm test
 - Follow the existing layered pattern: **handler → service → repository**.
 - Use the `APIResponse` envelope (`{success, data, error}`) for all JSON responses via helpers in `internal/handler/response.go`.
 - Define errors as package-level sentinel variables (e.g., `var ErrNotFound = errors.New("...")`).
+- If you add or modify API handler annotations, regenerate the OpenAPI spec with `make swagger` (requires [swag](https://github.com/swaggo/swag)) and format annotations with `make swagger-fmt`.
 
 ### Frontend
 
