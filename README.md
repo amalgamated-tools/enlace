@@ -203,7 +203,12 @@ Returns HTTP 201 on success with the created user:
 
 Returns HTTP 409 if the email address is already registered.
 
-**`POST /api/v1/auth/login`** — authenticates the user. Returns `access_token`, `refresh_token`, and `user` on success, or a `pending_token` when 2FA verification is required.
+**`POST /api/v1/auth/login`** — authenticates the user. Returns `access_token`, `refresh_token`, and `user` on success, or a `pending_token` when 2FA verification is required. All fields are required.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | string | ✔ | Valid email address |
+| `password` | string | ✔ | Account password |
 
 ```json
 { "email": "user@example.com", "password": "secret" }
