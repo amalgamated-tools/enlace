@@ -368,7 +368,16 @@ All admin endpoints require authentication with an account that has `is_admin: t
 | `display_name` | string | ✔ | Display name |
 | `is_admin` | bool | | Grant admin privileges |
 
-**`PATCH /api/v1/admin/users/{id}`** accepts the same fields (all optional). Omitted fields are unchanged.
+**`PATCH /api/v1/admin/users/{id}`** — update an existing user. All fields are optional; omitted fields are left unchanged. Returns the updated user object (same shape as admin user responses).
+
+| Field | Type | Description |
+|---|---|---|
+| `email` | string | New email address |
+| `password` | string | New password (admin password reset) |
+| `display_name` | string | New display name |
+| `is_admin` | bool | Grant or revoke admin privileges |
+
+> **Note:** Returns HTTP 409 if the new email is already taken by another account.
 
 **`GET /api/v1/admin/users`** — list all users. Returns an array of admin user objects.
 
