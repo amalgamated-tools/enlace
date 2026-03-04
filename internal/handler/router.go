@@ -58,6 +58,10 @@ type RouterConfig struct {
 
 	// 2FA enforcement
 	Require2FA bool
+
+	// TrustedProxyCIDRs is the list of trusted reverse-proxy CIDRs whose
+	// X-Forwarded-For / X-Real-IP headers are trusted for client-IP extraction.
+	TrustedProxyCIDRs []string
 }
 
 // NewRouter creates a new Chi router with all routes configured.
@@ -66,7 +70,6 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 	// Standard middleware stack
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
@@ -115,9 +118,9 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	oidcHandler := NewOIDCHandler(newOIDCServiceAdapter(cfg.OIDCService), newAuthTokenAdapter(cfg.AuthService), cfg.BaseURL, []byte(cfg.JWTSecret))
 
 	// Rate limiters
-	tfaRateLimiter := intMiddleware.TFAVerifyRateLimiter()
-	loginRateLimiter := intMiddleware.LoginRateLimiter()
-	registerRateLimiter := intMiddleware.RegisterRateLimiter()
+	tfaRateLimiter := intMiddleware.TFAVerifyRateLimiter(cfg.TrustedProxyCIDRs...)
+	loginRateLimiter := intMiddleware.LoginRateLimiter(cfg.TrustedProxyCIDRs...)
+	registerRateLimiter := intMiddleware.RegisterRateLimiter(cfg.TrustedProxyCIDRs...)
 
 	// API v1 routes
 	r.Route("/api/v1", func(r chi.Router) {
