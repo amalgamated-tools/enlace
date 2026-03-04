@@ -20,7 +20,6 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 ```bash
 docker run -d \
   -p 8080:8080 \
-  -e JWT_SECRET=change-me \
   -v enlace-db:/app/data \
   -v enlace-uploads:/app/uploads \
   enlace:latest
@@ -45,7 +44,6 @@ All settings are read from environment variables (or a `.env` file when running 
 |---|---|---|
 | `PORT` | `8080` | HTTP port the server listens on |
 | `DATABASE_PATH` | `./enlace.db` | Path to the SQLite database file |
-| `JWT_SECRET` | *(required)* | Secret used to sign JWT tokens |
 | `BASE_URL` | `http://localhost:8080` | Public base URL (used in share links) |
 
 ### Storage

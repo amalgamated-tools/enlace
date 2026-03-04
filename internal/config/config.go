@@ -2,7 +2,15 @@ package config
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
+
+	"github.com/google/uuid"
+)
+
+var (
+	_, b, _, _ = runtime.Caller(0)
 )
 
 type Config struct {
@@ -43,7 +51,7 @@ func Load() *Config {
 	return &Config{
 		Port:             getEnvInt("PORT", 8080),
 		DatabasePath:     getEnv("DATABASE_PATH", "./enlace.db"),
-		JWTSecret:        getEnv("JWT_SECRET", ""),
+		JWTSecret:        loadJWTSecret(),
 		BaseURL:          getEnv("BASE_URL", "http://localhost:8080"),
 		StorageType:      getEnv("STORAGE_TYPE", "local"),
 		StorageLocalPath: getEnv("STORAGE_LOCAL_PATH", "./uploads"),
@@ -92,4 +100,26 @@ func getEnvBool(key string, defaultVal bool) bool {
 		return val == "true" || val == "1"
 	}
 	return defaultVal
+}
+
+func loadJWTSecret() string {
+	// this value is stored in a file to ensure it persists across restarts but is not easily accessible as an environment variable
+	dataDir := getEnv("DATA_DIR", GetProjectRoot()+"/data")
+	secretPath := dataDir + "/jwt_secret"
+	if _, err := os.Stat(secretPath); err == nil {
+		secretBytes, err := os.ReadFile(secretPath)
+		if err == nil {
+			return string(secretBytes)
+		}
+	}
+	// If the file doesn't exist or can't be read, generate a new secret and save it
+	secret := uuid.New().String()
+	os.MkdirAll(dataDir, 0700)
+	os.WriteFile(secretPath, []byte(secret), 0600)
+	return secret
+}
+
+// GetProjectRoot returns the root directory of the project.
+func GetProjectRoot() string {
+	return filepath.Join(filepath.Dir(b), "../..") //nolint:gocritic // This is a safe operation.
 }

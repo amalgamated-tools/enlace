@@ -23,19 +23,14 @@ func TestLoad_Defaults(t *testing.T) {
 
 func TestLoad_FromEnv(t *testing.T) {
 	os.Setenv("PORT", "9000")
-	os.Setenv("JWT_SECRET", "testsecret")
 	defer func() {
 		os.Unsetenv("PORT")
-		os.Unsetenv("JWT_SECRET")
 	}()
 
 	cfg := config.Load()
 
 	if cfg.Port != 9000 {
 		t.Errorf("expected port 9000, got %d", cfg.Port)
-	}
-	if cfg.JWTSecret != "testsecret" {
-		t.Errorf("expected JWT secret testsecret, got %s", cfg.JWTSecret)
 	}
 }
 
