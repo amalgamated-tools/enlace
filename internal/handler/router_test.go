@@ -136,3 +136,49 @@ func TestRouter_SwaggerDisabled(t *testing.T) {
 		t.Errorf("swagger endpoint with SwaggerEnabled=false status = %v, want non-200", w.Code)
 	}
 }
+
+func TestRouter_LoginRateLimited(t *testing.T) {
+	cfg := RouterConfig{}
+	router := NewRouter(cfg)
+
+	// The login rate limiter allows a burst of 5; sending more requests from the
+	// same IP should eventually trigger a 429 Too Many Requests response.
+	var rateLimited bool
+	for i := 0; i < 20; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
+		req.RemoteAddr = "192.0.2.1:12345"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		if w.Code == http.StatusTooManyRequests {
+			rateLimited = true
+			break
+		}
+	}
+
+	if !rateLimited {
+		t.Error("expected login endpoint to be rate-limited after repeated requests, but it was not")
+	}
+}
+
+func TestRouter_RegisterRateLimited(t *testing.T) {
+	cfg := RouterConfig{}
+	router := NewRouter(cfg)
+
+	// The register rate limiter allows a burst of 3; sending more requests from the
+	// same IP should eventually trigger a 429 Too Many Requests response.
+	var rateLimited bool
+	for i := 0; i < 20; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", nil)
+		req.RemoteAddr = "192.0.2.2:12345"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		if w.Code == http.StatusTooManyRequests {
+			rateLimited = true
+			break
+		}
+	}
+
+	if !rateLimited {
+		t.Error("expected register endpoint to be rate-limited after repeated requests, but it was not")
+	}
+}
