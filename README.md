@@ -170,6 +170,8 @@ enlace -version
 
 All authenticated endpoints require an `Authorization: Bearer <access_token>` header.
 
+> **Token types:** Enlace issues two distinct JWT token types. Access tokens (`token_type: "access"`, 15-minute expiry) are required for all API calls. Refresh tokens (`token_type: "refresh"`, 7-day expiry) are accepted **only** by `POST /api/v1/auth/refresh` — passing a refresh token to any other endpoint returns HTTP 401. Likewise, presenting an access token to the refresh endpoint returns HTTP 401. This prevents token misuse and limits the blast radius of a leaked token.
+
 ### Response Format
 
 Every endpoint returns a JSON object with the following envelope:
@@ -278,7 +280,7 @@ Pass the `pending_token` to `POST /api/v1/auth/2fa/verify` (TOTP code) or `POST 
 }
 ```
 
-**`POST /api/v1/auth/refresh`** — returns new `access_token` and `refresh_token`.
+**`POST /api/v1/auth/refresh`** — returns a new `access_token` and `refresh_token`. The `refresh_token` field must be a refresh token (i.e. the `token_type` claim is `"refresh"`); supplying an access token returns HTTP 401.
 
 ```json
 { "refresh_token": "<token>" }
