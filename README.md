@@ -10,7 +10,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
 - **Two-factor authentication** — per-user TOTP 2FA with QR-code setup, recovery codes, and optional admin-enforced enrollment (`REQUIRE_2FA`); mutually exclusive with SSO/OIDC
 - **Storage backends** — local filesystem or any S3-compatible object store; storage settings can be overridden at runtime via the admin API without redeploying (changes take effect after restart)
-- **Admin panel** — manage users from the UI
+- **Admin panel** — manage users from the UI; configure file upload restrictions (max size, blocked extensions) at runtime
 - **Rate limiting** — IP-based rate limiting middleware. `TFAVerifyRateLimiter` (5 req/min) is applied by default to the 2FA login endpoints; the additional pre-built helpers `LoginRateLimiter` (5 req/min), `RegisterRateLimiter` (3 req/min), and `APIRateLimiter` (60 req/min) in `internal/middleware/ratelimit.go` are available but not wired up by default.
 - **Email notifications** — optionally email share links to recipients via SMTP; resend from the share detail page
 - **Dark mode** — three-way theme toggle (system, light, dark) with preference persisted in the browser
@@ -465,6 +465,30 @@ Returns the current storage configuration after the update (same shape as `GET`)
 
 **`DELETE /api/v1/admin/storage`** — removes all storage configuration overrides from the database. On next restart, Enlace reverts to the environment variable configuration.
 
+### Admin file restriction endpoints
+
+All admin file restriction endpoints require authentication with an account that has `is_admin: true`. Changes take effect immediately — no restart required.
+
+**`GET /api/v1/admin/files`** — returns the current file upload restriction overrides stored in the database.
+
+| Field | Type | Description |
+|---|---|---|
+| `max_file_size` | int or null | Maximum allowed upload size in bytes; `null` means the server default (100 MB) is used |
+| `blocked_extensions` | array of strings | Extensions that are rejected on upload (e.g. `[".exe", ".sh"]`); empty array means no extensions are blocked |
+
+**`PUT /api/v1/admin/files`** — updates one or both file restriction settings. Only fields present in the request body are changed; omitted fields are left unchanged.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `max_file_size` | int | no | New maximum file size in bytes; must be a positive integer |
+| `blocked_extensions` | string | no | Comma-separated list of extensions to block (e.g. `".exe,.sh,.bat"`); leading dots and case are normalized automatically |
+
+Returns the current file restriction configuration after the update (same shape as `GET`).
+
+**`DELETE /api/v1/admin/files`** — removes all file restriction overrides from the database, reverting to the server default (100 MB limit, no blocked extensions).
+
+> **Extension normalization:** extensions sent to `PUT` are lowercased, deduplicated, and given a leading dot if one is missing (e.g. `"EXE"` becomes `".exe"`). The same normalization is applied when reading from the database, so manually inserted values are always returned in a consistent form.
+
 ### Share endpoints
 
 **`GET /api/v1/shares`** — list all shares owned by the authenticated user. Returns an array of share objects.
@@ -525,7 +549,7 @@ Share responses include the following fields:
 
 **`GET /api/v1/shares/{id}/files`** — list files in a share you own. Returns an array of file objects.
 
-**`POST /api/v1/shares/{id}/files`** — upload one or more files to a share you own. The maximum size per file is **100 MB**.
+**`POST /api/v1/shares/{id}/files`** — upload one or more files to a share you own. The default maximum size per file is **100 MB**; admins can override this limit and block specific extensions via the [Admin file restriction endpoints](#admin-file-restriction-endpoints).
 
 The request must use `Content-Type: multipart/form-data`. Include each file under the `files` field (repeat the field for multiple files):
 
@@ -618,7 +642,7 @@ For password-protected shares, include the access token as `X-Share-Token: <toke
 
 ---
 
-**`POST /s/{slug}/upload`** — upload files to a reverse share (no authentication required). The maximum size per file is **100 MB**.
+**`POST /s/{slug}/upload`** — upload files to a reverse share (no authentication required). The default maximum size per file is **100 MB**; the same admin-configured restrictions apply here as for authenticated uploads.
 
 Uses the same `multipart/form-data` format as the authenticated upload endpoint — attach files under the `files` field. Returns an array of uploaded file objects.
 
@@ -692,6 +716,9 @@ Fields in each recipient object:
 | `GET` | `/api/v1/admin/storage` | ✔ admin | Get storage configuration |
 | `PUT` | `/api/v1/admin/storage` | ✔ admin | Update storage configuration |
 | `DELETE` | `/api/v1/admin/storage` | ✔ admin | Clear storage configuration (revert to env vars) |
+| `GET` | `/api/v1/admin/files` | ✔ admin | Get file upload restriction configuration |
+| `PUT` | `/api/v1/admin/files` | ✔ admin | Update file upload restrictions |
+| `DELETE` | `/api/v1/admin/files` | ✔ admin | Clear file upload restrictions (revert to defaults) |
 | `GET` | `/s/{slug}` | — | View a public share |
 | `POST` | `/s/{slug}/verify` | — | Unlock a password-protected share |
 | `GET` | `/s/{slug}/files/{fileId}` | — | Download a file |
