@@ -582,6 +582,7 @@ Fields in each recipient object:
 - Node.js 22+ with [pnpm](https://pnpm.io/)
 - [Air](https://github.com/air-verse/air) for live reload of the Go backend
 - [goreman](https://github.com/mattn/goreman) or [overmind](https://github.com/DarthSim/overmind) to run the `Procfile.dev` (optional; only needed for `make dev`)
+- [swag](https://github.com/swaggo/swag) (optional; only needed to regenerate the OpenAPI/Swagger docs with `make swagger`)
 
 ### Getting started
 
@@ -605,6 +606,8 @@ make test-coverage  # test + HTML coverage report
 make lint           # go vet ./... (CI also runs golangci-lint v2)
 make fmt            # gofmt + Prettier (formats Go and frontend code)
 make clean          # remove build artifacts
+make swagger        # regenerate OpenAPI/Swagger docs (requires swag)
+make swagger-fmt    # format swag annotations in Go source
 ```
 
 ### S3-compatible storage (local dev)
@@ -640,6 +643,9 @@ Set `SMTP_HOST=localhost`, `SMTP_PORT=1025`, and `SMTP_TLS_POLICY=none` in your 
 ```bash
 make docker-build   # builds enlace:latest
 make docker-run     # run the image locally
+make docker-up      # start with docker-compose (detached)
+make docker-down    # stop docker-compose
+make docker-logs    # tail docker-compose logs
 ```
 
 The `Dockerfile` uses a multi-stage build: Node 22 compiles the Svelte frontend, then Go embeds the compiled assets and produces a minimal final image.
