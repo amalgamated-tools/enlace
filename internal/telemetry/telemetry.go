@@ -16,12 +16,13 @@ import (
 )
 
 type Payload struct {
-	Application string `json:"application"`
-	InstallID   string `json:"install_id"`
-	Version     string `json:"version"`
-	OS          string `json:"os"`
-	Arch        string `json:"arch"`
-	Timestamp   string `json:"timestamp"`
+	Application   string `json:"application"`
+	InstallID     string `json:"install_id"`
+	Version       string `json:"version"`
+	OS            string `json:"os"`
+	Arch          string `json:"arch"`
+	Timestamp     string `json:"timestamp"`
+	UnixTimestamp int64  `json:"unix_timestamp"`
 }
 
 func Send(version string) {
@@ -64,13 +65,16 @@ func Send(version string) {
 	// Create install ID
 	id := uuid.New().String()
 
+	now := time.Now().UTC()
+
 	payload := Payload{
-		Application: "enlace",
-		InstallID:   id,
-		Version:     version,
-		OS:          runtime.GOOS,
-		Arch:        runtime.GOARCH,
-		Timestamp:   time.Now().UTC().Format(time.RFC3339),
+		Application:   "enlace",
+		InstallID:     id,
+		Version:       version,
+		OS:            runtime.GOOS,
+		Arch:          runtime.GOARCH,
+		Timestamp:     now.Format(time.RFC3339),
+		UnixTimestamp: now.Unix(),
 	}
 
 	body, err := json.Marshal(payload)
