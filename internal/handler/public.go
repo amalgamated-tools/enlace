@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strconv"
 	"time"
@@ -374,16 +375,41 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 	}
 	defer func() { _ = content.Close() }()
 
+	// Only non-scriptable MIME types are served inline. For scriptable types that could
+	// execute code on the app origin, always force an attachment disposition.
+	if disposition == "inline" && isScriptableMimeType(file.MimeType) {
+		disposition = "attachment"
+	}
+
 	// Set headers
 	w.Header().Set("Content-Type", file.MimeType)
 	w.Header().Set("Content-Length", strconv.FormatInt(file.Size, 10))
-	w.Header().Set("Content-Disposition", disposition+"; filename=\""+file.Name+"\"")
+	w.Header().Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": file.Name}))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'")
 
 	// Stream content
 	if _, err := io.Copy(w, content); err != nil {
 		// Response already started, can't send error
 		return
 	}
+}
+
+// isScriptableMimeType returns true for MIME types that can execute scripts or
+// render active content when served inline in a browser, making them unsafe to
+// deliver as inline previews from the application origin.
+func isScriptableMimeType(mimeType string) bool {
+	switch mimeType {
+	case "text/html",
+		"application/xhtml+xml",
+		"image/svg+xml",
+		"application/javascript",
+		"text/javascript",
+		"text/css",
+		"application/xml":
+		return true
+	}
+	return false
 }
 
 // UploadToReverseShare handles POST /s/{slug}/upload - uploads files to a reverse share.
