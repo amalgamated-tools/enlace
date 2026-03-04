@@ -9,6 +9,7 @@ enlace/
 ├── cmd/enlace/          # Application entry point
 ├── internal/            # Core backend code
 │   ├── config/          # Environment-based configuration
+│   ├── crypto/          # AES-GCM encryption helpers (used for secrets at rest)
 │   ├── database/        # SQLite setup and migrations
 │   ├── handler/         # HTTP handlers and router
 │   ├── middleware/       # Authentication and rate limiting
@@ -64,6 +65,8 @@ The **Storage** layer sits alongside this stack, providing an interface for file
 ### Configuration
 
 All configuration is done through environment variables. See `.env.sample` for the full list. Key settings include storage backend selection, OIDC provider details, SMTP credentials, and 2FA enforcement. The JWT signing secret is not an environment variable — it is auto-generated and persisted in `DATA_DIR/jwt_secret` (default `./data/jwt_secret`).
+
+Storage settings can also be overridden at runtime via the admin API (`GET/PUT/DELETE /api/v1/admin/storage`), which persists them to the `settings` key-value table in SQLite. DB values take precedence over environment variables on startup. The `s3_secret_key` is encrypted with AES-GCM (key derived from the JWT secret via `internal/crypto`) before being stored. See the [README Storage section](README.md#storage) for details.
 
 ## Frontend
 

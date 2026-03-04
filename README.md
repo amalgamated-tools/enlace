@@ -9,7 +9,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Access controls** — optional password protection, expiry date, download limit, and view limit per share
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
 - **Two-factor authentication** — per-user TOTP 2FA with QR-code setup, recovery codes, and optional admin-enforced enrollment (`REQUIRE_2FA`); mutually exclusive with SSO/OIDC
-- **Storage backends** — local filesystem or any S3-compatible object store
+- **Storage backends** — local filesystem or any S3-compatible object store; storage settings can be overridden at runtime via the admin API without redeploying (changes take effect after restart)
 - **Admin panel** — manage users from the UI
 - **Rate limiting** — IP-based rate limiting middleware. `TFAVerifyRateLimiter` (5 req/min) is applied by default to the 2FA login endpoints; the additional pre-built helpers `LoginRateLimiter` (5 req/min), `RegisterRateLimiter` (3 req/min), and `APIRateLimiter` (60 req/min) in `internal/middleware/ratelimit.go` are available but not wired up by default.
 - **Email notifications** — optionally email share links to recipients via SMTP; resend from the share detail page
@@ -60,6 +60,16 @@ All settings are read from environment variables (or a `.env` file when running 
 | `S3_SECRET_KEY` | — | Secret access key |
 | `S3_REGION` | — | AWS/compatible region |
 | `S3_PATH_PREFIX` | — | Optional key prefix inside the bucket |
+
+#### Admin storage API override
+
+Storage settings can be overridden via the admin API without changing environment variables or redeploying. When a DB override is present, it takes precedence over the corresponding environment variable on startup. Clearing an override via the API (including to an empty string) removes the env-var value for that key as well.
+
+See [Admin storage endpoints](#admin-storage-endpoints) for the API reference.
+
+> **Note:** The `s3_secret_key` is encrypted with AES-GCM before it is stored in the database. The plaintext value is never returned by the GET endpoint; use the `s3_secret_key_set` boolean field to check whether a secret key is configured.
+
+> **Note:** Storage configuration changes **require a restart** to take effect.
 
 ### SMTP (email notifications)
 
@@ -402,6 +412,44 @@ All admin endpoints require authentication with an account that has `is_admin: t
 
 Admin user responses include `id`, `email`, `display_name`, `is_admin`, `created_at`, and `updated_at`.
 
+### Admin storage endpoints
+
+All admin storage endpoints require authentication with an account that has `is_admin: true`. Changes take effect after restart.
+
+**`GET /api/v1/admin/storage`** — returns the current storage configuration stored in the database. Environment variable values are not included; this endpoint shows only DB overrides.
+
+Response fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `storage_type` | string | `local` or `s3`; empty if not overridden |
+| `storage_local_path` | string | Local filesystem path; empty if not overridden |
+| `s3_endpoint` | string | S3-compatible endpoint URL |
+| `s3_bucket` | string | Bucket name |
+| `s3_access_key` | string | Access key ID |
+| `s3_secret_key_set` | bool | `true` if a secret key is stored (the value is never returned) |
+| `s3_region` | string | AWS/compatible region |
+| `s3_path_prefix` | string | Optional key prefix inside the bucket |
+
+**`PUT /api/v1/admin/storage`** — updates storage configuration in the database. Only fields that are present in the request body are updated; omitted fields are left unchanged.
+
+| Field | Type | Description |
+|---|---|---|
+| `storage_type` | string | `local` or `s3` |
+| `storage_local_path` | string | Local filesystem path (required when `storage_type` is `local`) |
+| `s3_endpoint` | string | S3-compatible endpoint URL |
+| `s3_bucket` | string | Bucket name (required when `storage_type` is `s3`) |
+| `s3_access_key` | string | Access key ID (required when `storage_type` is `s3`) |
+| `s3_secret_key` | string | Secret access key (required when `storage_type` is `s3`; encrypted at rest) |
+| `s3_region` | string | AWS/compatible region |
+| `s3_path_prefix` | string | Optional key prefix inside the bucket |
+
+The effective configuration (existing DB values merged with the incoming request) is validated before saving. Setting `storage_type` to `s3` without also providing `s3_bucket`, `s3_access_key`, and `s3_secret_key` returns HTTP 400.
+
+Returns the current storage configuration after the update (same shape as `GET`).
+
+**`DELETE /api/v1/admin/storage`** — removes all storage configuration overrides from the database. On next restart, Enlace reverts to the environment variable configuration.
+
 ### Share endpoints
 
 **`GET /api/v1/shares`** — list all shares owned by the authenticated user. Returns an array of share objects.
@@ -626,6 +674,9 @@ Fields in each recipient object:
 | `GET` | `/api/v1/admin/users/{id}` | ✔ admin | Get a user |
 | `PATCH` | `/api/v1/admin/users/{id}` | ✔ admin | Update a user |
 | `DELETE` | `/api/v1/admin/users/{id}` | ✔ admin | Delete a user |
+| `GET` | `/api/v1/admin/storage` | ✔ admin | Get storage configuration |
+| `PUT` | `/api/v1/admin/storage` | ✔ admin | Update storage configuration |
+| `DELETE` | `/api/v1/admin/storage` | ✔ admin | Clear storage configuration (revert to env vars) |
 | `GET` | `/s/{slug}` | — | View a public share |
 | `POST` | `/s/{slug}/verify` | — | Unlock a password-protected share |
 | `GET` | `/s/{slug}/files/{fileId}` | — | Download a file |
