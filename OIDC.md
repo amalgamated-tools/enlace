@@ -103,7 +103,6 @@ services:
     environment:
       - PORT=8080
       - DATABASE_PATH=/app/data/enlace.db
-      - JWT_SECRET=your-jwt-secret
       - BASE_URL=https://enlace.example.com
       - OIDC_ENABLED=true
       - OIDC_ISSUER_URL=https://auth.example.com

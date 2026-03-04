@@ -7,7 +7,6 @@ services:
       - PORT=8080
       - DATABASE_PATH=/app/data/enlace.db
       - DATA_DIR=/app/data
-      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - BASE_URL=${BASE_URL:-http://localhost:8080}
       - STORAGE_TYPE=${STORAGE_TYPE:-local}
       - STORAGE_LOCAL_PATH=/app/uploads
