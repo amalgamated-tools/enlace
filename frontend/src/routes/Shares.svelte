@@ -60,20 +60,18 @@
 </script>
 
 <div class="flex items-center justify-between mb-6">
-  <h2 class="text-lg font-semibold text-slate-900">Your Shares</h2>
+  <h2 class="text-lg font-semibold text-text">Your Shares</h2>
   <Button on:click={() => push("/shares/new")}>New Share</Button>
 </div>
 
 {#if loading}
   <div class="text-center py-16">
-    <p class="text-sm text-slate-400">Loading...</p>
+    <p class="text-sm text-subtle">Loading...</p>
   </div>
 {:else if shares.length === 0}
-  <div class="bg-white rounded-xl border border-slate-200 p-12 text-center">
+  <div class="bg-surface rounded-xl border border-border p-12 text-center">
     <div class="max-w-xs mx-auto">
-      <p class="text-sm text-slate-500 mb-4">
-        You haven't created any shares yet
-      </p>
+      <p class="text-sm text-muted mb-4">You haven't created any shares yet</p>
       <Button on:click={() => push("/shares/new")}
         >Create your first share</Button
       >
@@ -85,7 +83,7 @@
       <div class="relative group">
         <ShareCard {share} />
         <button
-          class="absolute top-4 right-4 text-xs text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+          class="absolute top-4 right-4 text-xs text-subtle hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
           on:click|stopPropagation={() => confirmDelete(share)}
           aria-label="Delete share"
         >
@@ -101,7 +99,7 @@
   title="Delete Share"
   on:close={() => (deleteModal = false)}
 >
-  <p class="text-sm text-slate-600 mb-5">
+  <p class="text-sm text-muted mb-5">
     Are you sure you want to delete "{shareToDelete?.name}"? This action cannot
     be undone.
   </p>

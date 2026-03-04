@@ -12,24 +12,24 @@
   };
 
   const colors: Record<string, string> = {
-    success: "text-emerald-600",
-    error: "text-red-600",
-    info: "text-slate-600",
-    warning: "text-amber-600",
+    success: "text-success",
+    error: "text-error",
+    info: "text-muted",
+    warning: "text-warning",
   };
 
   const bgColors: Record<string, string> = {
-    success: "bg-emerald-50 border-emerald-100",
-    error: "bg-red-50 border-red-100",
-    info: "bg-slate-50 border-slate-200",
-    warning: "bg-amber-50 border-amber-100",
+    success: "bg-success-subtle border-success-border",
+    error: "bg-error-subtle border-error-border",
+    info: "bg-surface-subtle border-border",
+    warning: "bg-warning-subtle border-warning-border",
   };
 </script>
 
 <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2">
   {#each $toast as t (t.id)}
     <div
-      class="flex items-start gap-3 pl-4 pr-3 py-3 rounded-xl border shadow-lg bg-white max-w-sm {bgColors[
+      class="flex items-start gap-3 pl-4 pr-3 py-3 rounded-xl border shadow-lg bg-surface max-w-sm {bgColors[
         t.type
       ]}"
       transition:fly={{ x: 100, duration: 200 }}
@@ -47,10 +47,10 @@
           d={icons[t.type]}
         />
       </svg>
-      <span class="text-sm text-slate-700 flex-1">{t.message}</span>
+      <span class="text-sm text-text flex-1">{t.message}</span>
       <button
         on:click={() => toast.dismiss(t.id)}
-        class="text-slate-400 hover:text-slate-600 transition-colors p-0.5 rounded hover:bg-slate-100 flex-shrink-0"
+        class="text-subtle hover:text-muted transition-colors p-0.5 rounded hover:bg-surface-muted flex-shrink-0"
         aria-label="Dismiss"
       >
         <svg

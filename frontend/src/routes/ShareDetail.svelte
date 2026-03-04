@@ -210,20 +210,20 @@
 <div>
   {#if loading}
     <div class="text-center py-16">
-      <p class="text-sm text-slate-400">Loading...</p>
+      <p class="text-sm text-subtle">Loading...</p>
     </div>
   {:else if share}
     <div class="mb-6">
       <a
         href="#/shares"
-        class="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+        class="text-sm text-muted hover:text-text transition-colors"
       >
         &larr; Back to shares
       </a>
     </div>
 
     <!-- Share details -->
-    <div class="bg-white rounded-xl border border-slate-200 mb-6">
+    <div class="bg-surface rounded-xl border border-border mb-6">
       <div class="p-6">
         {#if editMode}
           <div class="space-y-5">
@@ -231,14 +231,13 @@
             <div class="space-y-1.5">
               <label
                 for="edit-description"
-                class="block text-sm font-medium text-slate-700"
-                >Description</label
+                class="block text-sm font-medium text-text">Description</label
               >
               <textarea
                 id="edit-description"
                 bind:value={editDescription}
                 rows="3"
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg transition-colors duration-150 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
+                class="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg transition-colors duration-150 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-border"
                 placeholder="Optional description"
               ></textarea>
             </div>
@@ -264,14 +263,13 @@
             <div class="space-y-1.5">
               <label
                 for="edit-expires-at"
-                class="block text-sm font-medium text-slate-700"
-                >Expires At</label
+                class="block text-sm font-medium text-text">Expires At</label
               >
               <input
                 id="edit-expires-at"
                 type="date"
                 bind:value={editExpiresAt}
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
+                class="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-border"
               />
             </div>
             <div class="flex gap-2">
@@ -284,12 +282,12 @@
         {:else}
           <div class="flex justify-between items-start">
             <div>
-              <h2 class="text-xl font-semibold text-slate-900">{share.name}</h2>
+              <h2 class="text-xl font-semibold text-text">{share.name}</h2>
               {#if share.description}
-                <p class="text-sm text-slate-500 mt-1">{share.description}</p>
+                <p class="text-sm text-muted mt-1">{share.description}</p>
               {/if}
               <div
-                class="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-slate-400"
+                class="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-subtle"
               >
                 <span class="font-mono">/{share.slug}</span>
                 {#if share.has_password}
@@ -314,7 +312,7 @@
                   <span>Reverse share</span>
                 {/if}
               </div>
-              <div class="flex gap-4 mt-2 text-xs text-slate-400">
+              <div class="flex gap-4 mt-2 text-xs text-subtle">
                 <span
                   >{share.view_count} view{share.view_count !== 1
                     ? "s"
@@ -358,9 +356,9 @@
       </div>
 
       <!-- Share link -->
-      <div class="px-6 py-4 border-t border-slate-100">
+      <div class="px-6 py-4 border-t border-border">
         <p
-          class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2"
+          class="text-xs font-medium text-subtle uppercase tracking-wider mb-2"
         >
           Share Link
         </p>
@@ -370,7 +368,7 @@
             readonly
             value={shareUrl}
             autocomplete="off"
-            class="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-600"
+            class="flex-1 px-3 py-2 text-sm bg-surface-subtle border border-border rounded-lg text-muted"
           />
           <Button variant="secondary" size="sm" on:click={copyShareLink}
             >Copy</Button
@@ -380,17 +378,17 @@
 
       <!-- Notified recipients -->
       {#if recipients.length > 0}
-        <div class="px-6 py-4 border-t border-slate-100">
+        <div class="px-6 py-4 border-t border-border">
           <p
-            class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2"
+            class="text-xs font-medium text-subtle uppercase tracking-wider mb-2"
           >
             Notified Recipients
           </p>
           <ul class="space-y-1">
             {#each recipients as r (r.id)}
-              <li class="text-sm text-slate-600">
+              <li class="text-sm text-muted">
                 {r.email}
-                <span class="text-xs text-slate-400">
+                <span class="text-xs text-subtle">
                   - {new Date(r.sent_at).toLocaleDateString()}
                 </span>
               </li>
@@ -401,14 +399,14 @@
     </div>
 
     <!-- Files -->
-    <div class="bg-white rounded-xl border border-slate-200">
+    <div class="bg-surface rounded-xl border border-border">
       <div class="p-6">
-        <h3 class="text-sm font-semibold text-slate-900 mb-4">Files</h3>
+        <h3 class="text-sm font-semibold text-text mb-4">Files</h3>
         {#if !share.is_reverse_share}
           <div class="mb-4">
             <FileUploader on:files={handleFileUpload} disabled={uploading} />
             {#if uploading}
-              <p class="text-xs text-slate-400 mt-2">Uploading...</p>
+              <p class="text-xs text-subtle mt-2">Uploading...</p>
             {/if}
           </div>
         {/if}
@@ -423,7 +421,7 @@
   title="Delete Share"
   on:close={() => (deleteModal = false)}
 >
-  <p class="text-sm text-slate-600 mb-5">
+  <p class="text-sm text-muted mb-5">
     Are you sure you want to delete "{share?.name}"? This action cannot be
     undone.
   </p>

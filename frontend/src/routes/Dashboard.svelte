@@ -33,39 +33,39 @@
 
 {#if loading}
   <div class="text-center py-16">
-    <p class="text-sm text-slate-400">Loading...</p>
+    <p class="text-sm text-subtle">Loading...</p>
   </div>
 {:else}
   <div class="grid gap-5 sm:grid-cols-3 mb-10">
-    <div class="bg-white rounded-xl border border-slate-200 p-5">
-      <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">
+    <div class="bg-surface rounded-xl border border-border p-5">
+      <p class="text-xs font-medium text-subtle uppercase tracking-wider">
         Total Shares
       </p>
-      <p class="text-2xl font-semibold text-slate-900 mt-1">{shares.length}</p>
+      <p class="text-2xl font-semibold text-text mt-1">{shares.length}</p>
     </div>
-    <div class="bg-white rounded-xl border border-slate-200 p-5">
-      <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">
+    <div class="bg-surface rounded-xl border border-border p-5">
+      <p class="text-xs font-medium text-subtle uppercase tracking-wider">
         Total Views
       </p>
-      <p class="text-2xl font-semibold text-slate-900 mt-1">{totalViews}</p>
+      <p class="text-2xl font-semibold text-text mt-1">{totalViews}</p>
     </div>
-    <div class="bg-white rounded-xl border border-slate-200 p-5">
-      <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">
+    <div class="bg-surface rounded-xl border border-border p-5">
+      <p class="text-xs font-medium text-subtle uppercase tracking-wider">
         Total Downloads
       </p>
-      <p class="text-2xl font-semibold text-slate-900 mt-1">{totalDownloads}</p>
+      <p class="text-2xl font-semibold text-text mt-1">{totalDownloads}</p>
     </div>
   </div>
 
   <div class="flex items-center justify-between mb-5">
-    <h2 class="text-lg font-semibold text-slate-900">Recent Shares</h2>
+    <h2 class="text-lg font-semibold text-text">Recent Shares</h2>
     <Button size="sm" on:click={() => push("/shares/new")}>New Share</Button>
   </div>
 
   {#if recentShares.length === 0}
-    <div class="bg-white rounded-xl border border-slate-200 p-12 text-center">
+    <div class="bg-surface rounded-xl border border-border p-12 text-center">
       <div class="max-w-xs mx-auto">
-        <p class="text-sm text-slate-500 mb-4">
+        <p class="text-sm text-muted mb-4">
           No shares yet. Create your first share to get started.
         </p>
         <Button on:click={() => push("/shares/new")}
@@ -83,7 +83,7 @@
       <div class="mt-5 text-center">
         <a
           href="#/shares"
-          class="text-sm text-slate-500 hover:text-slate-700 font-medium"
+          class="text-sm text-muted hover:text-text font-medium"
           >View all shares</a
         >
       </div>
