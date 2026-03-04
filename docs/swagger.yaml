@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  handler.APIResponse:
+  internal_handler.APIResponse:
     properties:
       data: {}
       error:
@@ -8,7 +8,7 @@ definitions:
       success:
         type: boolean
     type: object
-  handler.ValidationErrorResponse:
+  internal_handler.ValidationErrorResponse:
     properties:
       error:
         example: validation failed
@@ -21,7 +21,7 @@ definitions:
         example: false
         type: boolean
     type: object
-  handler.adminUserResponse:
+  internal_handler.adminUserResponse:
     properties:
       created_at:
         type: string
@@ -36,7 +36,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  handler.createShareRequest:
+  internal_handler.createShareRequest:
     properties:
       description:
         type: string
@@ -59,7 +59,7 @@ definitions:
       slug:
         type: string
     type: object
-  handler.createUserRequest:
+  internal_handler.createUserRequest:
     properties:
       display_name:
         type: string
@@ -70,7 +70,7 @@ definitions:
       password:
         type: string
     type: object
-  handler.fileResponse:
+  internal_handler.fileResponse:
     properties:
       id:
         type: string
@@ -81,14 +81,14 @@ definitions:
       size:
         type: integer
     type: object
-  handler.loginRequest:
+  internal_handler.loginRequest:
     properties:
       email:
         type: string
       password:
         type: string
     type: object
-  handler.loginResponse:
+  internal_handler.loginResponse:
     properties:
       access_token:
         type: string
@@ -101,14 +101,14 @@ definitions:
       requires_2fa_setup:
         type: boolean
       user:
-        $ref: '#/definitions/handler.userResponse'
+        $ref: '#/definitions/internal_handler.userResponse'
     type: object
-  handler.oidcConfigResponse:
+  internal_handler.oidcConfigResponse:
     properties:
       enabled:
         type: boolean
     type: object
-  handler.profileResponse:
+  internal_handler.profileResponse:
     properties:
       display_name:
         type: string
@@ -123,7 +123,7 @@ definitions:
       oidc_linked:
         type: boolean
     type: object
-  handler.publicFileResponse:
+  internal_handler.publicFileResponse:
     properties:
       id:
         type: string
@@ -134,7 +134,7 @@ definitions:
       size:
         type: integer
     type: object
-  handler.publicShareResponse:
+  internal_handler.publicShareResponse:
     properties:
       created_at:
         type: string
@@ -161,7 +161,7 @@ definitions:
       view_count:
         type: integer
     type: object
-  handler.recipientResponse:
+  internal_handler.recipientResponse:
     properties:
       email:
         example: user@example.com
@@ -173,12 +173,12 @@ definitions:
         example: "2024-01-01T00:00:00Z"
         type: string
     type: object
-  handler.refreshRequest:
+  internal_handler.refreshRequest:
     properties:
       refresh_token:
         type: string
     type: object
-  handler.registerRequest:
+  internal_handler.registerRequest:
     properties:
       display_name:
         type: string
@@ -187,7 +187,7 @@ definitions:
       password:
         type: string
     type: object
-  handler.sendNotificationRequest:
+  internal_handler.sendNotificationRequest:
     properties:
       recipients:
         example:
@@ -196,16 +196,16 @@ definitions:
           type: string
         type: array
     type: object
-  handler.shareDetailsResponse:
+  internal_handler.shareDetailsResponse:
     properties:
       files:
         items:
-          $ref: '#/definitions/handler.publicFileResponse'
+          $ref: '#/definitions/internal_handler.publicFileResponse'
         type: array
       share:
-        $ref: '#/definitions/handler.publicShareResponse'
+        $ref: '#/definitions/internal_handler.publicShareResponse'
     type: object
-  handler.shareResponse:
+  internal_handler.shareResponse:
     properties:
       created_at:
         type: string
@@ -234,43 +234,43 @@ definitions:
       view_count:
         type: integer
     type: object
-  handler.tokenResponse:
+  internal_handler.tokenResponse:
     properties:
       access_token:
         type: string
       refresh_token:
         type: string
     type: object
-  handler.totpConfirmRequest:
+  internal_handler.totpConfirmRequest:
     properties:
       code:
         type: string
     type: object
-  handler.totpConfirmResponse:
+  internal_handler.totpConfirmResponse:
     properties:
       recovery_codes:
         items:
           type: string
         type: array
     type: object
-  handler.totpDisableRequest:
+  internal_handler.totpDisableRequest:
     properties:
       password:
         type: string
     type: object
-  handler.totpRecoveryRequest:
+  internal_handler.totpRecoveryRequest:
     properties:
       pending_token:
         type: string
       recovery_code:
         type: string
     type: object
-  handler.totpRegenerateRequest:
+  internal_handler.totpRegenerateRequest:
     properties:
       password:
         type: string
     type: object
-  handler.totpSetupResponse:
+  internal_handler.totpSetupResponse:
     properties:
       provisioning_uri:
         type: string
@@ -279,35 +279,35 @@ definitions:
       secret:
         type: string
     type: object
-  handler.totpStatusResponse:
+  internal_handler.totpStatusResponse:
     properties:
       enabled:
         type: boolean
       require_2fa:
         type: boolean
     type: object
-  handler.totpVerifyRequest:
+  internal_handler.totpVerifyRequest:
     properties:
       code:
         type: string
       pending_token:
         type: string
     type: object
-  handler.updatePasswordRequest:
+  internal_handler.updatePasswordRequest:
     properties:
       new_password:
         type: string
       old_password:
         type: string
     type: object
-  handler.updateProfileRequest:
+  internal_handler.updateProfileRequest:
     properties:
       display_name:
         type: string
       email:
         type: string
     type: object
-  handler.updateShareRequest:
+  internal_handler.updateShareRequest:
     properties:
       clear_expiry:
         type: boolean
@@ -328,7 +328,7 @@ definitions:
       password:
         type: string
     type: object
-  handler.updateUserRequest:
+  internal_handler.updateUserRequest:
     properties:
       display_name:
         type: string
@@ -339,7 +339,7 @@ definitions:
       password:
         type: string
     type: object
-  handler.userResponse:
+  internal_handler.userResponse:
     properties:
       display_name:
         type: string
@@ -348,12 +348,12 @@ definitions:
       id:
         type: string
     type: object
-  handler.verifyPasswordRequest:
+  internal_handler.verifyPasswordRequest:
     properties:
       password:
         type: string
     type: object
-  handler.verifyPasswordResponse:
+  internal_handler.verifyPasswordResponse:
     properties:
       token:
         type: string
@@ -376,25 +376,25 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/handler.adminUserResponse'
+                    $ref: '#/definitions/internal_handler.adminUserResponse'
                   type: array
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: List all users
@@ -410,7 +410,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.createUserRequest'
+          $ref: '#/definitions/internal_handler.createUserRequest'
       produces:
       - application/json
       responses:
@@ -418,31 +418,31 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.adminUserResponse'
+                  $ref: '#/definitions/internal_handler.adminUserResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Create a user
@@ -463,23 +463,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Delete a user
@@ -500,27 +500,27 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.adminUserResponse'
+                  $ref: '#/definitions/internal_handler.adminUserResponse'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Get a user
@@ -541,7 +541,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.updateUserRequest'
+          $ref: '#/definitions/internal_handler.updateUserRequest'
       produces:
       - application/json
       responses:
@@ -549,35 +549,35 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.adminUserResponse'
+                  $ref: '#/definitions/internal_handler.adminUserResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Update a user
@@ -595,7 +595,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.totpRecoveryRequest'
+          $ref: '#/definitions/internal_handler.totpRecoveryRequest'
       produces:
       - application/json
       responses:
@@ -603,27 +603,27 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.loginResponse'
+                  $ref: '#/definitions/internal_handler.loginResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Verify recovery code
       tags:
       - 2fa
@@ -639,7 +639,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.totpVerifyRequest'
+          $ref: '#/definitions/internal_handler.totpVerifyRequest'
       produces:
       - application/json
       responses:
@@ -647,27 +647,27 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.loginResponse'
+                  $ref: '#/definitions/internal_handler.loginResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Verify 2FA code
       tags:
       - 2fa
@@ -684,7 +684,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.loginRequest'
+          $ref: '#/definitions/internal_handler.loginRequest'
       produces:
       - application/json
       responses:
@@ -692,23 +692,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.loginResponse'
+                  $ref: '#/definitions/internal_handler.loginResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Login
       tags:
       - auth
@@ -720,7 +720,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Logout
       tags:
       - auth
@@ -754,10 +754,10 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.oidcConfigResponse'
+                  $ref: '#/definitions/internal_handler.oidcConfigResponse'
               type: object
       summary: Get OIDC configuration
       tags:
@@ -772,11 +772,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Start OIDC login
       tags:
       - oidc
@@ -790,7 +790,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.refreshRequest'
+          $ref: '#/definitions/internal_handler.refreshRequest'
       produces:
       - application/json
       responses:
@@ -798,23 +798,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.tokenResponse'
+                  $ref: '#/definitions/internal_handler.tokenResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Refresh tokens
       tags:
       - auth
@@ -828,7 +828,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.registerRequest'
+          $ref: '#/definitions/internal_handler.registerRequest'
       produces:
       - application/json
       responses:
@@ -836,23 +836,23 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.userResponse'
+                  $ref: '#/definitions/internal_handler.userResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Register a new user
       tags:
       - auth
@@ -870,19 +870,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Delete a file
@@ -897,23 +897,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.profileResponse'
+                  $ref: '#/definitions/internal_handler.profileResponse'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Get current user profile
@@ -928,7 +928,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.updateProfileRequest'
+          $ref: '#/definitions/internal_handler.updateProfileRequest'
       produces:
       - application/json
       responses:
@@ -936,27 +936,27 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.profileResponse'
+                  $ref: '#/definitions/internal_handler.profileResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Update current user profile
@@ -974,7 +974,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.totpConfirmRequest'
+          $ref: '#/definitions/internal_handler.totpConfirmRequest'
       produces:
       - application/json
       responses:
@@ -982,27 +982,27 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.totpConfirmResponse'
+                  $ref: '#/definitions/internal_handler.totpConfirmResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Confirm 2FA setup
@@ -1019,26 +1019,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.totpDisableRequest'
+          $ref: '#/definitions/internal_handler.totpDisableRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Disable 2FA
@@ -1056,7 +1056,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.totpRegenerateRequest'
+          $ref: '#/definitions/internal_handler.totpRegenerateRequest'
       produces:
       - application/json
       responses:
@@ -1064,23 +1064,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.totpConfirmResponse'
+                  $ref: '#/definitions/internal_handler.totpConfirmResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Regenerate recovery codes
@@ -1097,23 +1097,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.totpSetupResponse'
+                  $ref: '#/definitions/internal_handler.totpSetupResponse'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Begin 2FA setup
@@ -1128,19 +1128,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.totpStatusResponse'
+                  $ref: '#/definitions/internal_handler.totpStatusResponse'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Get 2FA status
@@ -1154,19 +1154,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Unlink OIDC account
@@ -1203,15 +1203,15 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Start OIDC account linking
@@ -1227,26 +1227,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.updatePasswordRequest'
+          $ref: '#/definitions/internal_handler.updatePasswordRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Change password
@@ -1261,21 +1261,21 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/handler.shareResponse'
+                    $ref: '#/definitions/internal_handler.shareResponse'
                   type: array
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: List shares
@@ -1290,7 +1290,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.createShareRequest'
+          $ref: '#/definitions/internal_handler.createShareRequest'
       produces:
       - application/json
       responses:
@@ -1298,27 +1298,27 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.shareResponse'
+                  $ref: '#/definitions/internal_handler.shareResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Create a share
@@ -1338,19 +1338,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Delete a share
@@ -1370,23 +1370,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.shareResponse'
+                  $ref: '#/definitions/internal_handler.shareResponse'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Get a share
@@ -1406,7 +1406,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.updateShareRequest'
+          $ref: '#/definitions/internal_handler.updateShareRequest'
       produces:
       - application/json
       responses:
@@ -1414,27 +1414,27 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.shareResponse'
+                  $ref: '#/definitions/internal_handler.shareResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Update a share
@@ -1455,25 +1455,25 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/handler.fileResponse'
+                    $ref: '#/definitions/internal_handler.fileResponse'
                   type: array
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: List files in a share
@@ -1500,29 +1500,29 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/handler.fileResponse'
+                    $ref: '#/definitions/internal_handler.fileResponse'
                   type: array
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Upload files to a share
@@ -1543,30 +1543,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.sendNotificationRequest'
+          $ref: '#/definitions/internal_handler.sendNotificationRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.ValidationErrorResponse'
+            $ref: '#/definitions/internal_handler.ValidationErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: Send share notification emails
@@ -1587,25 +1587,25 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/handler.recipientResponse'
+                    $ref: '#/definitions/internal_handler.recipientResponse'
                   type: array
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       security:
       - BearerAuth: []
       summary: List share notification recipients
@@ -1619,7 +1619,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Health check
       tags:
       - system
@@ -1640,27 +1640,27 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.shareDetailsResponse'
+                  $ref: '#/definitions/internal_handler.shareDetailsResponse'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "410":
           description: Gone
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: View a public share
       tags:
       - public
@@ -1693,19 +1693,19 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "410":
           description: Gone
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Download a file
       tags:
       - public
@@ -1738,19 +1738,19 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "410":
           description: Gone
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Preview a file
       tags:
       - public
@@ -1777,33 +1777,33 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/handler.publicFileResponse'
+                    $ref: '#/definitions/internal_handler.publicFileResponse'
                   type: array
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "410":
           description: Gone
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Upload to a reverse share
       tags:
       - public
@@ -1824,7 +1824,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.verifyPasswordRequest'
+          $ref: '#/definitions/internal_handler.verifyPasswordRequest'
       produces:
       - application/json
       responses:
@@ -1832,31 +1832,31 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/handler.APIResponse'
+            - $ref: '#/definitions/internal_handler.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/handler.verifyPasswordResponse'
+                  $ref: '#/definitions/internal_handler.verifyPasswordResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "410":
           description: Gone
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.APIResponse'
+            $ref: '#/definitions/internal_handler.APIResponse'
       summary: Verify share password
       tags:
       - public
