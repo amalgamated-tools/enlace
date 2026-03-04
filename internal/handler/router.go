@@ -33,6 +33,9 @@ type RouterConfig struct {
 	// Storage
 	Storage storage.Storage
 
+	// Settings repository (for admin storage config)
+	SettingsRepo SettingsRepositoryInterface
+
 	// Configuration
 	JWTSecret string
 	BaseURL   string
@@ -100,6 +103,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService)
 	userHandler := NewUserHandler(cfg.AuthService)
 	adminHandler := NewAdminHandler(cfg.UserRepo)
+	storageConfigHandler := NewStorageConfigHandler(cfg.SettingsRepo, []byte(cfg.JWTSecret))
 	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret))
 	oidcHandler := NewOIDCHandler(newOIDCServiceAdapter(cfg.OIDCService), newAuthTokenAdapter(cfg.AuthService), cfg.BaseURL)
 
@@ -193,6 +197,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 				r.Get("/{id}", adminHandler.GetUser)
 				r.Patch("/{id}", adminHandler.UpdateUser)
 				r.Delete("/{id}", adminHandler.DeleteUser)
+			})
+			r.Route("/storage", func(r chi.Router) {
+				r.Get("/", storageConfigHandler.GetStorageConfig)
+				r.Put("/", storageConfigHandler.UpdateStorageConfig)
+				r.Delete("/", storageConfigHandler.DeleteStorageConfig)
 			})
 		})
 	})
