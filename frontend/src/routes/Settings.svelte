@@ -37,11 +37,16 @@
   let setupErrors: Record<string, string> = {};
   let codesCopied = false;
 
-  function copyRecoveryCodes() {
-    navigator.clipboard.writeText(setupRecoveryCodes.join("\n"));
-    toast.success("Recovery codes copied to clipboard");
-    codesCopied = true;
-    setTimeout(() => (codesCopied = false), 2000);
+  async function copyRecoveryCodes() {
+    try {
+      await navigator.clipboard.writeText(setupRecoveryCodes.join("\n"));
+      toast.success("Recovery codes copied to clipboard");
+      codesCopied = true;
+      setTimeout(() => (codesCopied = false), 2000);
+    } catch (error) {
+      console.error("Failed to copy recovery codes", error);
+      toast.error("Failed to copy recovery codes. Please copy them manually.");
+    }
   }
 
   function downloadRecoveryCodes() {
@@ -52,7 +57,7 @@
     a.href = url;
     a.download = "enlace-2fa.txt";
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   }
 
   onMount(async () => {
