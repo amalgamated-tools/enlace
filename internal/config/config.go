@@ -106,7 +106,7 @@ func getEnvBool(key string, defaultVal bool) bool {
 
 func loadJWTSecret() string {
 	// this value is stored in a file to ensure it persists across restarts but is not easily accessible as an environment variable
-	dataDir := getEnv("DATA_DIR", GetProjectRoot()+"/data")
+	dataDir := getEnv("DATA_DIR", "./data")
 	secretPath := filepath.Join(dataDir, "jwt_secret")
 	if secretBytes, err := os.ReadFile(secretPath); err == nil {
 		return string(secretBytes)
