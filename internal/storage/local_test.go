@@ -3,6 +3,7 @@ package storage_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +12,16 @@ import (
 	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
+func newLocalStore(t *testing.T, basePath string) *storage.LocalStorage {
+	t.Helper()
+
+	store, err := storage.NewLocalStorage(basePath)
+	if err != nil {
+		t.Fatalf("failed to create local storage: %v", err)
+	}
+	return store
+}
+
 func TestLocalStorage_PutAndGet(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "storage-test")
 	if err != nil {
@@ -18,7 +29,7 @@ func TestLocalStorage_PutAndGet(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte("hello world")
@@ -49,7 +60,7 @@ func TestLocalStorage_Get_NotFound(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	_, err = store.Get(ctx, "nonexistent/file.txt")
@@ -65,7 +76,7 @@ func TestLocalStorage_Delete(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte("to be deleted")
@@ -92,7 +103,7 @@ func TestLocalStorage_Delete_NotFound(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	err = store.Delete(ctx, "nonexistent/file.txt")
@@ -108,7 +119,7 @@ func TestLocalStorage_Exists(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte("exists test")
@@ -133,7 +144,7 @@ func TestLocalStorage_Exists_NotFound(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	exists, err := store.Exists(ctx, "nonexistent/file.txt")
@@ -152,7 +163,7 @@ func TestLocalStorage_Put_NestedDirectories(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte("deeply nested content")
@@ -191,7 +202,7 @@ func TestLocalStorage_Put_Overwrite(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	// Write initial content
@@ -231,7 +242,7 @@ func TestLocalStorage_Put_EmptyContent(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte{}
@@ -270,7 +281,7 @@ func TestLocalStorage_Put_LargeFile(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	// Create a 1MB file
@@ -307,7 +318,7 @@ func TestLocalStorage_ContextCancellation(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
@@ -341,7 +352,7 @@ func TestLocalStorage_RootLevelFile(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := storage.NewLocalStorage(tmpDir)
+	store := newLocalStore(t, tmpDir)
 	ctx := context.Background()
 
 	content := []byte("root level content")
@@ -368,4 +379,97 @@ func TestLocalStorage_RootLevelFile(t *testing.T) {
 func TestLocalStorage_InterfaceCompliance(t *testing.T) {
 	// Verify that LocalStorage implements the Storage interface
 	var _ storage.Storage = (*storage.LocalStorage)(nil)
+}
+
+func TestLocalStorage_RejectsTraversalAndAbsoluteKeys(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "storage-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	store := newLocalStore(t, tmpDir)
+	ctx := context.Background()
+
+	keys := []string{
+		"../evil.txt",
+		"..\\evil.txt",
+		"/absolute.txt",
+		"../../nested/evil.txt",
+		"\\windows-style.txt",
+		"C:\\evil.txt",
+		"C:/evil.txt",
+	}
+
+	for _, key := range keys {
+		t.Run(key, func(t *testing.T) {
+			data := []byte("should be rejected")
+			if err := store.Put(ctx, key, bytes.NewReader(data), int64(len(data)), "text/plain"); !errors.Is(err, storage.ErrInvalidKey) {
+				t.Fatalf("expected ErrInvalidKey from Put, got %v", err)
+			}
+
+			if _, err := store.Get(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+				t.Fatalf("expected ErrInvalidKey from Get, got %v", err)
+			}
+
+			if err := store.Delete(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+				t.Fatalf("expected ErrInvalidKey from Delete, got %v", err)
+			}
+
+			if _, err := store.Exists(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+				t.Fatalf("expected ErrInvalidKey from Exists, got %v", err)
+			}
+
+			entries, err := os.ReadDir(tmpDir)
+			if err != nil {
+				t.Fatalf("failed to read base dir: %v", err)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("expected no files to be created, found %d", len(entries))
+			}
+		})
+	}
+}
+
+func TestLocalStorage_RejectsSymlinkEscape(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "storage-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	outsideDir, err := os.MkdirTemp("", "outside-dir")
+	if err != nil {
+		t.Fatalf("failed to create outside dir: %v", err)
+	}
+	defer os.RemoveAll(outsideDir)
+
+	linkPath := filepath.Join(tmpDir, "link")
+	if err := os.Symlink(outsideDir, linkPath); err != nil {
+		t.Fatalf("failed to create symlink: %v", err)
+	}
+
+	store := newLocalStore(t, tmpDir)
+	ctx := context.Background()
+
+	key := "link/escape.txt"
+	if err := store.Put(ctx, key, bytes.NewReader([]byte("data")), 4, "text/plain"); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when writing via symlink, got %v", err)
+	}
+
+	if _, err := store.Get(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when reading via symlink, got %v", err)
+	}
+
+	if err := store.Delete(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when deleting via symlink, got %v", err)
+	}
+
+	if exists, err := store.Exists(ctx, key); err == nil && exists {
+		t.Fatalf("expected file to not exist via symlink escape")
+	}
+
+	if _, err := os.Stat(filepath.Join(outsideDir, "escape.txt")); !os.IsNotExist(err) {
+		t.Fatalf("expected no file to be written outside base path, got err %v", err)
+	}
 }

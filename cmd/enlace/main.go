@@ -252,6 +252,10 @@ func initStorage(ctx context.Context, cfg *config.Config, settingsRepo *reposito
 		}
 		return s3Store, nil
 	default:
-		return storage.NewLocalStorage(getVal("storage_local_path", cfg.StorageLocalPath)), nil
+		localStore, err := storage.NewLocalStorage(getVal("storage_local_path", cfg.StorageLocalPath))
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize local storage: %w", err)
+		}
+		return localStore, nil
 	}
 }

@@ -3,9 +3,12 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 )
 
 // LocalStorage implements the Storage interface using the local filesystem.
@@ -16,8 +19,79 @@ type LocalStorage struct {
 
 // NewLocalStorage creates a new LocalStorage instance.
 // The basePath is the root directory where all files will be stored.
-func NewLocalStorage(basePath string) *LocalStorage {
-	return &LocalStorage{basePath: basePath}
+func NewLocalStorage(basePath string) (*LocalStorage, error) {
+	absBase, err := filepath.Abs(basePath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid local storage base path %q: %w", basePath, err)
+	}
+
+	if stat, statErr := os.Stat(absBase); statErr == nil {
+		if !stat.IsDir() {
+			return nil, fmt.Errorf("local storage base path %q is not a directory", absBase)
+		}
+		if realBase, evalErr := filepath.EvalSymlinks(absBase); evalErr == nil {
+			absBase = realBase
+		} else {
+			return nil, fmt.Errorf("failed to resolve storage base path %q: %w", absBase, evalErr)
+		}
+	} else if !os.IsNotExist(statErr) {
+		return nil, fmt.Errorf("cannot access local storage base path %q: %w", absBase, statErr)
+	}
+	return &LocalStorage{basePath: absBase}, nil
+}
+
+func (s *LocalStorage) resolveKey(key string) (string, error) {
+	if key == "" {
+		return "", ErrInvalidKey
+	}
+
+	normalized := strings.ReplaceAll(key, "\\", "/")
+	cleanKey := path.Clean(normalized)
+
+	if cleanKey == "." || cleanKey == "/" || cleanKey == ".." || strings.HasPrefix(cleanKey, "../") {
+		return "", ErrInvalidKey
+	}
+	if strings.HasPrefix(cleanKey, "/") {
+		return "", ErrInvalidKey
+	}
+	if len(cleanKey) >= 2 && cleanKey[1] == ':' {
+		return "", ErrInvalidKey
+	}
+
+	// Convert to OS-specific separators for final path construction.
+	osKey := filepath.FromSlash(cleanKey)
+	if filepath.IsAbs(osKey) || filepath.VolumeName(osKey) != "" {
+		return "", ErrInvalidKey
+	}
+
+	cleanOSKey := filepath.Clean(osKey)
+
+	fullPath := filepath.Join(s.basePath, cleanOSKey)
+	fullPath = filepath.Clean(fullPath)
+
+	relPath, err := filepath.Rel(s.basePath, fullPath)
+	if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
+		return "", ErrInvalidKey
+	}
+
+	dirPath := filepath.Dir(fullPath)
+	if resolvedDir, err := filepath.EvalSymlinks(dirPath); err == nil {
+		fullPath = filepath.Join(resolvedDir, filepath.Base(fullPath))
+		relPath, err = filepath.Rel(s.basePath, fullPath)
+		if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
+			return "", ErrInvalidKey
+		}
+	}
+
+	if resolvedPath, err := filepath.EvalSymlinks(fullPath); err == nil {
+		fullPath = resolvedPath
+		relPath, err = filepath.Rel(s.basePath, fullPath)
+		if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
+			return "", ErrInvalidKey
+		}
+	}
+
+	return fullPath, nil
 }
 
 // Put stores data from reader at {basePath}/{key}.
@@ -28,7 +102,10 @@ func (s *LocalStorage) Put(ctx context.Context, key string, reader io.Reader, si
 		return err
 	}
 
-	fullPath := filepath.Join(s.basePath, key)
+	fullPath, err := s.resolveKey(key)
+	if err != nil {
+		return err
+	}
 	dir := filepath.Dir(fullPath)
 
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -59,7 +136,10 @@ func (s *LocalStorage) Get(ctx context.Context, key string) (io.ReadCloser, erro
 		return nil, err
 	}
 
-	fullPath := filepath.Join(s.basePath, key)
+	fullPath, err := s.resolveKey(key)
+	if err != nil {
+		return nil, err
+	}
 
 	file, err := os.Open(fullPath)
 	if err != nil {
@@ -79,9 +159,12 @@ func (s *LocalStorage) Delete(ctx context.Context, key string) error {
 		return err
 	}
 
-	fullPath := filepath.Join(s.basePath, key)
+	fullPath, err := s.resolveKey(key)
+	if err != nil {
+		return err
+	}
 
-	err := os.Remove(fullPath)
+	err = os.Remove(fullPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return ErrNotFound
@@ -98,9 +181,12 @@ func (s *LocalStorage) Exists(ctx context.Context, key string) (bool, error) {
 		return false, err
 	}
 
-	fullPath := filepath.Join(s.basePath, key)
+	fullPath, err := s.resolveKey(key)
+	if err != nil {
+		return false, err
+	}
 
-	_, err := os.Stat(fullPath)
+	_, err = os.Stat(fullPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
