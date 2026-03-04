@@ -106,7 +106,15 @@ Enlace collects **opt-in, anonymous** telemetry to help improve the project. Tel
 
 ### Two-Factor Authentication (optional)
 
-Enlace supports TOTP-based 2FA. Users enable it in their account settings; admins can require it for all accounts.
+Enlace supports TOTP-based 2FA. Users enable it in **Settings → Two-Factor Authentication**; admins can require it for all accounts.
+
+**Setup flow:**
+
+1. Open **Settings → Two-Factor Authentication** and click **Enable 2FA**.
+2. Scan the QR code (or enter the secret manually) in your authenticator app, then enter the 6-digit code to confirm.
+3. A set of one-time recovery codes is displayed. Use the **Copy Codes** button to copy all codes to the clipboard, or **Download** to save them as `enlace-2fa.txt`. Store these codes securely — they are not shown again.
+
+Recovery codes can also be regenerated at any time from **Settings → Two-Factor Authentication → Regenerate Recovery Codes**. Regenerating invalidates all previous codes; the same Copy/Download options are available on the newly generated set.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -327,7 +335,7 @@ Response `data`:
 { "recovery_codes": ["abcd-efgh-ijkl-mnop-qrst", "..."] }
 ```
 
-Recovery codes are 80-bit random values in `xxxx-xxxx-xxxx-xxxx-xxxx` format. Store them securely — they are not shown again.
+Recovery codes are 80-bit random values in `xxxx-xxxx-xxxx-xxxx-xxxx` format. Store them securely — they are not shown again. The UI provides **Copy Codes** (copies all codes to the clipboard) and **Download** (saves as `enlace-2fa.txt`) buttons on the recovery code screen.
 
 **`POST /api/v1/me/2fa/disable`** — disable 2FA. Requires the user's current password.
 
