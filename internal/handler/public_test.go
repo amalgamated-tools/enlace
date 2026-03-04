@@ -500,12 +500,13 @@ func TestPublicHandler_ViewShare_PasswordProtected_WrongShareToken(t *testing.T)
 // TestPublicHandler_VerifyPassword_Success tests successful password verification.
 func TestPublicHandler_VerifyPassword_Success(t *testing.T) {
 	shareID := "share-123"
-	share := newPublicTestShare(shareID, "test-share")
+	slug := "test-share"
+	share := newPublicTestShare(shareID, slug)
 	passwordHash := "hash"
 	share.PasswordHash = &passwordHash
 
 	mockShare := &mockPublicShareService{
-		getBySlugFn: func(ctx context.Context, slug string) (*model.Share, error) {
+		getBySlugFn: func(ctx context.Context, s string) (*model.Share, error) {
 			return share, nil
 		},
 		validateAccessFn: func(ctx context.Context, s *model.Share) error {
@@ -520,7 +521,7 @@ func TestPublicHandler_VerifyPassword_Success(t *testing.T) {
 	router := setupPublicRouter(h)
 
 	body := `{"password": "correct-password"}`
-	req := httptest.NewRequest(http.MethodPost, "/s/test-share/verify", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/s/"+slug+"/verify", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -528,6 +529,10 @@ func TestPublicHandler_VerifyPassword_Success(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	if cc := w.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("expected Cache-Control: no-store, got %q", cc)
 	}
 
 	var response struct {
@@ -545,6 +550,115 @@ func TestPublicHandler_VerifyPassword_Success(t *testing.T) {
 	}
 	if response.Data.Token == "" {
 		t.Error("expected token to be non-empty")
+	}
+
+	// An HttpOnly, path-scoped cookie must be set so browser downloads are authenticated
+	// without passing the token as a query parameter.
+	var foundShareTokenCookie bool
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "share_token" {
+			foundShareTokenCookie = true
+			if !c.HttpOnly {
+				t.Error("expected share_token cookie to be HttpOnly")
+			}
+			if c.Value == "" {
+				t.Error("expected share_token cookie to be non-empty")
+			}
+			if c.Path != "/s/"+slug {
+				t.Errorf("expected share_token cookie path /s/%s, got %s", slug, c.Path)
+			}
+		}
+	}
+	if !foundShareTokenCookie {
+		t.Error("expected share_token cookie to be set")
+	}
+}
+
+// TestPublicHandler_VerifyPassword_SecureCookie tests that WithSecureCookies sets the Secure flag.
+func TestPublicHandler_VerifyPassword_SecureCookie(t *testing.T) {
+	shareID := "share-sec-123"
+	slug := "secure-share"
+	share := newPublicTestShare(shareID, slug)
+	passwordHash := "hash"
+	share.PasswordHash = &passwordHash
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn: func(ctx context.Context, s string) (*model.Share, error) {
+			return share, nil
+		},
+		validateAccessFn: func(ctx context.Context, s *model.Share) error {
+			return nil
+		},
+		verifyPasswordFn: func(ctx context.Context, id string, password string) bool {
+			return true
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, nil, testJWTSecret, handler.WithSecureCookies(true))
+	router := setupPublicRouter(h)
+
+	body := `{"password": "correct-password"}`
+	req := httptest.NewRequest(http.MethodPost, "/s/"+slug+"/verify", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "share_token" {
+			if !c.Secure {
+				t.Error("expected share_token cookie to have Secure flag with WithSecureCookies(true)")
+			}
+			return
+		}
+	}
+	t.Error("expected share_token cookie to be set")
+}
+
+// TestPublicHandler_DownloadFile_PasswordProtected_WithCookie tests that the share_token cookie authenticates downloads.
+func TestPublicHandler_DownloadFile_PasswordProtected_WithCookie(t *testing.T) {
+	shareID := "share-cookie-123"
+	fileID := "file-cookie-456"
+	slug := "cookie-share"
+	share := newPublicTestShare(shareID, slug)
+	passwordHash := "hash"
+	share.PasswordHash = &passwordHash
+	file := newPublicTestFile(fileID, shareID, "test.txt")
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn: func(ctx context.Context, s string) (*model.Share, error) {
+			return share, nil
+		},
+		validateAccessFn: func(ctx context.Context, s *model.Share) error {
+			return nil
+		},
+		incrementDownloadCountFn: func(ctx context.Context, id string) error {
+			return nil
+		},
+	}
+
+	mockFile := &mockPublicFileService{
+		getByIDFn: func(ctx context.Context, id string) (*model.File, error) {
+			return file, nil
+		},
+		getContentFn: func(ctx context.Context, id string) (io.ReadCloser, *model.File, error) {
+			return io.NopCloser(strings.NewReader("content")), file, nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret)
+	router := setupPublicRouter(h)
+
+	// Authenticate via the share_token cookie (as set by VerifyPassword).
+	req := httptest.NewRequest(http.MethodGet, "/s/"+slug+"/files/"+fileID, nil)
+	req.AddCookie(&http.Cookie{Name: "share_token", Value: generateTestShareToken(shareID)})
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d with cookie token, got %d", http.StatusOK, w.Code)
 	}
 }
 
@@ -1002,13 +1116,65 @@ func TestPublicHandler_DownloadFile_PasswordProtected(t *testing.T) {
 		t.Errorf("expected status %d without token, got %d", http.StatusUnauthorized, w.Code)
 	}
 
-	// With valid token - should succeed
+	// With valid token in header - should succeed
 	req = httptest.NewRequest(http.MethodGet, "/s/test-share/files/"+fileID, nil)
 	req.Header.Set("X-Share-Token", generateTestShareToken(shareID))
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d with token, got %d", http.StatusOK, w.Code)
+	}
+
+	// Query-param token must NOT be accepted (prevents leakage via URL history/referrer).
+	req = httptest.NewRequest(http.MethodGet, "/s/test-share/files/"+fileID+"?token="+generateTestShareToken(shareID), nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected status %d when token is in query param, got %d", http.StatusUnauthorized, w.Code)
+	}
+}
+
+// TestPublicHandler_DownloadFile_ReferrerPolicyHeader tests that download responses include Referrer-Policy.
+func TestPublicHandler_DownloadFile_ReferrerPolicyHeader(t *testing.T) {
+	shareID := "share-123"
+	fileID := "file-456"
+	slug := "test-share"
+	share := newPublicTestShare(shareID, slug)
+	file := newPublicTestFile(fileID, shareID, "test.txt")
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn: func(ctx context.Context, s string) (*model.Share, error) {
+			return share, nil
+		},
+		validateAccessFn: func(ctx context.Context, s *model.Share) error {
+			return nil
+		},
+		incrementDownloadCountFn: func(ctx context.Context, id string) error {
+			return nil
+		},
+	}
+
+	mockFile := &mockPublicFileService{
+		getByIDFn: func(ctx context.Context, id string) (*model.File, error) {
+			return file, nil
+		},
+		getContentFn: func(ctx context.Context, id string) (io.ReadCloser, *model.File, error) {
+			return io.NopCloser(strings.NewReader("content")), file, nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret)
+	router := setupPublicRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/s/"+slug+"/files/"+fileID, nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+	if rp := w.Header().Get("Referrer-Policy"); rp != "no-referrer" {
+		t.Errorf("expected Referrer-Policy: no-referrer, got %q", rp)
 	}
 }
 

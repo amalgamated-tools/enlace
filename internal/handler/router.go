@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -109,8 +110,9 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		storageConfigHandler = NewStorageConfigHandler(cfg.SettingsRepo, []byte(cfg.JWTSecret))
 		fileRestrictionsHandler = NewFileRestrictionsHandler(cfg.SettingsRepo)
 	}
-	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret), WithPublicSettingsRepo(cfg.SettingsRepo))
-	oidcHandler := NewOIDCHandler(newOIDCServiceAdapter(cfg.OIDCService), newAuthTokenAdapter(cfg.AuthService), cfg.BaseURL)
+	secureCookies := strings.HasPrefix(cfg.BaseURL, "https://")
+	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret), WithPublicSettingsRepo(cfg.SettingsRepo), WithSecureCookies(secureCookies))
+	oidcHandler := NewOIDCHandler(newOIDCServiceAdapter(cfg.OIDCService), newAuthTokenAdapter(cfg.AuthService), cfg.BaseURL, []byte(cfg.JWTSecret))
 
 	// Rate limiters
 	tfaRateLimiter := intMiddleware.TFAVerifyRateLimiter()
@@ -140,6 +142,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 				r.Get("/config", oidcHandler.Config)
 				r.Get("/login", oidcHandler.Login)
 				r.Get("/callback", oidcHandler.Callback)
+				r.Post("/exchange", oidcHandler.ExchangeOIDCTokens)
 			})
 		})
 
