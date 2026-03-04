@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -39,21 +40,37 @@ func (r *SettingsRepository) Set(ctx context.Context, key, value string) error {
 	return err
 }
 
-// GetMultiple retrieves multiple settings by their keys.
+// GetMultiple retrieves multiple settings by their keys in a single query.
 // Returns a map of key->value for keys that exist. Missing keys are omitted.
 func (r *SettingsRepository) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
 	result := make(map[string]string)
-	for _, key := range keys {
-		val, err := r.Get(ctx, key)
-		if errors.Is(err, ErrNotFound) {
-			continue
-		}
-		if err != nil {
+	if len(keys) == 0 {
+		return result, nil
+	}
+
+	// Build WHERE key IN (?, ?, ...) with placeholders
+	placeholders := make([]string, len(keys))
+	args := make([]interface{}, len(keys))
+	for i, key := range keys {
+		placeholders[i] = "?"
+		args[i] = key
+	}
+
+	query := `SELECT key, value FROM settings WHERE key IN (` + strings.Join(placeholders, ",") + `)`
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var k, v string
+		if err := rows.Scan(&k, &v); err != nil {
 			return nil, err
 		}
-		result[key] = val
+		result[k] = v
 	}
-	return result, nil
+	return result, rows.Err()
 }
 
 // SetMultiple upserts multiple settings in a single transaction.
@@ -87,7 +104,10 @@ func (r *SettingsRepository) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return err
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
 	if rows == 0 {
 		return ErrNotFound
 	}
