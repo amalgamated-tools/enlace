@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strconv"
 	"time"
@@ -383,7 +384,7 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 	// Set headers
 	w.Header().Set("Content-Type", file.MimeType)
 	w.Header().Set("Content-Length", strconv.FormatInt(file.Size, 10))
-	w.Header().Set("Content-Disposition", disposition+"; filename=\""+file.Name+"\"")
+	w.Header().Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": file.Name}))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'")
 
