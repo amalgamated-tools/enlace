@@ -374,16 +374,39 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 	}
 	defer func() { _ = content.Close() }()
 
+	// Prevent inline serving of types that can execute script on the app origin.
+	// Force attachment disposition for dangerous MIME types.
+	if disposition == "inline" && isScriptableMimeType(file.MimeType) {
+		disposition = "attachment"
+	}
+
 	// Set headers
 	w.Header().Set("Content-Type", file.MimeType)
 	w.Header().Set("Content-Length", strconv.FormatInt(file.Size, 10))
 	w.Header().Set("Content-Disposition", disposition+"; filename=\""+file.Name+"\"")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 
 	// Stream content
 	if _, err := io.Copy(w, content); err != nil {
 		// Response already started, can't send error
 		return
 	}
+}
+
+// isScriptableMimeType returns true for MIME types that can execute scripts or
+// render active content when served inline in a browser, making them unsafe to
+// deliver as inline previews from the application origin.
+func isScriptableMimeType(mimeType string) bool {
+	switch mimeType {
+	case "text/html",
+		"application/xhtml+xml",
+		"image/svg+xml",
+		"application/javascript",
+		"text/javascript",
+		"text/css":
+		return true
+	}
+	return false
 }
 
 // UploadToReverseShare handles POST /s/{slug}/upload - uploads files to a reverse share.

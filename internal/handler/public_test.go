@@ -800,6 +800,89 @@ func TestPublicHandler_PreviewFile_Success(t *testing.T) {
 	if !strings.Contains(disposition, "inline") {
 		t.Errorf("expected inline disposition, got %s", disposition)
 	}
+
+	if w.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Errorf("expected X-Content-Type-Options: nosniff, got %s", w.Header().Get("X-Content-Type-Options"))
+	}
+}
+
+// TestPublicHandler_PreviewFile_DangerousMimeType tests that dangerous MIME types are
+// forced to attachment disposition to prevent stored XSS.
+func TestPublicHandler_PreviewFile_DangerousMimeType(t *testing.T) {
+	dangerousTypes := []struct {
+		name     string
+		mimeType string
+	}{
+		{"html", "text/html"},
+		{"svg", "image/svg+xml"},
+		{"javascript", "application/javascript"},
+		{"javascript-text", "text/javascript"},
+		{"xhtml", "application/xhtml+xml"},
+		{"css", "text/css"},
+	}
+
+	for _, dt := range dangerousTypes {
+		t.Run(dt.name, func(t *testing.T) {
+			shareID := "share-123"
+			fileID := "file-456"
+			slug := "test-share"
+			share := newPublicTestShare(shareID, slug)
+			file := &model.File{
+				ID:         fileID,
+				ShareID:    shareID,
+				Name:       "attack." + dt.name,
+				Size:       100,
+				MimeType:   dt.mimeType,
+				StorageKey: shareID + "/" + fileID + "/attack." + dt.name,
+				CreatedAt:  time.Now(),
+			}
+
+			mockShare := &mockPublicShareService{
+				getBySlugFn: func(ctx context.Context, s string) (*model.Share, error) {
+					return share, nil
+				},
+				validateAccessFn: func(ctx context.Context, s *model.Share) error {
+					return nil
+				},
+				incrementDownloadCountFn: func(ctx context.Context, id string) error {
+					return nil
+				},
+			}
+
+			mockFile := &mockPublicFileService{
+				getByIDFn: func(ctx context.Context, id string) (*model.File, error) {
+					return file, nil
+				},
+				getContentFn: func(ctx context.Context, id string) (io.ReadCloser, *model.File, error) {
+					return io.NopCloser(strings.NewReader("<script>alert(1)</script>")), file, nil
+				},
+			}
+
+			h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret)
+			router := setupPublicRouter(h)
+
+			req := httptest.NewRequest(http.MethodGet, "/s/"+slug+"/files/"+fileID+"/preview", nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+			}
+
+			disposition := w.Header().Get("Content-Disposition")
+			if !strings.Contains(disposition, "attachment") {
+				t.Errorf("mime type %s: expected attachment disposition to prevent XSS, got %s", dt.mimeType, disposition)
+			}
+			if strings.Contains(disposition, "inline") {
+				t.Errorf("mime type %s: must not use inline disposition, got %s", dt.mimeType, disposition)
+			}
+
+			if w.Header().Get("X-Content-Type-Options") != "nosniff" {
+				t.Errorf("expected X-Content-Type-Options: nosniff, got %s", w.Header().Get("X-Content-Type-Options"))
+			}
+		})
+	}
 }
 
 // TestPublicHandler_DownloadFile_FileNotFound tests downloading non-existent file.
