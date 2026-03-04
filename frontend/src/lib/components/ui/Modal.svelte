@@ -23,7 +23,7 @@
     transition:fade={{ duration: 150 }}
   >
     <div
-      class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+      class="absolute inset-0 bg-overlay/40 backdrop-blur-sm"
       on:click={close}
       on:keydown={(e) => e.key === "Enter" && close()}
       role="button"
@@ -31,16 +31,16 @@
       aria-label="Close modal"
     ></div>
     <div
-      class="relative bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-auto border border-slate-100"
+      class="relative bg-surface rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-auto border border-border"
       transition:scale={{ duration: 150, start: 0.95 }}
     >
       <div
-        class="flex items-center justify-between px-6 py-4 border-b border-slate-100"
+        class="flex items-center justify-between px-6 py-4 border-b border-border"
       >
-        <h2 class="text-base font-semibold text-slate-900">{title}</h2>
+        <h2 class="text-base font-semibold text-text">{title}</h2>
         <button
           on:click={close}
-          class="text-slate-400 hover:text-slate-600 transition-colors p-1 -mr-1 rounded-md hover:bg-slate-100"
+          class="text-subtle hover:text-muted transition-colors p-1 -mr-1 rounded-md hover:bg-surface-muted"
           aria-label="Close"
         >
           <svg

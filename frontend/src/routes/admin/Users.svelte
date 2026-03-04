@@ -145,57 +145,57 @@
 </script>
 
 <div class="flex items-center justify-between mb-6">
-  <h2 class="text-lg font-semibold text-slate-900">User Management</h2>
+  <h2 class="text-lg font-semibold text-text">User Management</h2>
   <Button on:click={openCreateModal}>Create User</Button>
 </div>
 
 {#if loading}
   <div class="text-center py-16">
-    <p class="text-sm text-slate-400">Loading...</p>
+    <p class="text-sm text-subtle">Loading...</p>
   </div>
 {:else}
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <table class="min-w-full divide-y divide-slate-100">
+  <div class="bg-surface rounded-xl border border-border overflow-hidden">
+    <table class="min-w-full divide-y divide-border">
       <thead>
-        <tr class="bg-slate-50">
+        <tr class="bg-surface-subtle">
           <th
-            class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+            class="px-6 py-3 text-left text-xs font-medium text-subtle uppercase tracking-wider"
           >
             User
           </th>
           <th
-            class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+            class="px-6 py-3 text-left text-xs font-medium text-subtle uppercase tracking-wider"
           >
             Email
           </th>
           <th
-            class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+            class="px-6 py-3 text-left text-xs font-medium text-subtle uppercase tracking-wider"
           >
             Role
           </th>
           <th
-            class="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider"
+            class="px-6 py-3 text-right text-xs font-medium text-subtle uppercase tracking-wider"
           >
             Actions
           </th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-slate-100">
+      <tbody class="divide-y divide-border">
         {#each users as user (user.id)}
-          <tr class="hover:bg-slate-50 transition-colors">
+          <tr class="hover:bg-surface-subtle transition-colors">
             <td class="px-6 py-4 whitespace-nowrap">
-              <span class="text-sm font-medium text-slate-900"
+              <span class="text-sm font-medium text-text"
                 >{user.display_name}</span
               >
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted">
               {user.email}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
               <span
                 class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium {user.is_admin
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600'}"
+                  ? 'bg-accent text-accent-contrast'
+                  : 'bg-surface-muted text-muted'}"
               >
                 {user.is_admin ? "Admin" : "User"}
               </span>
@@ -203,7 +203,7 @@
             <td class="px-6 py-4 whitespace-nowrap text-right text-xs">
               {#if user.id !== $auth.user?.id}
                 <button
-                  class="text-slate-500 hover:text-slate-700 transition-colors mr-3"
+                  class="text-muted hover:text-text transition-colors mr-3"
                   on:click={() => toggleAdmin(user)}
                 >
                   {user.is_admin ? "Remove Admin" : "Make Admin"}
@@ -215,7 +215,7 @@
                   Delete
                 </button>
               {:else}
-                <span class="text-slate-300">Current user</span>
+                <span class="text-subtle">Current user</span>
               {/if}
             </td>
           </tr>
@@ -223,7 +223,7 @@
           <tr>
             <td
               colspan="4"
-              class="px-6 py-8 text-center text-sm text-slate-400"
+              class="px-6 py-8 text-center text-sm text-subtle"
             >
               No users found
             </td>
@@ -269,9 +269,9 @@
         type="checkbox"
         id="newIsAdmin"
         bind:checked={newIsAdmin}
-        class="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900/20"
+        class="w-4 h-4 text-text border-border rounded focus:ring-accent/20"
       />
-      <label for="newIsAdmin" class="text-sm text-slate-600"
+      <label for="newIsAdmin" class="text-sm text-muted"
         >Admin privileges</label
       >
     </div>
@@ -289,7 +289,7 @@
   title="Delete User"
   on:close={() => (deleteModal = false)}
 >
-  <p class="text-sm text-slate-600 mb-5">
+  <p class="text-sm text-muted mb-5">
     Are you sure you want to delete "{userToDelete?.display_name}"? This action
     cannot be undone.
   </p>

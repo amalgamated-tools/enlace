@@ -17,18 +17,18 @@
 </script>
 
 <ul
-  class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden"
+  class="divide-y divide-border border border-border rounded-xl overflow-hidden"
 >
   {#each files as file (file.id)}
     <li
-      class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+      class="flex items-center justify-between px-4 py-3 hover:bg-surface-subtle transition-colors"
     >
       <div class="flex items-center gap-3 min-w-0">
         <div
-          class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0"
+          class="w-8 h-8 rounded-lg bg-surface-muted flex items-center justify-center flex-shrink-0"
         >
           <svg
-            class="w-4 h-4 text-slate-400"
+            class="w-4 h-4 text-subtle"
             fill="none"
             viewBox="0 0 24 24"
             stroke-width="1.5"
@@ -42,13 +42,13 @@
           </svg>
         </div>
         <div class="min-w-0">
-          <p class="text-sm font-medium text-slate-700 truncate">{file.name}</p>
-          <p class="text-xs text-slate-400">{formatSize(file.size)}</p>
+          <p class="text-sm font-medium text-text truncate">{file.name}</p>
+          <p class="text-xs text-subtle">{formatSize(file.size)}</p>
         </div>
       </div>
       {#if canDelete}
         <button
-          class="text-xs text-slate-400 hover:text-red-500 transition-colors ml-3 flex-shrink-0"
+          class="text-xs text-subtle hover:text-red-500 transition-colors ml-3 flex-shrink-0"
           on:click={() => dispatch("delete", file.id)}
         >
           Remove
@@ -56,6 +56,6 @@
       {/if}
     </li>
   {:else}
-    <li class="px-4 py-8 text-center text-sm text-slate-400">No files</li>
+    <li class="px-4 py-8 text-center text-sm text-subtle">No files</li>
   {/each}
 </ul>

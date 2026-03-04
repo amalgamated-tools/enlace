@@ -85,19 +85,19 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+<div class="min-h-screen bg-surface-subtle flex items-center justify-center px-4">
   <div class="w-full max-w-sm">
     <div class="text-center mb-8">
-      <h1 class="text-2xl font-semibold text-slate-900">enlace</h1>
-      <p class="text-sm text-slate-500 mt-1">Sign in to your account</p>
+      <h1 class="text-2xl font-semibold text-text">enlace</h1>
+      <p class="text-sm text-muted mt-1">Sign in to your account</p>
     </div>
 
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+    <div class="bg-surface rounded-xl border border-border shadow-sm p-8">
       {#if oidcEnabled}
         <button
           type="button"
           on:click={handleOIDCLogin}
-          class="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors mb-6"
+          class="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-border rounded-lg text-sm font-medium text-text hover:bg-surface-subtle transition-colors mb-6"
         >
           <svg
             class="w-5 h-5"
@@ -115,10 +115,10 @@
 
         <div class="relative mb-6">
           <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-slate-200"></div>
+            <div class="w-full border-t border-border"></div>
           </div>
           <div class="relative flex justify-center text-xs uppercase">
-            <span class="bg-white px-2 text-slate-400"
+            <span class="bg-surface px-2 text-subtle"
               >Or continue with email</span
             >
           </div>
@@ -152,9 +152,9 @@
       </form>
     </div>
 
-    <p class="mt-6 text-center text-sm text-slate-500">
+    <p class="mt-6 text-center text-sm text-muted">
       Don't have an account?
-      <a href="#/register" class="text-slate-900 font-medium hover:underline"
+      <a href="#/register" class="text-text font-medium hover:underline"
         >Register</a
       >
     </p>

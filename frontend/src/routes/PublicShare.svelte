@@ -141,10 +141,10 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-50">
-  <header class="bg-white border-b border-slate-200">
+<div class="min-h-screen bg-surface-subtle">
+  <header class="bg-surface border-b border-border">
     <div class="max-w-6xl mx-auto px-6 h-14 flex items-center">
-      <span class="text-base font-semibold text-slate-900 tracking-tight"
+      <span class="text-base font-semibold text-text tracking-tight"
         >enlace</span
       >
     </div>
@@ -153,25 +153,25 @@
   <main class="max-w-2xl mx-auto px-6 py-10">
     {#if loading}
       <div class="text-center py-16">
-        <p class="text-sm text-slate-400">Loading...</p>
+        <p class="text-sm text-subtle">Loading...</p>
       </div>
     {:else if error}
-      <div class="bg-white rounded-xl border border-slate-200 p-10 text-center">
+      <div class="bg-surface rounded-xl border border-border p-10 text-center">
         <p class="text-sm text-red-500 font-medium">{error}</p>
-        <p class="text-sm text-slate-400 mt-2">
+        <p class="text-sm text-subtle mt-2">
           This share may have expired or been deleted.
         </p>
       </div>
     {:else if passwordRequired}
       <div
-        class="bg-white rounded-xl border border-slate-200 p-8 max-w-sm mx-auto"
+        class="bg-surface rounded-xl border border-border p-8 max-w-sm mx-auto"
       >
         <div class="text-center mb-6">
           <div
-            class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mx-auto mb-3"
+            class="w-10 h-10 rounded-lg bg-surface-muted flex items-center justify-center mx-auto mb-3"
           >
             <svg
-              class="w-5 h-5 text-slate-400"
+              class="w-5 h-5 text-subtle"
               fill="none"
               viewBox="0 0 24 24"
               stroke-width="1.5"
@@ -184,10 +184,10 @@
               />
             </svg>
           </div>
-          <h2 class="text-base font-semibold text-slate-900">
+          <h2 class="text-base font-semibold text-text">
             Password Required
           </h2>
-          <p class="text-sm text-slate-500 mt-1">
+          <p class="text-sm text-muted mt-1">
             This share is password protected.
           </p>
         </div>
@@ -206,34 +206,34 @@
         </form>
       </div>
     {:else if share}
-      <div class="bg-white rounded-xl border border-slate-200">
-        <div class="p-6 border-b border-slate-100">
-          <h2 class="text-xl font-semibold text-slate-900">{share.name}</h2>
+      <div class="bg-surface rounded-xl border border-border">
+        <div class="p-6 border-b border-border">
+          <h2 class="text-xl font-semibold text-text">{share.name}</h2>
           {#if share.description}
-            <p class="text-sm text-slate-500 mt-1">{share.description}</p>
+            <p class="text-sm text-muted mt-1">{share.description}</p>
           {/if}
           {#if share.expires_at}
-            <p class="text-xs text-slate-400 mt-2">
+            <p class="text-xs text-subtle mt-2">
               Expires {new Date(share.expires_at).toLocaleDateString()}
             </p>
           {/if}
         </div>
 
         {#if share.is_reverse_share}
-          <div class="p-6 border-b border-slate-100">
-            <h3 class="text-sm font-semibold text-slate-900 mb-4">
+          <div class="p-6 border-b border-border">
+            <h3 class="text-sm font-semibold text-text mb-4">
               Upload Files
             </h3>
             <FileUploader on:files={handleFileUpload} disabled={uploading} />
             {#if uploading}
-              <p class="text-xs text-slate-400 mt-2">Uploading...</p>
+              <p class="text-xs text-subtle mt-2">Uploading...</p>
             {/if}
           </div>
         {/if}
 
         <div class="p-6">
           <div class="flex justify-between items-center mb-4">
-            <h3 class="text-sm font-semibold text-slate-900">Files</h3>
+            <h3 class="text-sm font-semibold text-text">Files</h3>
             {#if files.length > 0 && !share.is_reverse_share}
               <Button size="sm" variant="secondary" on:click={downloadAll}
                 >Download All</Button
@@ -242,23 +242,23 @@
           </div>
 
           {#if files.length === 0}
-            <p class="text-sm text-slate-400 text-center py-6">
+            <p class="text-sm text-subtle text-center py-6">
               No files available
             </p>
           {:else}
             <ul
-              class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden"
+              class="divide-y divide-border border border-border rounded-xl overflow-hidden"
             >
               {#each files as file (file.id)}
                 <li
-                  class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+                  class="flex items-center justify-between px-4 py-3 hover:bg-surface-subtle transition-colors"
                 >
                   <div class="flex items-center gap-3 min-w-0">
                     <div
-                      class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0"
+                      class="w-8 h-8 rounded-lg bg-surface-muted flex items-center justify-center flex-shrink-0"
                     >
                       <svg
-                        class="w-4 h-4 text-slate-400"
+                        class="w-4 h-4 text-subtle"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke-width="1.5"
@@ -272,17 +272,17 @@
                       </svg>
                     </div>
                     <div class="min-w-0">
-                      <p class="text-sm font-medium text-slate-700 truncate">
+                      <p class="text-sm font-medium text-text truncate">
                         {file.name}
                       </p>
-                      <p class="text-xs text-slate-400">
+                      <p class="text-xs text-subtle">
                         {formatSize(file.size)}
                       </p>
                     </div>
                   </div>
                   {#if !share.is_reverse_share}
                     <button
-                      class="text-xs text-slate-500 hover:text-slate-900 font-medium transition-colors ml-3 flex-shrink-0"
+                      class="text-xs text-muted hover:text-text font-medium transition-colors ml-3 flex-shrink-0"
                       on:click={() => downloadFile(file.id)}
                     >
                       Download

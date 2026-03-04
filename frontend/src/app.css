@@ -3,6 +3,21 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
 
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f8fafc;
+  --color-surface-muted: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-text: #0f172a;
+  --color-muted: #64748b;
+  --color-subtle: #94a3b8;
+  --color-accent: #0f172a;
+  --color-accent-hover: #1e293b;
+  --color-accent-contrast: #ffffff;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-overlay: #0f172a;
+
   --color-slate-50: #f8fafc;
   --color-slate-100: #f1f5f9;
   --color-slate-200: #e2e8f0;
@@ -16,13 +31,35 @@
 }
 
 @layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --color-surface: #0f172a;
+    --color-surface-subtle: #0b1120;
+    --color-surface-muted: #1e293b;
+    --color-border: #334155;
+    --color-border-strong: #475569;
+    --color-text: #f8fafc;
+    --color-muted: #94a3b8;
+    --color-subtle: #64748b;
+    --color-accent: #f8fafc;
+    --color-accent-hover: #e2e8f0;
+    --color-accent-contrast: #0f172a;
+    --color-danger: #ef4444;
+    --color-danger-hover: #dc2626;
+    --color-overlay: #020617;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    @apply bg-slate-50 text-slate-800 leading-relaxed;
+    @apply bg-surface-subtle text-text leading-relaxed;
   }
 
   h1,
@@ -31,6 +68,6 @@
   h4,
   h5,
   h6 {
-    @apply tracking-tight text-slate-900;
+    @apply tracking-tight text-text;
   }
 }

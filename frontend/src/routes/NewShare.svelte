@@ -85,15 +85,15 @@
   <div class="mb-6">
     <a
       href="#/shares"
-      class="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+      class="text-sm text-muted hover:text-text transition-colors"
     >
       &larr; Back to shares
     </a>
   </div>
 
-  <h2 class="text-lg font-semibold text-slate-900 mb-6">Create New Share</h2>
+  <h2 class="text-lg font-semibold text-text mb-6">Create New Share</h2>
 
-  <div class="bg-white rounded-xl border border-slate-200 p-6">
+  <div class="bg-surface rounded-xl border border-border p-6">
     <form on:submit={handleSubmit} class="space-y-6">
       <Input
         label="Name"
@@ -106,13 +106,13 @@
       <div class="space-y-1.5">
         <label
           for="new-share-description"
-          class="block text-sm font-medium text-slate-700">Description</label
+          class="block text-sm font-medium text-text">Description</label
         >
         <textarea
           id="new-share-description"
           bind:value={description}
           rows="3"
-          class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg transition-colors duration-150 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
+          class="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg transition-colors duration-150 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-border"
           placeholder="Optional description"
         ></textarea>
       </div>
@@ -149,13 +149,13 @@
       <div class="space-y-1.5">
         <label
           for="new-share-expires-at"
-          class="block text-sm font-medium text-slate-700">Expires At</label
+          class="block text-sm font-medium text-text">Expires At</label
         >
         <input
           id="new-share-expires-at"
           type="date"
           bind:value={expiresAt}
-          class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"
+          class="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-border"
         />
       </div>
 
@@ -170,16 +170,16 @@
           type="checkbox"
           id="isReverseShare"
           bind:checked={isReverseShare}
-          class="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900/20"
+          class="w-4 h-4 text-text border-border rounded focus:ring-accent/20"
         />
-        <label for="isReverseShare" class="text-sm text-slate-600">
+        <label for="isReverseShare" class="text-sm text-muted">
           Reverse share (allow others to upload files)
         </label>
       </div>
 
       {#if !isReverseShare}
         <div>
-          <p class="text-sm font-medium text-slate-700 mb-2">
+          <p class="text-sm font-medium text-text mb-2">
             Files {#if errors.files}<span class="text-red-500"
                 >- {errors.files}</span
               >{/if}
@@ -187,16 +187,16 @@
           <FileUploader on:files={handleFileSelect} />
           {#if pendingFiles.length > 0}
             <ul
-              class="mt-4 divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden"
+              class="mt-4 divide-y divide-border border border-border rounded-xl overflow-hidden"
             >
               {#each pendingFiles as file, index (index)}
                 <li class="flex items-center justify-between px-4 py-3">
                   <div class="flex items-center gap-3 min-w-0">
                     <div
-                      class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0"
+                      class="w-8 h-8 rounded-lg bg-surface-muted flex items-center justify-center flex-shrink-0"
                     >
                       <svg
-                        class="w-4 h-4 text-slate-400"
+                        class="w-4 h-4 text-subtle"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke-width="1.5"
@@ -209,13 +209,13 @@
                         />
                       </svg>
                     </div>
-                    <span class="text-sm text-slate-700 truncate"
+                    <span class="text-sm text-text truncate"
                       >{file.name}</span
                     >
                   </div>
                   <button
                     type="button"
-                    class="text-xs text-slate-400 hover:text-red-500 transition-colors ml-3 flex-shrink-0"
+                    class="text-xs text-subtle hover:text-red-500 transition-colors ml-3 flex-shrink-0"
                     on:click={() => removeFile(index)}
                   >
                     Remove

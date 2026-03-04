@@ -32,8 +32,8 @@
 
 <div
   class="border-2 border-dashed rounded-xl p-10 text-center transition-all duration-150 {dragover
-    ? 'border-slate-400 bg-slate-50'
-    : 'border-slate-200 hover:border-slate-300'}"
+    ? 'border-accent bg-surface-subtle'
+    : 'border-border hover:border-accent'}"
   on:dragover|preventDefault={() => (dragover = true)}
   on:dragleave={() => (dragover = false)}
   on:drop={handleDrop}
@@ -53,10 +53,10 @@
   />
   <div class="flex flex-col items-center gap-3">
     <div
-      class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center"
+      class="w-10 h-10 rounded-lg bg-surface-muted flex items-center justify-center"
     >
       <svg
-        class="w-5 h-5 text-slate-400"
+        class="w-5 h-5 text-subtle"
         fill="none"
         viewBox="0 0 24 24"
         stroke-width="1.5"
@@ -70,12 +70,12 @@
       </svg>
     </div>
     <div>
-      <p class="text-sm text-slate-600">
+      <p class="text-sm text-muted">
         Drop files here or
         <button
           type="button"
           {disabled}
-          class="text-slate-900 font-medium underline underline-offset-2 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          class="text-text font-medium underline underline-offset-2 hover:text-text disabled:opacity-40 disabled:cursor-not-allowed"
           on:click={() => fileInput.click()}
         >
           browse
