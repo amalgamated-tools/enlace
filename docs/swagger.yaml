@@ -21,6 +21,44 @@ definitions:
         example: false
         type: boolean
     type: object
+  handler.storageConfigResponse:
+    properties:
+      s3_access_key:
+        type: string
+      s3_bucket:
+        type: string
+      s3_endpoint:
+        type: string
+      s3_path_prefix:
+        type: string
+      s3_region:
+        type: string
+      s3_secret_key_set:
+        type: boolean
+      storage_local_path:
+        type: string
+      storage_type:
+        type: string
+    type: object
+  handler.updateStorageConfigRequest:
+    properties:
+      s3_access_key:
+        type: string
+      s3_bucket:
+        type: string
+      s3_endpoint:
+        type: string
+      s3_path_prefix:
+        type: string
+      s3_region:
+        type: string
+      s3_secret_key:
+        type: string
+      storage_local_path:
+        type: string
+      storage_type:
+        type: string
+    type: object
   handler.adminUserResponse:
     properties:
       created_at:
@@ -386,6 +424,113 @@ info:
   title: Enlace API
   version: "1.0"
 paths:
+  /api/v1/admin/storage:
+    delete:
+      description: Removes all storage configuration overrides from the database,
+        reverting to environment variable configuration on next restart. Requires
+        admin role.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete storage configuration
+      tags:
+      - admin
+    get:
+      description: Returns storage configuration overrides stored in the database.
+        Requires admin role. The s3_secret_key value is never returned; use s3_secret_key_set
+        to check if one is configured.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.storageConfigResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get storage configuration
+      tags:
+      - admin
+    put:
+      consumes:
+      - application/json
+      description: Updates storage configuration overrides in the database. Only provided
+        fields are updated. Requires admin role. Changes take effect after restart.
+      parameters:
+      - description: Storage configuration fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.updateStorageConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.storageConfigResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update storage configuration
+      tags:
+      - admin
   /api/v1/admin/users:
     get:
       description: Requires admin role.
