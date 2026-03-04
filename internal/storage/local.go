@@ -25,12 +25,17 @@ func NewLocalStorage(basePath string) (*LocalStorage, error) {
 		return nil, fmt.Errorf("invalid local storage base path %q: %w", basePath, err)
 	}
 
-	if stat, statErr := os.Stat(absBase); statErr == nil && stat.IsDir() {
+	if stat, statErr := os.Stat(absBase); statErr == nil {
+		if !stat.IsDir() {
+			return nil, fmt.Errorf("local storage base path %q is not a directory", absBase)
+		}
 		if realBase, evalErr := filepath.EvalSymlinks(absBase); evalErr == nil {
 			absBase = realBase
 		} else {
 			return nil, fmt.Errorf("failed to resolve storage base path %q: %w", absBase, evalErr)
 		}
+	} else if !os.IsNotExist(statErr) {
+		return nil, fmt.Errorf("cannot access local storage base path %q: %w", absBase, statErr)
 	}
 	return &LocalStorage{basePath: absBase}, nil
 }
