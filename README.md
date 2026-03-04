@@ -11,7 +11,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Two-factor authentication** — per-user TOTP 2FA with QR-code setup, recovery codes, and optional admin-enforced enrollment (`REQUIRE_2FA`); mutually exclusive with SSO/OIDC
 - **Storage backends** — local filesystem or any S3-compatible object store; storage settings can be overridden at runtime via the admin API without redeploying (changes take effect after restart)
 - **Admin panel** — manage users from the UI; configure file upload restrictions (max size, blocked extensions) at runtime
-- **Rate limiting** — IP-based rate limiting middleware. `LoginRateLimiter` (5 req/min) is applied to `POST /auth/login`, `RegisterRateLimiter` (3 req/min) to `POST /auth/register`, and `TFAVerifyRateLimiter` (5 req/min) to the 2FA verification endpoints. The `APIRateLimiter` (60 req/min) helper is available in `internal/middleware/ratelimit.go` but not wired up by default.
+- **Rate limiting** — IP-based rate limiting middleware. `LoginRateLimiter` (5 req/min) is applied to `POST /auth/login`, `RegisterRateLimiter` (3 req/min) to `POST /auth/register`, and `TFAVerifyRateLimiter` (5 req/min) to the 2FA verification endpoints. The `APIRateLimiter` (60 req/min) helper is available in `internal/middleware/ratelimit.go` but not wired up by default. When running behind a reverse proxy, configure `TRUSTED_PROXIES` so that forwarded client IPs are used for rate limiting instead of the proxy's address — see [Networking / Reverse Proxy](#networking--reverse-proxy).
 - **Email notifications** — optionally email share links to recipients via SMTP; resend from the share detail page
 - **Dark mode** — three-way theme toggle (system, light, dark) with preference persisted in the browser
 - **Embeds frontend** — single binary ships the compiled Svelte app
@@ -149,6 +149,28 @@ Enlace supports TOTP-based 2FA. Users enable it in their account settings; admin
 | `OIDC_SCOPES` | `openid email profile` | Space-separated scope list |
 
 See [OIDC.md](OIDC.md) for provider-specific setup guides.
+
+### Networking / Reverse Proxy
+
+When Enlace is deployed behind a reverse proxy (nginx, Caddy, Traefik, etc.) the direct TCP peer is the proxy, not the end user. By default, Enlace uses `RemoteAddr` for all IP-based decisions (rate limiting). Set `TRUSTED_PROXIES` to the CIDR ranges of your proxy so that the real client IP from `X-Forwarded-For` / `X-Real-IP` is used instead.
+
+| Variable | Default | Description |
+|---|---|---|
+| `TRUSTED_PROXIES` | *(unset — use `RemoteAddr`)* | Comma-separated list of CIDR ranges whose `X-Forwarded-For` / `X-Real-IP` headers are trusted for client-IP extraction (e.g. rate limiting). Leave unset when not running behind a proxy. |
+
+> **Security note:** Only list IP ranges you control. Any host in a trusted CIDR can spoof arbitrary client IPs by setting `X-Forwarded-For`. Overly broad ranges (e.g. `0.0.0.0/0`) defeat IP-based rate limiting entirely.
+
+**Example — single local proxy:**
+
+```bash
+TRUSTED_PROXIES=127.0.0.1/32
+```
+
+**Example — RFC 1918 private ranges (typical Docker / Kubernetes setup):**
+
+```bash
+TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+```
 
 ## CLI Flags
 
