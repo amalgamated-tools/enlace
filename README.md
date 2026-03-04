@@ -281,7 +281,7 @@ Response `data` fields:
 > **Note:** OIDC (SSO) and 2FA are mutually exclusive. Accounts with a linked OIDC identity cannot set up or use 2FA — the setup, confirm, disable, and recovery-code endpoints return HTTP 403 for those accounts. OIDC logins also bypass the 2FA verification step. See [OIDC.md](OIDC.md#oidc-and-two-factor-authentication-2fa) for details.
 
 All `/me/2fa/*` endpoints require a valid `Authorization: Bearer <access_token>` header.
-The `/auth/2fa/*` endpoints require a `pending_token` (returned by `POST /auth/login` when 2FA is enabled) in the `Authorization: Bearer` header.
+The `/auth/2fa/*` endpoints are **unauthenticated** — the `pending_token` (returned by `POST /auth/login` when 2FA is enabled) is passed in the **request body**, not in an `Authorization` header.
 
 **`GET /api/v1/me/2fa/status`** — returns the current user's 2FA status.
 
@@ -336,18 +336,18 @@ Response `data`:
 
 ---
 
-**`POST /api/v1/auth/2fa/verify`** — complete a two-phase login with a TOTP code. Pass the `pending_token` in the `Authorization: Bearer` header.
+**`POST /api/v1/auth/2fa/verify`** — complete a two-phase login with a TOTP code. Include the `pending_token` received from `/auth/login` in the request body.
 
 ```json
-{ "code": "123456" }
+{ "pending_token": "<pending-token>", "code": "123456" }
 ```
 
 Returns the same shape as a normal `POST /auth/login` success: `access_token`, `refresh_token`, and `user`.
 
-**`POST /api/v1/auth/2fa/recovery`** — complete a two-phase login with a recovery code. Pass the `pending_token` in the `Authorization: Bearer` header.
+**`POST /api/v1/auth/2fa/recovery`** — complete a two-phase login with a recovery code. Include the `pending_token` received from `/auth/login` in the request body.
 
 ```json
-{ "code": "abcd-efgh-ijkl-mnop-qrst" }
+{ "pending_token": "<pending-token>", "recovery_code": "abcd-efgh-ijkl-mnop-qrst" }
 ```
 
 Returns `access_token`, `refresh_token`, and `user`. The used recovery code is consumed and cannot be reused.
@@ -554,8 +554,8 @@ Fields in each recipient object:
 | `POST` | `/api/v1/auth/login` | — | Obtain JWT tokens (may return `pending_token` when 2FA is active) |
 | `POST` | `/api/v1/auth/refresh` | — | Refresh access token |
 | `POST` | `/api/v1/auth/logout` | — | Revoke refresh token |
-| `POST` | `/api/v1/auth/2fa/verify` | pending | Complete 2FA login with TOTP code |
-| `POST` | `/api/v1/auth/2fa/recovery` | pending | Complete 2FA login with recovery code |
+| `POST` | `/api/v1/auth/2fa/verify` | — | Complete 2FA login with TOTP code (pass `pending_token` in body) |
+| `POST` | `/api/v1/auth/2fa/recovery` | — | Complete 2FA login with recovery code (pass `pending_token` in body) |
 | `GET` | `/api/v1/auth/oidc/config` | — | OIDC feature flag |
 | `GET` | `/api/v1/auth/oidc/login` | — | Start OIDC flow |
 | `GET` | `/api/v1/auth/oidc/callback` | — | OIDC callback |
