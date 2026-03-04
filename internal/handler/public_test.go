@@ -531,6 +531,10 @@ func TestPublicHandler_VerifyPassword_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
 	}
 
+	if cc := w.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("expected Cache-Control: no-store, got %q", cc)
+	}
+
 	var response struct {
 		Success bool `json:"success"`
 		Data    struct {

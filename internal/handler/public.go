@@ -284,6 +284,7 @@ func (h *PublicHandler) VerifyPassword(w http.ResponseWriter, r *http.Request) {
 		Secure:   h.secureCookies || r.TLS != nil,
 	})
 
+	w.Header().Set("Cache-Control", "no-store")
 	Success(w, http.StatusOK, verifyPasswordResponse{Token: token})
 }
 
