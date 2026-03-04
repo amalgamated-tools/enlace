@@ -2,8 +2,10 @@ package config_test
 
 import (
 	"encoding/base64"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/amalgamated-tools/enlace/internal/config"
@@ -124,6 +126,101 @@ func TestLoad_JWTSecret_ReadsExistingFile(t *testing.T) {
 
 	if cfg.JWTSecret != existingSecret {
 		t.Errorf("expected JWT secret %q, got %q", existingSecret, cfg.JWTSecret)
+	}
+}
+
+func TestConfig_LogValue_RedactsSecrets(t *testing.T) {
+	cfg := &config.Config{
+		Port:             8080,
+		DatabasePath:     "./enlace.db",
+		JWTSecret:        "super-secret-jwt",
+		BaseURL:          "http://localhost:8080",
+		StorageType:      "s3",
+		StorageLocalPath: "./uploads",
+		S3Endpoint:       "https://s3.example.com",
+		S3Bucket:         "my-bucket",
+		S3AccessKey:      "AKIAIOSFODNN7EXAMPLE",
+		S3SecretKey:      "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		S3Region:         "us-east-1",
+		SMTPHost:         "smtp.example.com",
+		SMTPPort:         587,
+		SMTPUser:         "smtp-user@example.com",
+		SMTPPass:         "smtp-password",
+		SMTPFrom:         "noreply@example.com",
+		OIDCEnabled:      true,
+		OIDCClientID:     "my-client-id",
+		OIDCClientSecret: "my-oidc-secret",
+		OIDCIssuerURL:    "https://auth.example.com",
+	}
+
+	// Render the config via slog to a text buffer and verify secrets are not present.
+	var buf strings.Builder
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logger.Debug("config", slog.Any("config", cfg))
+	logged := buf.String()
+
+	secretFields := []string{
+		"super-secret-jwt",
+		"AKIAIOSFODNN7EXAMPLE",
+		"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		"smtp-user@example.com",
+		"smtp-password",
+		"my-oidc-secret",
+	}
+	for _, secret := range secretFields {
+		if strings.Contains(logged, secret) {
+			t.Errorf("log output must not contain secret %q; got: %s", secret, logged)
+		}
+	}
+
+	// Non-secret fields should still appear.
+	safeFields := []string{
+		"http://localhost:8080",
+		"smtp.example.com",
+		"my-client-id",
+		"https://auth.example.com",
+		"us-east-1",
+		"my-bucket",
+	}
+	for _, field := range safeFields {
+		if !strings.Contains(logged, field) {
+			t.Errorf("log output should contain non-secret field %q; got: %s", field, logged)
+		}
+	}
+}
+
+func TestConfig_LogValue_EmptySecrets(t *testing.T) {
+	cfg := &config.Config{
+		Port:         8080,
+		DatabasePath: "./enlace.db",
+		BaseURL:      "http://localhost:8080",
+		StorageType:  "local",
+		// All secret fields are empty (zero value)
+	}
+
+	var buf strings.Builder
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logger.Debug("config", slog.Any("config", cfg))
+	logged := buf.String()
+
+	// When a secret field is empty it should log as empty, not "***"
+	if strings.Contains(logged, "***") {
+		t.Errorf("empty secret fields should not be logged as ***, got: %s", logged)
+	}
+
+	// Verify secret field keys are present with empty values
+	emptySecretFields := []string{
+		`config.jwt_secret=""`,
+		`config.smtp_pass=""`,
+		`config.smtp_user=""`,
+		`config.s3_access_key=""`,
+		`config.s3_secret_key=""`,
+		`config.oidc_client_secret=""`,
+	}
+	for _, field := range emptySecretFields {
+		if !strings.Contains(logged, field) {
+			t.Errorf("log output should contain empty secret field %q; got: %s", field, logged)
+		}
 	}
 }
 

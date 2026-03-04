@@ -40,6 +40,7 @@ type FileHandler struct {
 	fileService  FileHandlerFileService
 	shareService FileHandlerShareService
 	maxFileSize  int64
+	settingsRepo SettingsRepositoryInterface
 }
 
 // FileHandlerOption configures a FileHandler.
@@ -49,6 +50,13 @@ type FileHandlerOption func(*FileHandler)
 func WithMaxFileSize(size int64) FileHandlerOption {
 	return func(h *FileHandler) {
 		h.maxFileSize = size
+	}
+}
+
+// WithSettingsRepo sets the settings repository for dynamic file restrictions.
+func WithSettingsRepo(repo SettingsRepositoryInterface) FileHandlerOption {
+	return func(h *FileHandler) {
+		h.settingsRepo = repo
 	}
 }
 
@@ -134,9 +142,19 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// Upload each file
 	uploadedFiles := make([]fileResponse, 0, len(files))
+
+	// Read admin-configured file restrictions dynamically
+	effectiveMaxSize, blockedExtensions := loadEffectiveRestrictions(r.Context(), h.settingsRepo, h.maxFileSize)
+
 	for _, fileHeader := range files {
+		// Check blocked extension
+		if IsExtensionBlocked(fileHeader.Filename, blockedExtensions) {
+			Error(w, http.StatusBadRequest, "file extension is not allowed")
+			return
+		}
+
 		// Check file size
-		if fileHeader.Size > h.maxFileSize {
+		if fileHeader.Size > effectiveMaxSize {
 			Error(w, http.StatusBadRequest, "file exceeds maximum size limit")
 			return
 		}

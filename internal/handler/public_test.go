@@ -1657,3 +1657,202 @@ func TestPublicHandler_ViewShare_InvalidToken(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusUnauthorized, w.Code)
 	}
 }
+
+func TestPublicHandler_UploadToReverseShare_BlockedExtension(t *testing.T) {
+	shareID := "share-123"
+	share := newPublicTestShare(shareID, "test-share")
+	share.IsReverseShare = true
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn: func(ctx context.Context, slug string) (*model.Share, error) {
+			return share, nil
+		},
+		validateAccessFn: func(ctx context.Context, s *model.Share) error {
+			return nil
+		},
+	}
+
+	mockSettings := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{
+				"blocked_extensions": ".exe,.bat,.sh",
+			}, nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, nil, testJWTSecret, handler.WithPublicSettingsRepo(mockSettings))
+	router := setupPublicRouter(h)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("files", "script.sh")
+	_, _ = part.Write([]byte("#!/bin/bash"))
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/s/test-share/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d: %s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Error string `json:"error"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if response.Error != "file extension is not allowed" {
+		t.Errorf("expected 'file extension is not allowed', got %q", response.Error)
+	}
+}
+
+func TestPublicHandler_UploadToReverseShare_AdminMaxFileSizeOverride(t *testing.T) {
+	shareID := "share-123"
+	share := newPublicTestShare(shareID, "test-share")
+	share.IsReverseShare = true
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn: func(ctx context.Context, slug string) (*model.Share, error) {
+			return share, nil
+		},
+		validateAccessFn: func(ctx context.Context, s *model.Share) error {
+			return nil
+		},
+	}
+
+	mockSettings := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{
+				"max_file_size": "10",
+			}, nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, nil, testJWTSecret, handler.WithPublicSettingsRepo(mockSettings))
+	router := setupPublicRouter(h)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("files", "large.txt")
+	_, _ = part.Write([]byte("this content is more than 10 bytes"))
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/s/test-share/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d: %s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Error string `json:"error"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if response.Error != "file exceeds maximum size limit" {
+		t.Errorf("expected 'file exceeds maximum size limit', got %q", response.Error)
+	}
+}
+
+func TestPublicHandler_UploadToReverseShare_SettingsRepoError_FallsBackToDefault(t *testing.T) {
+	shareID := "share-123"
+	share := newPublicTestShare(shareID, "test-share")
+	share.IsReverseShare = true
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn: func(ctx context.Context, slug string) (*model.Share, error) {
+			return share, nil
+		},
+		validateAccessFn: func(ctx context.Context, s *model.Share) error {
+			return nil
+		},
+	}
+
+	mockFile := &mockPublicFileService{
+		uploadFn: func(ctx context.Context, input service.UploadInput) (*model.File, error) {
+			return newPublicTestFile("new-file-id", shareID, input.Filename), nil
+		},
+	}
+
+	mockSettings := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return nil, errors.New("database error")
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret, handler.WithPublicSettingsRepo(mockSettings))
+	router := setupPublicRouter(h)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("files", "small.txt")
+	_, _ = part.Write([]byte("ok"))
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/s/test-share/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// Should still succeed using default max size
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
+	}
+}
+
+func TestPublicHandler_UploadToReverseShare_AllowedExtensionPasses(t *testing.T) {
+	shareID := "share-123"
+	share := newPublicTestShare(shareID, "test-share")
+	share.IsReverseShare = true
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn: func(ctx context.Context, slug string) (*model.Share, error) {
+			return share, nil
+		},
+		validateAccessFn: func(ctx context.Context, s *model.Share) error {
+			return nil
+		},
+	}
+
+	mockFile := &mockPublicFileService{
+		uploadFn: func(ctx context.Context, input service.UploadInput) (*model.File, error) {
+			return newPublicTestFile("new-file-id", shareID, input.Filename), nil
+		},
+	}
+
+	mockSettings := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{
+				"blocked_extensions": ".exe,.bat",
+			}, nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret, handler.WithPublicSettingsRepo(mockSettings))
+	router := setupPublicRouter(h)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("files", "document.pdf")
+	_, _ = part.Write([]byte("pdf content"))
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/s/test-share/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
+	}
+}

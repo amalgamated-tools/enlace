@@ -49,6 +49,7 @@ type PublicHandler struct {
 	fileService  PublicFileServiceInterface
 	jwtSecret    []byte
 	maxFileSize  int64
+	settingsRepo SettingsRepositoryInterface
 }
 
 // PublicHandlerOption configures a PublicHandler.
@@ -58,6 +59,13 @@ type PublicHandlerOption func(*PublicHandler)
 func WithPublicMaxFileSize(size int64) PublicHandlerOption {
 	return func(h *PublicHandler) {
 		h.maxFileSize = size
+	}
+}
+
+// WithPublicSettingsRepo sets the settings repository for dynamic file restrictions on public uploads.
+func WithPublicSettingsRepo(repo SettingsRepositoryInterface) PublicHandlerOption {
+	return func(h *PublicHandler) {
+		h.settingsRepo = repo
 	}
 }
 
@@ -439,9 +447,19 @@ func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Requ
 
 	// Upload each file
 	uploadedFiles := make([]publicFileResponse, 0, len(files))
+
+	// Read admin-configured file restrictions dynamically
+	effectiveMaxSize, blockedExtensions := loadEffectiveRestrictions(r.Context(), h.settingsRepo, h.maxFileSize)
+
 	for _, fileHeader := range files {
+		// Check blocked extension
+		if IsExtensionBlocked(fileHeader.Filename, blockedExtensions) {
+			Error(w, http.StatusBadRequest, "file extension is not allowed")
+			return
+		}
+
 		// Check file size
-		if fileHeader.Size > h.maxFileSize {
+		if fileHeader.Size > effectiveMaxSize {
 			Error(w, http.StatusBadRequest, "file exceeds maximum size limit")
 			return
 		}

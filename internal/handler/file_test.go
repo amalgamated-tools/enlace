@@ -915,3 +915,227 @@ func TestNewFileHandler_WithOptions(t *testing.T) {
 		t.Fatal("expected handler to be created")
 	}
 }
+
+func TestFileHandler_Upload_BlockedExtension(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShareSvc := &mockFileHandlerShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockFileSvc := &mockFileHandlerFileService{}
+
+	mockSettings := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{
+				"blocked_extensions": ".exe,.bat",
+			}, nil
+		},
+	}
+
+	h := handler.NewFileHandler(mockFileSvc, mockShareSvc, handler.WithSettingsRepo(mockSettings))
+	router := setupFileRouter(h)
+
+	files := map[string][]byte{
+		"malware.exe": []byte("bad content"),
+	}
+	req := createMultipartRequest(t, "/api/v1/shares/"+shareID+"/files", files)
+	req = withFileUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d: %s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Error string `json:"error"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if response.Error != "file extension is not allowed" {
+		t.Errorf("expected 'file extension is not allowed', got %q", response.Error)
+	}
+}
+
+func TestFileHandler_Upload_BlockedExtensionCaseInsensitive(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShareSvc := &mockFileHandlerShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockFileSvc := &mockFileHandlerFileService{}
+
+	mockSettings := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{
+				"blocked_extensions": ".exe",
+			}, nil
+		},
+	}
+
+	h := handler.NewFileHandler(mockFileSvc, mockShareSvc, handler.WithSettingsRepo(mockSettings))
+	router := setupFileRouter(h)
+
+	files := map[string][]byte{
+		"MALWARE.EXE": []byte("bad content"),
+	}
+	req := createMultipartRequest(t, "/api/v1/shares/"+shareID+"/files", files)
+	req = withFileUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestFileHandler_Upload_AllowedExtensionPasses(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShareSvc := &mockFileHandlerShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockFileSvc := &mockFileHandlerFileService{
+		uploadFn: func(ctx context.Context, input service.UploadInput) (*model.File, error) {
+			return &model.File{
+				ID:       "file-123",
+				ShareID:  input.ShareID,
+				Name:     input.Filename,
+				Size:     input.Size,
+				MimeType: "text/plain",
+			}, nil
+		},
+	}
+
+	mockSettings := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{
+				"blocked_extensions": ".exe,.bat",
+			}, nil
+		},
+	}
+
+	h := handler.NewFileHandler(mockFileSvc, mockShareSvc, handler.WithSettingsRepo(mockSettings))
+	router := setupFileRouter(h)
+
+	files := map[string][]byte{
+		"document.txt": []byte("safe content"),
+	}
+	req := createMultipartRequest(t, "/api/v1/shares/"+shareID+"/files", files)
+	req = withFileUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
+	}
+}
+
+func TestFileHandler_Upload_AdminMaxFileSizeOverride(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShareSvc := &mockFileHandlerShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockFileSvc := &mockFileHandlerFileService{}
+
+	mockSettings := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{
+				"max_file_size": "10",
+			}, nil
+		},
+	}
+
+	h := handler.NewFileHandler(mockFileSvc, mockShareSvc, handler.WithSettingsRepo(mockSettings))
+	router := setupFileRouter(h)
+
+	files := map[string][]byte{
+		"large.txt": []byte("this content is more than 10 bytes"),
+	}
+	req := createMultipartRequest(t, "/api/v1/shares/"+shareID+"/files", files)
+	req = withFileUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d: %s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Error string `json:"error"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if response.Error != "file exceeds maximum size limit" {
+		t.Errorf("expected 'file exceeds maximum size limit', got %q", response.Error)
+	}
+}
+
+func TestFileHandler_Upload_SettingsRepoError_FallsBackToDefault(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShareSvc := &mockFileHandlerShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockFileSvc := &mockFileHandlerFileService{
+		uploadFn: func(ctx context.Context, input service.UploadInput) (*model.File, error) {
+			return &model.File{
+				ID:       "file-123",
+				ShareID:  input.ShareID,
+				Name:     input.Filename,
+				Size:     input.Size,
+				MimeType: "text/plain",
+			}, nil
+		},
+	}
+
+	mockSettings := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return nil, errors.New("database error")
+		},
+	}
+
+	h := handler.NewFileHandler(mockFileSvc, mockShareSvc, handler.WithSettingsRepo(mockSettings))
+	router := setupFileRouter(h)
+
+	files := map[string][]byte{
+		"small.txt": []byte("ok"),
+	}
+	req := createMultipartRequest(t, "/api/v1/shares/"+shareID+"/files", files)
+	req = withFileUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// Should still succeed using default max size
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
+	}
+}
