@@ -10,8 +10,9 @@ import (
 )
 
 func TestFrontendHandler_ServeHTTP(t *testing.T) {
+	index := "<html>spa</html>"
 	distFS := fstest.MapFS{
-		"index.html":       &fstest.MapFile{Data: []byte("<html>spa</html>")},
+		"index.html":       &fstest.MapFile{Data: []byte(index)},
 		"assets/app.js":    &fstest.MapFile{Data: []byte("console.log('ok')")},
 		"assets/style.css": &fstest.MapFile{Data: []byte("body{}")},
 	}
@@ -22,28 +23,35 @@ func TestFrontendHandler_ServeHTTP(t *testing.T) {
 	}
 
 	tests := []struct {
-		name            string
-		path            string
-		wantBody        string
-		expectHTML      bool
-		expectAssetText string
+		name               string
+		path               string
+		wantBody           string
+		expectHTML         bool
+		expectContentMatch string
 	}{
 		{
 			name:       "root serves index",
 			path:       "/",
-			wantBody:   "<html>spa</html>",
+			wantBody:   index,
 			expectHTML: true,
 		},
 		{
 			name:       "spa route serves index",
 			path:       "/dashboard",
-			wantBody:   "<html>spa</html>",
+			wantBody:   index,
 			expectHTML: true,
 		},
 		{
-			name:            "static asset served directly",
-			path:            "/assets/app.js",
-			expectAssetText: "console.log('ok')",
+			name:               "javascript asset served directly",
+			path:               "/assets/app.js",
+			wantBody:           "console.log('ok')",
+			expectContentMatch: "javascript",
+		},
+		{
+			name:               "css asset served directly",
+			path:               "/assets/style.css",
+			wantBody:           "body{}",
+			expectContentMatch: "css",
 		},
 	}
 
@@ -76,15 +84,12 @@ func TestFrontendHandler_ServeHTTP(t *testing.T) {
 				return
 			}
 
-			if len(tt.expectAssetText) > 0 {
-				if len(tt.wantBody) > 0 && string(body) == tt.wantBody {
-					t.Fatalf("expected asset body, got index.html content")
+			if tt.expectContentMatch != "" {
+				if !strings.Contains(contentType, tt.expectContentMatch) {
+					t.Fatalf("expected content-type to contain %q, got %q", tt.expectContentMatch, contentType)
 				}
-				if !strings.Contains(contentType, "javascript") && !strings.Contains(contentType, "text/plain") {
-					t.Fatalf("unexpected content-type for asset: %q", contentType)
-				}
-				if string(body) != tt.expectAssetText {
-					t.Fatalf("expected asset content %q, got %q", tt.expectAssetText, string(body))
+				if string(body) != tt.wantBody {
+					t.Fatalf("expected asset content %q, got %q", tt.wantBody, string(body))
 				}
 			}
 		})
