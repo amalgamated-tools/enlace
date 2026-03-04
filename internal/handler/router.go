@@ -103,7 +103,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService)
 	userHandler := NewUserHandler(cfg.AuthService)
 	adminHandler := NewAdminHandler(cfg.UserRepo)
-	storageConfigHandler := NewStorageConfigHandler(cfg.SettingsRepo)
+	storageConfigHandler := NewStorageConfigHandler(cfg.SettingsRepo, []byte(cfg.JWTSecret))
 	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret))
 	oidcHandler := NewOIDCHandler(newOIDCServiceAdapter(cfg.OIDCService), newAuthTokenAdapter(cfg.AuthService), cfg.BaseURL)
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"strings"
+
+	"github.com/amalgamated-tools/enlace/internal/crypto"
 )
 
 // storageSettingKeys are the known storage-related setting keys.
@@ -11,6 +13,9 @@ var storageSettingKeys = []string{
 	"storage_type", "storage_local_path",
 	"s3_endpoint", "s3_bucket", "s3_access_key", "s3_secret_key", "s3_region", "s3_path_prefix",
 }
+
+// storageEncryptionSalt is the salt used to derive the AES key for encrypting storage secrets.
+const storageEncryptionSalt = "storage-secret-encryption"
 
 // SettingsRepositoryInterface defines the interface for settings repository operations.
 type SettingsRepositoryInterface interface {
@@ -23,12 +28,16 @@ type SettingsRepositoryInterface interface {
 
 // StorageConfigHandler handles admin storage configuration HTTP requests.
 type StorageConfigHandler struct {
-	settingsRepo SettingsRepositoryInterface
+	settingsRepo  SettingsRepositoryInterface
+	encryptionKey []byte
 }
 
 // NewStorageConfigHandler creates a new StorageConfigHandler.
-func NewStorageConfigHandler(settingsRepo SettingsRepositoryInterface) *StorageConfigHandler {
-	return &StorageConfigHandler{settingsRepo: settingsRepo}
+func NewStorageConfigHandler(settingsRepo SettingsRepositoryInterface, jwtSecret []byte) *StorageConfigHandler {
+	return &StorageConfigHandler{
+		settingsRepo:  settingsRepo,
+		encryptionKey: crypto.DeriveKey(jwtSecret, storageEncryptionSalt),
+	}
 }
 
 // storageConfigResponse represents the GET response for storage configuration.
@@ -139,7 +148,17 @@ func (h *StorageConfigHandler) UpdateStorageConfig(w http.ResponseWriter, r *htt
 		toSet["s3_access_key"] = strings.TrimSpace(*req.S3AccessKey)
 	}
 	if req.S3SecretKey != nil {
-		toSet["s3_secret_key"] = strings.TrimSpace(*req.S3SecretKey)
+		secretVal := strings.TrimSpace(*req.S3SecretKey)
+		if secretVal != "" {
+			encrypted, err := crypto.Encrypt(secretVal, h.encryptionKey)
+			if err != nil {
+				Error(w, http.StatusInternalServerError, "failed to encrypt secret key")
+				return
+			}
+			toSet["s3_secret_key"] = encrypted
+		} else {
+			toSet["s3_secret_key"] = ""
+		}
 	}
 	if req.S3Region != nil {
 		toSet["s3_region"] = strings.TrimSpace(*req.S3Region)
@@ -150,6 +169,26 @@ func (h *StorageConfigHandler) UpdateStorageConfig(w http.ResponseWriter, r *htt
 
 	if len(toSet) == 0 {
 		Error(w, http.StatusBadRequest, "no settings to update")
+		return
+	}
+
+	// Validate the effective configuration by merging existing DB settings with incoming updates.
+	// This prevents saving an incomplete S3 config that would cause a startup failure.
+	existing, err := h.settingsRepo.GetMultiple(r.Context(), storageSettingKeys)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to retrieve current storage settings")
+		return
+	}
+	effective := make(map[string]string)
+	for k, v := range existing {
+		effective[k] = v
+	}
+	for k, v := range toSet {
+		effective[k] = v
+	}
+
+	if fieldErrors := validateEffectiveStorageConfig(effective); len(fieldErrors) > 0 {
+		ValidationError(w, fieldErrors)
 		return
 	}
 
@@ -198,4 +237,36 @@ func (h *StorageConfigHandler) DeleteStorageConfig(w http.ResponseWriter, r *htt
 	}
 
 	Success(w, http.StatusOK, nil)
+}
+
+// validateEffectiveStorageConfig checks that the merged configuration has all
+// required fields for the effective storage type. This prevents saving an
+// incomplete config that would cause a startup failure.
+func validateEffectiveStorageConfig(effective map[string]string) map[string]string {
+	errs := make(map[string]string)
+
+	storageType := effective["storage_type"]
+	if storageType == "" {
+		// No storage type configured; env vars will be used at startup.
+		return errs
+	}
+
+	switch storageType {
+	case "s3":
+		if effective["s3_bucket"] == "" {
+			errs["s3_bucket"] = "required when storage_type is 's3'"
+		}
+		if effective["s3_access_key"] == "" {
+			errs["s3_access_key"] = "required when storage_type is 's3'"
+		}
+		if effective["s3_secret_key"] == "" {
+			errs["s3_secret_key"] = "required when storage_type is 's3'"
+		}
+	case "local":
+		if effective["storage_local_path"] == "" {
+			errs["storage_local_path"] = "required when storage_type is 'local'"
+		}
+	}
+
+	return errs
 }

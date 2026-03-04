@@ -16,6 +16,7 @@ import (
 
 	enlace "github.com/amalgamated-tools/enlace"
 	"github.com/amalgamated-tools/enlace/internal/config"
+	"github.com/amalgamated-tools/enlace/internal/crypto"
 	"github.com/amalgamated-tools/enlace/internal/database"
 	"github.com/amalgamated-tools/enlace/internal/handler"
 	"github.com/amalgamated-tools/enlace/internal/otel"
@@ -211,6 +212,18 @@ func initStorage(ctx context.Context, cfg *config.Config, settingsRepo *reposito
 	if err != nil {
 		slog.WarnContext(ctx, "failed to load storage settings from database, using env config", slog.Any("error", err))
 		dbSettings = map[string]string{}
+	}
+
+	// Decrypt the S3 secret key if it was stored encrypted
+	if raw, ok := dbSettings["s3_secret_key"]; ok && raw != "" {
+		encKey := crypto.DeriveKey([]byte(cfg.JWTSecret), "storage-secret-encryption")
+		decrypted, err := crypto.Decrypt(raw, encKey)
+		if err != nil {
+			slog.WarnContext(ctx, "failed to decrypt s3_secret_key from database, ignoring DB value", slog.Any("error", err))
+			delete(dbSettings, "s3_secret_key")
+		} else {
+			dbSettings["s3_secret_key"] = decrypted
+		}
 	}
 
 	// Helper: get from DB first, then fall back to config value
