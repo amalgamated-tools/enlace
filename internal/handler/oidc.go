@@ -270,6 +270,7 @@ func (h *OIDCHandler) ExchangeOIDCTokens(w http.ResponseWriter, r *http.Request)
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   r.TLS != nil,
 	})
 
 	var tokens TokenPair
