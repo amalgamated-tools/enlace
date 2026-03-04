@@ -468,8 +468,25 @@ Response `data` fields:
 
 | Field | Type | Description |
 |---|---|---|
-| `share` | object | Share metadata (same fields as the authenticated share response) |
+| `share` | object | Share metadata (see fields below) |
 | `files` | array | List of file objects in the share |
+
+`share` object fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Share UUID |
+| `slug` | string | URL slug used in public links |
+| `name` | string | Display name |
+| `description` | string | Optional description |
+| `has_password` | bool | Whether the share requires a password |
+| `expires_at` | string (RFC3339) | Expiry timestamp, omitted if not set |
+| `max_downloads` | int | Download limit, omitted if not set |
+| `download_count` | int | Number of times files have been downloaded |
+| `max_views` | int | View limit, omitted if not set |
+| `view_count` | int | Number of times the share has been viewed |
+| `is_reverse_share` | bool | Whether others can upload to this share |
+| `created_at` | string (RFC3339) | Creation timestamp |
 
 ---
 
