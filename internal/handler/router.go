@@ -116,9 +116,9 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	oidcHandler := NewOIDCHandler(newOIDCServiceAdapter(cfg.OIDCService), newAuthTokenAdapter(cfg.AuthService), cfg.BaseURL)
 
 	// Rate limiters
-	tfaRateLimiter := intMiddleware.TFAVerifyRateLimiter()
-	loginRateLimiter := intMiddleware.LoginRateLimiter()
-	registerRateLimiter := intMiddleware.RegisterRateLimiter()
+	tfaRateLimiter := intMiddleware.TFAVerifyRateLimiter(cfg.TrustedProxyCIDRs...)
+	loginRateLimiter := intMiddleware.LoginRateLimiter(cfg.TrustedProxyCIDRs...)
+	registerRateLimiter := intMiddleware.RegisterRateLimiter(cfg.TrustedProxyCIDRs...)
 
 	// API v1 routes
 	r.Route("/api/v1", func(r chi.Router) {

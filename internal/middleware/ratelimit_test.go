@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	chiMiddleware "github.com/go-chi/chi/v5/middleware"
+
 	"github.com/amalgamated-tools/enlace/internal/middleware"
 	"golang.org/x/time/rate"
 )
@@ -698,5 +700,60 @@ func TestRateLimiter_RemoteAddrNormalization(t *testing.T) {
 	if rec2.Code != http.StatusTooManyRequests {
 		t.Errorf("second request (different port, same IP): expected %d, got %d",
 			http.StatusTooManyRequests, rec2.Code)
+	}
+}
+
+// TestRateLimiter_RealIPMiddlewareUnderminesProtection is a regression test
+// proving that chi's middleware.RealIP must NOT be placed before the rate
+// limiter. When it is, clients can spoof X-Forwarded-For to bypass limits.
+// The router must not include middleware.RealIP in its middleware stack.
+func TestRateLimiter_RealIPMiddlewareUnderminesProtection(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// DANGEROUS: middleware.RealIP before rate limiter allows spoofing.
+	// This half of the test documents the bypass so no one re-adds RealIP.
+	rlDangerous := middleware.NewRateLimiter(rate.Every(time.Second), 1)
+	defer rlDangerous.Stop()
+	dangerousChain := chiMiddleware.RealIP(rlDangerous.Limit(handler))
+
+	for i := 0; i < 3; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = "203.0.113.50:9000"
+		req.Header.Set("X-Forwarded-For", fmt.Sprintf("10.0.0.%d", i+1))
+		rec := httptest.NewRecorder()
+		dangerousChain.ServeHTTP(rec, req)
+
+		// All requests succeed because middleware.RealIP rewrites RemoteAddr
+		// to the spoofed IP, giving each request a fresh rate-limit bucket.
+		if rec.Code != http.StatusOK {
+			t.Errorf("dangerous chain request %d: expected %d, got %d — middleware.RealIP behavior may have changed",
+				i+1, http.StatusOK, rec.Code)
+		}
+	}
+
+	// SAFE: rate limiter alone (no middleware.RealIP) ignores spoofed headers.
+	rlSafe := middleware.NewRateLimiter(rate.Every(time.Second), 1)
+	defer rlSafe.Stop()
+	safeChain := rlSafe.Limit(handler)
+
+	for i := 0; i < 3; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = "203.0.113.50:9000"
+		req.Header.Set("X-Forwarded-For", fmt.Sprintf("10.0.0.%d", i+1))
+		rec := httptest.NewRecorder()
+		safeChain.ServeHTTP(rec, req)
+
+		if i == 0 {
+			if rec.Code != http.StatusOK {
+				t.Errorf("safe chain first request: expected %d, got %d", http.StatusOK, rec.Code)
+			}
+		} else {
+			if rec.Code != http.StatusTooManyRequests {
+				t.Errorf("safe chain request %d: expected %d, got %d — spoofed headers should be ignored",
+					i+1, http.StatusTooManyRequests, rec.Code)
+			}
+		}
 	}
 }
