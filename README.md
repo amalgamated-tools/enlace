@@ -92,7 +92,7 @@ Enlace collects **opt-in, anonymous** telemetry to help improve the project. Tel
 |---|---|---|
 | `TELEMETRY_ENABLED` | `false` | Set to `true` to enable anonymous telemetry |
 | `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Endpoint that receives the telemetry ping (override for self-hosted collection) |
-| `DATA_DIR` | `./data` | Directory used to store the install ID file that prevents duplicate telemetry pings |
+| `DATA_DIR` | `./data` | Directory for persistent runtime state: the auto-generated JWT signing secret and the telemetry install ID. **Security-sensitive** — losing or changing this directory will invalidate all existing JWT tokens (logging out every user) and trigger a new telemetry ping |
 
 ### API & CORS
 

@@ -1,13 +1,13 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
-
-	"github.com/google/uuid"
 )
 
 var (
@@ -111,8 +111,13 @@ func loadJWTSecret() string {
 	if secretBytes, err := os.ReadFile(secretPath); err == nil {
 		return string(secretBytes)
 	}
-	// If the file doesn't exist or can't be read, generate a new secret and save it
-	secret := uuid.New().String()
+	// If the file doesn't exist or can't be read, generate a new 256-bit secret and save it
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		slog.Error("Failed to generate cryptographically secure JWT secret", "error", err)
+		os.Exit(1)
+	}
+	secret := base64.RawURLEncoding.EncodeToString(key)
 	if err := os.MkdirAll(dataDir, 0700); err == nil {
 		if err := os.WriteFile(secretPath, []byte(secret), 0600); err == nil {
 			return secret
