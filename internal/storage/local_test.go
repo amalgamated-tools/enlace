@@ -430,3 +430,46 @@ func TestLocalStorage_RejectsTraversalAndAbsoluteKeys(t *testing.T) {
 		})
 	}
 }
+
+func TestLocalStorage_RejectsSymlinkEscape(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "storage-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	outsideDir, err := os.MkdirTemp("", "outside-dir")
+	if err != nil {
+		t.Fatalf("failed to create outside dir: %v", err)
+	}
+	defer os.RemoveAll(outsideDir)
+
+	linkPath := filepath.Join(tmpDir, "link")
+	if err := os.Symlink(outsideDir, linkPath); err != nil {
+		t.Fatalf("failed to create symlink: %v", err)
+	}
+
+	store := newLocalStore(t, tmpDir)
+	ctx := context.Background()
+
+	key := "link/escape.txt"
+	if err := store.Put(ctx, key, bytes.NewReader([]byte("data")), 4, "text/plain"); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when writing via symlink, got %v", err)
+	}
+
+	if _, err := store.Get(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when reading via symlink, got %v", err)
+	}
+
+	if err := store.Delete(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when deleting via symlink, got %v", err)
+	}
+
+	if exists, err := store.Exists(ctx, key); err == nil && exists {
+		t.Fatalf("expected file to not exist via symlink escape")
+	}
+
+	if _, err := os.Stat(filepath.Join(outsideDir, "escape.txt")); !os.IsNotExist(err) {
+		t.Fatalf("expected no file to be written outside base path, got err %v", err)
+	}
+}

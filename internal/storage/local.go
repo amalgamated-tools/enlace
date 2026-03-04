@@ -74,6 +74,15 @@ func (s *LocalStorage) resolveKey(key string) (string, error) {
 		return "", ErrInvalidKey
 	}
 
+	dirPath := filepath.Dir(fullPath)
+	if resolvedDir, err := filepath.EvalSymlinks(dirPath); err == nil {
+		fullPath = filepath.Join(resolvedDir, filepath.Base(fullPath))
+		relPath, err = filepath.Rel(s.basePath, fullPath)
+		if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
+			return "", ErrInvalidKey
+		}
+	}
+
 	if resolvedPath, err := filepath.EvalSymlinks(fullPath); err == nil {
 		fullPath = resolvedPath
 		relPath, err = filepath.Rel(s.basePath, fullPath)
