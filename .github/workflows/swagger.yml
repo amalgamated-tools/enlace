@@ -51,6 +51,7 @@ jobs:
 
             This PR was created because the generated docs in `docs/` are out of date
             with the swagger annotations in the handler source code.
+          base: ${{ github.head_ref || github.ref_name }}
           branch: auto/swagger-docs
           delete-branch: true
           labels: documentation
