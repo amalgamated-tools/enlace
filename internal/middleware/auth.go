@@ -44,8 +44,8 @@ func RequireAuth(authService *service.AuthService) func(http.Handler) http.Handl
 				return
 			}
 
-			// Reject refresh tokens used as access tokens
-			if claims.TokenType == service.TokenTypeRefresh {
+			// Require access tokens; reject refresh or unknown token types
+			if claims.TokenType != service.TokenTypeAccess {
 				http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 				return
 			}
