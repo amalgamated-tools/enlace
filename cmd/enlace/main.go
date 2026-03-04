@@ -226,9 +226,10 @@ func initStorage(ctx context.Context, cfg *config.Config, settingsRepo *reposito
 		}
 	}
 
-	// Helper: get from DB first, then fall back to config value
+	// Helper: get from DB first, then fall back to config value.
+	// The presence of a DB key acts as an override, even if the value is empty.
 	getVal := func(dbKey string, envVal string) string {
-		if v, ok := dbSettings[dbKey]; ok && v != "" {
+		if v, ok := dbSettings[dbKey]; ok {
 			return v
 		}
 		return envVal
