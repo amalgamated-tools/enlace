@@ -7,6 +7,7 @@
     try {
       const response = await fetch("/api/v1/auth/oidc/exchange", {
         method: "POST",
+        credentials: "same-origin",
       });
       const data = await response.json();
 
@@ -20,7 +21,8 @@
       toast.success("Logged in successfully");
       push("/");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Authentication failed";
+      const message =
+        err instanceof Error ? err.message : "Authentication failed";
       toast.error(message);
       push("/login");
     }

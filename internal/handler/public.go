@@ -45,11 +45,12 @@ type PublicFileServiceInterface interface {
 
 // PublicHandler handles public share-related HTTP requests (no auth required).
 type PublicHandler struct {
-	shareService PublicShareServiceInterface
-	fileService  PublicFileServiceInterface
-	jwtSecret    []byte
-	maxFileSize  int64
-	settingsRepo SettingsRepositoryInterface
+	shareService  PublicShareServiceInterface
+	fileService   PublicFileServiceInterface
+	jwtSecret     []byte
+	maxFileSize   int64
+	settingsRepo  SettingsRepositoryInterface
+	secureCookies bool
 }
 
 // PublicHandlerOption configures a PublicHandler.
@@ -66,6 +67,13 @@ func WithPublicMaxFileSize(size int64) PublicHandlerOption {
 func WithPublicSettingsRepo(repo SettingsRepositoryInterface) PublicHandlerOption {
 	return func(h *PublicHandler) {
 		h.settingsRepo = repo
+	}
+}
+
+// WithSecureCookies forces the Secure flag on all cookies set by PublicHandler.
+func WithSecureCookies(secure bool) PublicHandlerOption {
+	return func(h *PublicHandler) {
+		h.secureCookies = secure
 	}
 }
 
@@ -273,7 +281,7 @@ func (h *PublicHandler) VerifyPassword(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   int(shareAccessTokenExpiry.Seconds()),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   h.secureCookies || r.TLS != nil,
 	})
 
 	Success(w, http.StatusOK, verifyPasswordResponse{Token: token})

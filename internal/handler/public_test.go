@@ -570,6 +570,50 @@ func TestPublicHandler_VerifyPassword_Success(t *testing.T) {
 	}
 }
 
+// TestPublicHandler_VerifyPassword_SecureCookie tests that WithSecureCookies sets the Secure flag.
+func TestPublicHandler_VerifyPassword_SecureCookie(t *testing.T) {
+	shareID := "share-sec-123"
+	slug := "secure-share"
+	share := newPublicTestShare(shareID, slug)
+	passwordHash := "hash"
+	share.PasswordHash = &passwordHash
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn: func(ctx context.Context, s string) (*model.Share, error) {
+			return share, nil
+		},
+		validateAccessFn: func(ctx context.Context, s *model.Share) error {
+			return nil
+		},
+		verifyPasswordFn: func(ctx context.Context, id string, password string) bool {
+			return true
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, nil, testJWTSecret, handler.WithSecureCookies(true))
+	router := setupPublicRouter(h)
+
+	body := `{"password": "correct-password"}`
+	req := httptest.NewRequest(http.MethodPost, "/s/"+slug+"/verify", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "share_token" {
+			if !c.Secure {
+				t.Error("expected share_token cookie to have Secure flag with WithSecureCookies(true)")
+			}
+			return
+		}
+	}
+	t.Error("expected share_token cookie to be set")
+}
+
 // TestPublicHandler_DownloadFile_PasswordProtected_WithCookie tests that the share_token cookie authenticates downloads.
 func TestPublicHandler_DownloadFile_PasswordProtected_WithCookie(t *testing.T) {
 	shareID := "share-cookie-123"
