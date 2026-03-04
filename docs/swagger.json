@@ -2583,12 +2583,21 @@
         },
         "handler.loginRequest": {
             "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
             "properties": {
                 "email": {
-                    "type": "string"
+                    "description": "Registered email address",
+                    "type": "string",
+                    "format": "email",
+                    "example": "user@example.com"
                 },
                 "password": {
-                    "type": "string"
+                    "description": "Account password",
+                    "type": "string",
+                    "example": "password123"
                 }
             }
         },
@@ -2731,15 +2740,28 @@
         },
         "handler.registerRequest": {
             "type": "object",
+            "required": [
+                "display_name",
+                "email",
+                "password"
+            ],
             "properties": {
                 "display_name": {
-                    "type": "string"
+                    "description": "Display name shown in the UI",
+                    "type": "string",
+                    "example": "Alice"
                 },
                 "email": {
-                    "type": "string"
+                    "description": "Valid email address",
+                    "type": "string",
+                    "format": "email",
+                    "example": "user@example.com"
                 },
                 "password": {
-                    "type": "string"
+                    "description": "Password (minimum 8 characters)",
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "password123"
                 }
             }
         },
