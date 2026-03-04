@@ -503,7 +503,9 @@ For password-protected shares, include the access token as `X-Share-Token: <toke
 
 Uses the same `multipart/form-data` format as the authenticated upload endpoint — attach files under the `files` field. Returns an array of uploaded file objects.
 
-### Notify endpoint
+### Notification endpoints
+
+**`GET /api/v1/shares/{id}/recipients`** — list all previously notified recipients for a share. Returns an array of recipient objects (see [Recipient object](#recipient-object) below). Returns an empty array if no notifications have been sent.
 
 **`POST /api/v1/shares/{id}/notify`** — send (or resend) email notifications for a share. Requires SMTP to be configured.
 
@@ -519,7 +521,7 @@ Example:
 
 ### Recipient object
 
-Recipient responses (from `GET /api/v1/shares/{id}/recipients`) include:
+Fields in each recipient object:
 
 | Field | Type | Description |
 |---|---|---|
