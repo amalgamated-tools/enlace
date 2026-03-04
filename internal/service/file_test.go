@@ -220,6 +220,35 @@ func TestFileService_Upload_DetectsMimeType(t *testing.T) {
 	}
 }
 
+func TestFileService_Upload_SanitizesFilename(t *testing.T) {
+	svc, store, share, cleanup := setupFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	input := service.UploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "../..//evil.txt",
+		Content:    strings.NewReader("content"),
+		Size:       7,
+	}
+
+	file, err := svc.Upload(ctx, input)
+	if err != nil {
+		t.Fatalf("failed to upload file: %v", err)
+	}
+
+	if file.Name != "evil.txt" {
+		t.Fatalf("expected sanitized filename 'evil.txt', got %q", file.Name)
+	}
+	if strings.Contains(file.StorageKey, "..") {
+		t.Fatalf("storage key should not contain traversal components: %s", file.StorageKey)
+	}
+	if _, ok := store.files[file.StorageKey]; !ok {
+		t.Fatalf("expected file to be stored under sanitized key, got %s", file.StorageKey)
+	}
+}
+
 func TestFileService_Upload_NoUploaderID(t *testing.T) {
 	svc, _, share, cleanup := setupFileServiceWithUserAndShare(t)
 	defer cleanup()
