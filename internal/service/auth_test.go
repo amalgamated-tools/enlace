@@ -155,6 +155,10 @@ func TestAuthService_ValidateToken(t *testing.T) {
 	if claims.UserID != user.ID {
 		t.Errorf("expected user ID %s, got %s", user.ID, claims.UserID)
 	}
+
+	if claims.TokenType != service.TokenTypeAccess {
+		t.Errorf("expected token type %s, got %s", service.TokenTypeAccess, claims.TokenType)
+	}
 }
 
 func TestAuthService_ValidateToken_Invalid(t *testing.T) {
@@ -242,6 +246,30 @@ func TestAuthService_RefreshTokens_InvalidToken(t *testing.T) {
 	_, err := svc.RefreshTokens(ctx, "invalid-refresh-token")
 	if err != service.ErrInvalidToken {
 		t.Errorf("expected ErrInvalidToken, got %v", err)
+	}
+}
+
+func TestAuthService_RefreshTokens_RejectsAccessToken(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Register and login
+	_, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	tokens, err := svc.Login(ctx, "test@example.com", "password123")
+	if err != nil {
+		t.Fatalf("failed to login: %v", err)
+	}
+
+	// Attempt to refresh using an access token instead of a refresh token
+	_, err = svc.RefreshTokens(ctx, tokens.AccessToken)
+	if err != service.ErrInvalidToken {
+		t.Errorf("expected ErrInvalidToken when using access token for refresh, got %v", err)
 	}
 }
 

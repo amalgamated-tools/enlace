@@ -36,11 +36,18 @@ type TokenPair struct {
 	RefreshToken string
 }
 
+// Token type constants for distinguishing access and refresh tokens.
+const (
+	TokenTypeAccess  = "access"
+	TokenTypeRefresh = "refresh"
+)
+
 // Claims represents the JWT claims for access tokens.
 type Claims struct {
-	UserID  string `json:"uid"`
-	IsAdmin bool   `json:"adm"`
-	TFA     bool   `json:"tfa,omitempty"` // true for pending 2FA tokens
+	UserID    string `json:"uid"`
+	IsAdmin   bool   `json:"adm"`
+	TFA       bool   `json:"tfa,omitempty"`        // true for pending 2FA tokens
+	TokenType string `json:"token_type,omitempty"` // "access" or "refresh"
 	jwt.RegisteredClaims
 }
 
@@ -134,6 +141,11 @@ func (s *AuthService) ValidateToken(tokenStr string) (*Claims, error) {
 func (s *AuthService) RefreshTokens(ctx context.Context, refreshToken string) (*TokenPair, error) {
 	claims, err := s.ValidateToken(refreshToken)
 	if err != nil {
+		return nil, ErrInvalidToken
+	}
+
+	// Only accept refresh tokens
+	if claims.TokenType != TokenTypeRefresh {
 		return nil, ErrInvalidToken
 	}
 
@@ -313,8 +325,9 @@ func (s *AuthService) generateAccessToken(userID string, isAdmin bool) (string, 
 func (s *AuthService) GenerateAccessTokenWithExpiry(userID string, isAdmin bool, expiry time.Duration) (string, error) {
 	now := time.Now()
 	claims := &Claims{
-		UserID:  userID,
-		IsAdmin: isAdmin,
+		UserID:    userID,
+		IsAdmin:   isAdmin,
+		TokenType: TokenTypeAccess,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -331,8 +344,9 @@ func (s *AuthService) GenerateAccessTokenWithExpiry(userID string, isAdmin bool,
 func (s *AuthService) generateRefreshToken(userID string, isAdmin bool) (string, error) {
 	now := time.Now()
 	claims := &Claims{
-		UserID:  userID,
-		IsAdmin: isAdmin,
+		UserID:    userID,
+		IsAdmin:   isAdmin,
+		TokenType: TokenTypeRefresh,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(refreshTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(now),

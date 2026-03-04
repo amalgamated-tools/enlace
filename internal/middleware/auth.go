@@ -44,6 +44,12 @@ func RequireAuth(authService *service.AuthService) func(http.Handler) http.Handl
 				return
 			}
 
+			// Reject refresh tokens used as access tokens
+			if claims.TokenType == service.TokenTypeRefresh {
+				http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+				return
+			}
+
 			// Add user info to context
 			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 			ctx = context.WithValue(ctx, IsAdminKey, claims.IsAdmin)
