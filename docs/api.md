@@ -120,6 +120,16 @@ Pass the `pending_token` to `POST /api/v1/auth/2fa/verify` (TOTP code) or `POST 
 
 **`POST /api/v1/auth/logout`** — invalidates the session on the client side. Always returns HTTP 200. Discard stored tokens after calling this endpoint.
 
+**`GET /api/v1/auth/oidc/config`** — returns whether OIDC/SSO login is enabled for this Enlace instance. Always available; no authentication required. Clients use this to conditionally show a "Sign in with SSO" button.
+
+```json
+{ "success": true, "data": { "enabled": true } }
+```
+
+**`GET /api/v1/auth/oidc/login`** — initiates the OIDC authorization code flow with PKCE. **Browser-only.** Redirects the browser to the configured identity provider. Not intended to be called from API clients directly — visit it in a browser tab or trigger it via a link/button. Only available when `OIDC_ENABLED=true`.
+
+**`GET /api/v1/auth/oidc/callback`** — OAuth 2.0 callback endpoint that the identity provider redirects to after authentication. **Browser-only.** Verifies state, exchanges the authorization code for tokens, and redirects the browser to `/#/auth/callback` with a short-lived HttpOnly pending-token cookie set. Only available when `OIDC_ENABLED=true`.
+
 **`POST /api/v1/auth/oidc/exchange`** — exchanges the short-lived HttpOnly pending-token cookie (set during the OIDC callback redirect) for a JWT access and refresh token pair. The cookie is consumed on first use; calling this endpoint a second time returns HTTP 401. This endpoint is called automatically by the frontend SPA immediately after the OIDC redirect lands on `/#/auth/callback`. No request body is required — the cookie is sent automatically by the browser.
 
 Returns the same `access_token`, `refresh_token`, and `user` shape as a normal login success. Only available when `OIDC_ENABLED=true`.
@@ -261,6 +271,26 @@ Returns the same shape as a normal `POST /auth/login` success: `access_token`, `
 ```
 
 Returns `access_token`, `refresh_token`, and `user`. The used recovery code is consumed and cannot be reused.
+
+## OIDC account management endpoints
+
+These endpoints allow authenticated users to link or unlink an OIDC identity from their account. All require `Authorization: Bearer <access_token>`. Only available when `OIDC_ENABLED=true`; otherwise each endpoint returns HTTP 404.
+
+**`GET /api/v1/me/oidc/link`** — starts the OIDC account-linking flow for the currently authenticated user. **Browser-only.** Sets HttpOnly state and PKCE cookies, then redirects the browser to the identity provider's authorization endpoint. Not intended to be called from API clients directly — navigate to it in the browser (e.g., from the Settings page).
+
+**`GET /api/v1/me/oidc/callback`** — OAuth 2.0 callback endpoint for account linking. **Browser-only.** The identity provider redirects here after the user approves the link request. Verifies state, exchanges the authorization code, links the OIDC identity to the current user account, then redirects to `/#/settings`. If the account already has 2FA enabled, it is automatically disabled (see [OIDC and 2FA](oidc.md#oidc-and-two-factor-authentication-2fa)).
+
+On success redirects to `/#/settings`. On failure redirects to `/#/login?error=<message>`.
+
+**`DELETE /api/v1/me/oidc`** — unlinks the OIDC identity from the current user's account. Requires the account to have a local password set (`has_password: true` in `GET /api/v1/me`) — unlinking from a password-less account would lock the user out, so the request is rejected with HTTP 400 in that case.
+
+Returns HTTP 200 on success:
+
+```json
+{ "success": true, "data": null }
+```
+
+> **See also:** [OIDC / SSO guide](oidc.md) for provider setup, the SSO + 2FA interaction, and troubleshooting.
 
 ## Admin user endpoints
 
