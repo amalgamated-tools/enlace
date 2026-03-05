@@ -42,15 +42,30 @@ type ShareHandler struct {
 	shareService ShareServiceInterface
 	fileService  FileServiceInterface
 	emailService EmailServiceInterface
+	webhooks     WebhookEmitter
+}
+
+// ShareHandlerOption configures ShareHandler.
+type ShareHandlerOption func(*ShareHandler)
+
+// WithShareWebhookEmitter sets the webhook emitter used for share events.
+func WithShareWebhookEmitter(emitter WebhookEmitter) ShareHandlerOption {
+	return func(h *ShareHandler) {
+		h.webhooks = emitter
+	}
 }
 
 // NewShareHandler creates a new ShareHandler instance.
-func NewShareHandler(shareService ShareServiceInterface, fileService FileServiceInterface, emailService EmailServiceInterface) *ShareHandler {
-	return &ShareHandler{
+func NewShareHandler(shareService ShareServiceInterface, fileService FileServiceInterface, emailService EmailServiceInterface, opts ...ShareHandlerOption) *ShareHandler {
+	h := &ShareHandler{
 		shareService: shareService,
 		fileService:  fileService,
 		emailService: emailService,
 	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 // createShareRequest represents the request body for creating a share.
@@ -220,6 +235,24 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 			if err := h.emailService.SendShareNotification(ctx, share, validRecipients); err != nil {
 				slog.ErrorContext(ctx, "failed to send share notifications", slog.Any("error", err))
 			}
+		}()
+	}
+
+	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
+		bgCtx := context.WithoutCancel(r.Context())
+		creatorID := *share.CreatorID
+		go func() {
+			_ = h.webhooks.Emit(bgCtx, service.WebhookEvent{
+				Type:      "share.created",
+				CreatorID: creatorID,
+				ActorID:   userID,
+				Resource:  share.ID,
+				Data: map[string]interface{}{
+					"share_id": share.ID,
+					"slug":     share.Slug,
+					"name":     share.Name,
+				},
+			})
 		}()
 	}
 

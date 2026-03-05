@@ -379,3 +379,88 @@ func TestRequireAuthAndRequireAdmin_ChainedMiddleware(t *testing.T) {
 		t.Error("expected handler to NOT be called for non-admin user")
 	}
 }
+
+func TestRequireAuth_APIKeyWithScope(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	apiKeyRepo := repository.NewAPIKeyRepository(db.DB())
+	authService := service.NewAuthService(userRepo, []byte("test-secret-key-for-jwt-signing"))
+	apiKeyService := service.NewAPIKeyService(apiKeyRepo)
+
+	ctx := context.Background()
+	user, err := authService.Register(ctx, "scope-ok@example.com", "password123", "Scope OK")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	_, token, err := apiKeyService.Create(ctx, user.ID, "scope-ok", []string{"shares:read"})
+	if err != nil {
+		t.Fatalf("failed to create api key: %v", err)
+	}
+
+	var authType string
+	handler := middleware.RequireAuth(authService, middleware.WithAPIKeyAuth(apiKeyService))(
+		middleware.RequireScope("shares:read")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			authType = middleware.GetAuthType(r.Context())
+			w.WriteHeader(http.StatusOK)
+		})),
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/shares", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, rec.Code, rec.Body.String())
+	}
+	if authType != "api_key" {
+		t.Fatalf("expected auth type api_key, got %q", authType)
+	}
+}
+
+func TestRequireAuth_APIKeyInsufficientScope(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	apiKeyRepo := repository.NewAPIKeyRepository(db.DB())
+	authService := service.NewAuthService(userRepo, []byte("test-secret-key-for-jwt-signing"))
+	apiKeyService := service.NewAPIKeyService(apiKeyRepo)
+
+	ctx := context.Background()
+	user, err := authService.Register(ctx, "scope-no@example.com", "password123", "Scope NO")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	_, token, err := apiKeyService.Create(ctx, user.ID, "scope-no", []string{"shares:read"})
+	if err != nil {
+		t.Fatalf("failed to create api key: %v", err)
+	}
+
+	handler := middleware.RequireAuth(authService, middleware.WithAPIKeyAuth(apiKeyService))(
+		middleware.RequireScope("shares:write")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})),
+	)
+
+	req := httptest.NewRequest(http.MethodPost, "/shares", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusForbidden, rec.Code, rec.Body.String())
+	}
+}

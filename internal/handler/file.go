@@ -42,6 +42,7 @@ type FileHandler struct {
 	shareService FileHandlerShareService
 	maxFileSize  int64
 	settingsRepo SettingsRepositoryInterface
+	webhooks     WebhookEmitter
 }
 
 // FileHandlerOption configures a FileHandler.
@@ -58,6 +59,13 @@ func WithMaxFileSize(size int64) FileHandlerOption {
 func WithSettingsRepo(repo SettingsRepositoryInterface) FileHandlerOption {
 	return func(h *FileHandler) {
 		h.settingsRepo = repo
+	}
+}
+
+// WithFileWebhookEmitter sets the webhook emitter used for file events.
+func WithFileWebhookEmitter(emitter WebhookEmitter) FileHandlerOption {
+	return func(h *FileHandler) {
+		h.webhooks = emitter
 	}
 }
 
@@ -195,6 +203,32 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 			Size:     uploadedFile.Size,
 			MimeType: uploadedFile.MimeType,
 		})
+	}
+
+	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
+		creatorID := *share.CreatorID
+		uploaded := make([]map[string]interface{}, 0, len(uploadedFiles))
+		for _, item := range uploadedFiles {
+			uploaded = append(uploaded, map[string]interface{}{
+				"id":        item.ID,
+				"name":      item.Name,
+				"size":      item.Size,
+				"mime_type": item.MimeType,
+			})
+		}
+		go func() {
+			_ = h.webhooks.Emit(context.WithoutCancel(r.Context()), service.WebhookEvent{
+				Type:      "file.upload.completed",
+				CreatorID: creatorID,
+				ActorID:   userID,
+				Resource:  shareID,
+				Data: map[string]interface{}{
+					"share_id": shareID,
+					"count":    len(uploadedFiles),
+					"files":    uploaded,
+				},
+			})
+		}()
 	}
 
 	Success(w, http.StatusCreated, uploadedFiles)

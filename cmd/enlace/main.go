@@ -90,6 +90,8 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	fileRepo := repository.NewFileRepository(db.DB())
 	totpRepo := repository.NewTOTPRepository(db.DB())
 	settingsRepo := repository.NewSettingsRepository(db.DB())
+	apiKeyRepo := repository.NewAPIKeyRepository(db.DB())
+	webhookRepo := repository.NewWebhookRepository(db.DB())
 
 	// Initialize storage
 	store, err := initStorage(cancelCtx, cfg, settingsRepo)
@@ -114,6 +116,8 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		TLSPolicy: cfg.SMTPTLSPolicy,
 	}, recipientRepo, cfg.BaseURL)
 	totpService := service.NewTOTPService(totpRepo, userRepo, jwtSecret)
+	apiKeyService := service.NewAPIKeyService(apiKeyRepo)
+	webhookService := service.NewWebhookService(webhookRepo, jwtSecret, nil)
 
 	// Initialize OIDC service (optional, based on config)
 	var oidcService *service.OIDCService
@@ -149,6 +153,8 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		ShareService:      shareService,
 		FileService:       fileService,
 		EmailService:      emailService,
+		APIKeyService:     apiKeyService,
+		WebhookService:    webhookService,
 		UserRepo:          userRepo,
 		ShareRepo:         shareRepo,
 		FileRepo:          fileRepo,
@@ -164,6 +170,10 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		Require2FA:        cfg.Require2FA,
 		TrustedProxyCIDRs: cfg.TrustedProxyCIDRs,
 	})
+
+	workerCtx, stopWorker := context.WithCancel(cancelCtx)
+	defer stopWorker()
+	go webhookService.RunDeliveryWorker(workerCtx, 10*time.Second)
 
 	// Create server
 	server := &http.Server{
@@ -188,6 +198,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	<-quit
 
 	slog.Info("Shutting down server...")
+	stopWorker()
 
 	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
