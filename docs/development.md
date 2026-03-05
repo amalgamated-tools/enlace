@@ -27,6 +27,8 @@ The backend defaults to <http://localhost:8080> and the Vite dev server proxies 
 ```bash
 make build          # production binary (frontend embedded)
 make build-backend  # backend only, faster iteration
+make run            # build then run the production binary
+make run-backend    # run backend without rebuilding (go run ./cmd/enlace)
 make test           # go test ./...
 make test-coverage  # test + HTML coverage report
 make lint           # go vet ./... (CI also runs golangci-lint v2)
