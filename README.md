@@ -21,9 +21,10 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 ```bash
 docker run -d \
   -p 8080:8080 \
-  -v enlace-db:/app/data \
+  -v enlace-data:/app/data \
   -v enlace-uploads:/app/uploads \
-  enlace:latest
+  -e BASE_URL=http://localhost:8080 \
+  ghcr.io/amalgamated-tools/enlace:latest
 ```
 
 Open <http://localhost:8080> and register your first user.
