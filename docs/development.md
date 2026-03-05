@@ -29,7 +29,7 @@ make build          # production binary (frontend embedded)
 make build-backend  # backend only, faster iteration
 make run            # build then run the production binary
 make run-backend    # run backend without rebuilding (go run ./cmd/enlace)
-make test           # go test ./...
+make test           # go test ./... -v
 make test-coverage  # test + HTML coverage report
 make lint           # go vet ./... (CI also runs golangci-lint v2)
 make fmt            # gofmt + Prettier (formats Go and frontend code)

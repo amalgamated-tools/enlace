@@ -24,7 +24,7 @@ enlace/
 │       ├── routes/      # Page components
 │       ├── lib/         # Shared components and API client
 │       └── test/        # Unit tests
-├── docs/                # Generated OpenAPI/Swagger specs
+├── docs/                # Documentation and auto-generated OpenAPI/Swagger specs
 ├── scripts/             # Utility scripts
 ├── Makefile             # Build and dev targets
 ├── Dockerfile           # Multi-stage Docker build
