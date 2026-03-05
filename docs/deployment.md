@@ -141,7 +141,7 @@ server {
     ssl_certificate     /etc/ssl/certs/enlace.example.com.crt;
     ssl_certificate_key /etc/ssl/private/enlace.example.com.key;
 
-    client_max_body_size 200M;  # match or exceed your MAX_FILE_SIZE setting
+    client_max_body_size 200M;  # must be at least as large as the admin-configured max file size (default 100 MB)
 
     location / {
         proxy_pass         http://127.0.0.1:8080;
