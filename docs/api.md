@@ -155,6 +155,37 @@ Response `data` fields:
 | `current_password` | string | ✔ | Current password |
 | `new_password` | string | ✔ | New password (min 8 characters) |
 
+## OIDC identity management endpoints
+
+These endpoints let a signed-in user link or unlink an external OIDC identity on their account. All `/me/oidc/*` endpoints require `Authorization: Bearer <access_token>`. OIDC must be enabled on the server (`OIDC_ENABLED=true`) — requests to these endpoints return HTTP 404 when OIDC is disabled.
+
+**`GET /api/v1/me/oidc/link`** — initiates the OIDC account-linking flow for the already-authenticated user.
+
+This is a **browser navigation endpoint** (not a JSON API call). The frontend redirects the browser to this URL. The server sets short-lived HttpOnly cookies (`oidc_state`, `oidc_verifier`, `oidc_link`) and immediately redirects the browser to the OIDC provider for authentication. After the provider callback completes (handled by `/api/v1/me/oidc/callback`), the OIDC identity is linked to the user account and the browser is redirected to `/#/settings?oidc=linked`.
+
+> **Note:** Linking an OIDC identity automatically and permanently removes any active TOTP 2FA configuration on the account. See [OIDC and 2FA](oidc.md#oidc-and-two-factor-authentication-2fa) for details.
+
+**`GET /api/v1/me/oidc/callback`** — OIDC provider callback for the account-linking flow.
+
+This is a **browser-facing redirect endpoint** — it is called automatically by the OIDC provider after the user authenticates, not directly by API clients. The server verifies the `state` parameter against the `oidc_state` cookie, exchanges the authorization code for user info, and links the identity to the user whose ID was stored in the `oidc_link` cookie.
+
+| Outcome | Redirect destination |
+|---|---|
+| Success | `/#/settings?oidc=linked` |
+| Error (state mismatch, exchange failure, etc.) | `/#/login?error=<encoded-message>` |
+
+**`DELETE /api/v1/me/oidc`** — unlinks the OIDC identity from the current user account.
+
+Returns HTTP 200 on success. Returns HTTP 400 if the account has no local password — removing the OIDC link without a password would make the account inaccessible. Set a password first via `PUT /api/v1/me/password`.
+
+```json
+// Success
+{ "success": true, "data": null }
+
+// Error — no local password set
+{ "success": false, "error": "cannot unlink OIDC from account without password" }
+```
+
 ## Two-factor authentication (2FA) endpoints
 
 > **Note:** OIDC (SSO) and 2FA are mutually exclusive. Accounts with a linked OIDC identity cannot set up or use 2FA — the setup, confirm, disable, and recovery-code endpoints return HTTP 403 for those accounts. OIDC logins also bypass the 2FA verification step. See [OIDC / SSO guide](oidc.md#oidc-and-two-factor-authentication-2fa) for details.
