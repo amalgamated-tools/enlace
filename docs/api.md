@@ -152,7 +152,7 @@ Response `data` fields:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `old_password` | string | ✔ | Current password |
+| `current_password` | string | ✔ | Current password |
 | `new_password` | string | ✔ | New password (min 8 characters) |
 
 ## Two-factor authentication (2FA) endpoints
