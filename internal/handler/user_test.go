@@ -445,7 +445,7 @@ func TestUserHandler_UpdatePassword_Success(t *testing.T) {
 	h := handler.NewUserHandler(mock)
 	router := setupUserRouter(h)
 
-	body := `{"old_password": "oldpass123", "new_password": "newpass456"}`
+	body := `{"current_password": "oldpass123", "new_password": "newpass456"}`
 	req := createRequestWithUserID(http.MethodPut, "/api/v1/me/password", body, "user-123")
 	w := httptest.NewRecorder()
 
@@ -472,7 +472,7 @@ func TestUserHandler_UpdatePassword_NoUserID(t *testing.T) {
 	h := handler.NewUserHandler(mock)
 	router := setupUserRouter(h)
 
-	body := `{"old_password": "oldpass123", "new_password": "newpass456"}`
+	body := `{"current_password": "oldpass123", "new_password": "newpass456"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/me/password", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -510,24 +510,24 @@ func TestUserHandler_UpdatePassword_ValidationErrors(t *testing.T) {
 		wantField string
 	}{
 		{
-			name:      "missing old_password",
+			name:      "missing current_password",
 			body:      `{"new_password": "newpass456"}`,
-			wantField: "old_password",
+			wantField: "current_password",
 		},
 		{
 			name:      "missing new_password",
-			body:      `{"old_password": "oldpass123"}`,
+			body:      `{"current_password": "oldpass123"}`,
 			wantField: "new_password",
 		},
 		{
 			name:      "short new_password",
-			body:      `{"old_password": "oldpass123", "new_password": "short"}`,
+			body:      `{"current_password": "oldpass123", "new_password": "short"}`,
 			wantField: "new_password",
 		},
 		{
-			name:      "empty old_password",
-			body:      `{"old_password": "", "new_password": "newpass456"}`,
-			wantField: "old_password",
+			name:      "empty current_password",
+			body:      `{"current_password": "", "new_password": "newpass456"}`,
+			wantField: "current_password",
 		},
 	}
 
@@ -571,7 +571,7 @@ func TestUserHandler_UpdatePassword_InvalidCredentials(t *testing.T) {
 	h := handler.NewUserHandler(mock)
 	router := setupUserRouter(h)
 
-	body := `{"old_password": "wrongpassword", "new_password": "newpass456"}`
+	body := `{"current_password": "wrongpassword", "new_password": "newpass456"}`
 	req := createRequestWithUserID(http.MethodPut, "/api/v1/me/password", body, "user-123")
 	w := httptest.NewRecorder()
 
@@ -592,7 +592,7 @@ func TestUserHandler_UpdatePassword_UserNotFound(t *testing.T) {
 	h := handler.NewUserHandler(mock)
 	router := setupUserRouter(h)
 
-	body := `{"old_password": "oldpass123", "new_password": "newpass456"}`
+	body := `{"current_password": "oldpass123", "new_password": "newpass456"}`
 	req := createRequestWithUserID(http.MethodPut, "/api/v1/me/password", body, "user-123")
 	w := httptest.NewRecorder()
 
@@ -605,7 +605,7 @@ func TestUserHandler_UpdatePassword_UserNotFound(t *testing.T) {
 
 func TestUserHandler_UpdatePassword_InternalError(t *testing.T) {
 	mock := &mockUserService{
-		updatePasswordFn: func(ctx context.Context, userID, oldPassword, newPassword string) error {
+		updatePasswordFn: func(ctx context.Context, userID, currentPassword, newPassword string) error {
 			return errors.New("database error")
 		},
 	}
@@ -613,7 +613,7 @@ func TestUserHandler_UpdatePassword_InternalError(t *testing.T) {
 	h := handler.NewUserHandler(mock)
 	router := setupUserRouter(h)
 
-	body := `{"old_password": "oldpass123", "new_password": "newpass456"}`
+	body := `{"current_password": "oldpass123", "new_password": "newpass456"}`
 	req := createRequestWithUserID(http.MethodPut, "/api/v1/me/password", body, "user-123")
 	w := httptest.NewRecorder()
 

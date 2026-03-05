@@ -40,8 +40,8 @@ type updateProfileRequest struct {
 
 // updatePasswordRequest represents the request body for changing password.
 type updatePasswordRequest struct {
-	OldPassword string `json:"old_password"`
-	NewPassword string `json:"new_password"`
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
 }
 
 // profileResponse represents the user profile in API responses (without sensitive fields).
@@ -193,7 +193,7 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.authService.UpdatePassword(r.Context(), userID, req.OldPassword, req.NewPassword)
+	err := h.authService.UpdatePassword(r.Context(), userID, req.CurrentPassword, req.NewPassword)
 	if err != nil {
 		h.handleServiceError(w, err)
 		return
@@ -229,8 +229,8 @@ func (h *UserHandler) validateUpdateProfileRequest(req updateProfileRequest) map
 func (h *UserHandler) validateUpdatePasswordRequest(req updatePasswordRequest) map[string]string {
 	errs := make(map[string]string)
 
-	if req.OldPassword == "" {
-		errs["old_password"] = "old_password is required"
+	if req.CurrentPassword == "" {
+		errs["current_password"] = "current_password is required"
 	}
 
 	if req.NewPassword == "" {
