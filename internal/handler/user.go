@@ -230,7 +230,7 @@ func (h *UserHandler) validateUpdatePasswordRequest(req updatePasswordRequest) m
 	errs := make(map[string]string)
 
 	if req.CurrentPassword == "" {
-		errs["old_password"] = "old_password is required"
+		errs["current_password"] = "current_password is required"
 	}
 
 	if req.NewPassword == "" {
