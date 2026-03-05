@@ -343,6 +343,16 @@ func (s *WebhookService) ProcessDueDeliveries(ctx context.Context, limit int) er
 			return err
 		}
 		if !sub.Enabled {
+			now := s.now()
+			delivery.Attempt++
+			delivery.Status = model.WebhookDeliveryStatusFailed
+			delivery.NextAttemptAt = nil
+			delivery.DeliveredAt = nil
+			delivery.Error = "subscription disabled"
+			delivery.DurationMS = 0
+			delivery.StatusCode = nil
+			delivery.UpdatedAt = now
+			_ = s.repo.UpdateDelivery(ctx, delivery)
 			continue
 		}
 		if err := s.processDelivery(ctx, delivery, sub); err != nil {

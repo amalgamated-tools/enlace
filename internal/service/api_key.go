@@ -97,8 +97,15 @@ func (s *APIKeyService) ListByCreator(ctx context.Context, creatorID string) ([]
 	return s.repo.ListByCreator(ctx, creatorID)
 }
 
-// Revoke revokes an API key by ID.
-func (s *APIKeyService) Revoke(ctx context.Context, id string) error {
+// Revoke revokes an API key by ID after verifying ownership.
+func (s *APIKeyService) Revoke(ctx context.Context, creatorID, id string) error {
+	key, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if key.CreatorID != creatorID {
+		return repository.ErrNotFound
+	}
 	return s.repo.Revoke(ctx, id)
 }
 

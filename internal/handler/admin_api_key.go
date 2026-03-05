@@ -19,7 +19,7 @@ import (
 type APIKeyServiceInterface interface {
 	Create(ctx context.Context, creatorID, name string, scopes []string) (*model.APIKey, string, error)
 	ListByCreator(ctx context.Context, creatorID string) ([]*model.APIKey, error)
-	Revoke(ctx context.Context, id string) error
+	Revoke(ctx context.Context, creatorID, id string) error
 }
 
 // APIKeyHandler manages admin API key routes.
@@ -114,13 +114,19 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Revoke handles DELETE /api/v1/admin/api-keys/{id}.
 func (h *APIKeyHandler) Revoke(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	if userID == "" {
+		Error(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 	if strings.TrimSpace(id) == "" {
 		Error(w, http.StatusBadRequest, "api key id is required")
 		return
 	}
 
-	if err := h.service.Revoke(r.Context(), id); err != nil {
+	if err := h.service.Revoke(r.Context(), userID, id); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			Error(w, http.StatusNotFound, "api key not found")
 			return
