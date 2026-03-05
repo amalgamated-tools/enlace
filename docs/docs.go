@@ -15,6 +15,175 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/admin/files": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns file upload restriction overrides stored in the database. Requires admin role. A null max_file_size means the default (100 MB) is used.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get file restriction configuration",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handler.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handler.fileRestrictionsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates file upload restriction overrides in the database. Only provided fields are updated. Requires admin role. Changes take effect immediately.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Update file restriction configuration",
+                "parameters": [
+                    {
+                        "description": "File restriction fields to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.updateFileRestrictionsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handler.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handler.fileRestrictionsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ValidationErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes all file restriction overrides from the database, reverting to default behavior. Requires admin role.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Delete file restriction configuration",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/storage": {
             "get": {
                 "security": [
@@ -745,6 +914,7 @@ const docTemplate = `{
         },
         "/api/v1/auth/logout": {
             "post": {
+                "description": "Invalidates the current session. Since Enlace uses stateless JWTs, this endpoint always succeeds and the client is responsible for discarding the tokens.",
                 "produces": [
                     "application/json"
                 ],
@@ -759,12 +929,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Invalidates the current session. Since Enlace uses stateless JWTs, this endpoint always succeeds and the client is responsible for discarding the tokens."
+                }
             }
         },
         "/api/v1/auth/oidc/callback": {
             "get": {
+                "description": "Handles the OAuth 2.0 authorization code callback. Verifies state, exchanges the code for tokens, and redirects to the frontend with JWT tokens or an error fragment.",
                 "tags": [
                     "oidc"
                 ],
@@ -792,12 +962,12 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
-                },
-                "description": "Handles the OAuth 2.0 authorization code callback. Verifies state, exchanges the code for tokens, and redirects to the frontend with JWT tokens or an error fragment."
+                }
             }
         },
         "/api/v1/auth/oidc/config": {
             "get": {
+                "description": "Returns whether OIDC/SSO login is enabled for this Enlace instance.",
                 "produces": [
                     "application/json"
                 ],
@@ -824,12 +994,50 @@ const docTemplate = `{
                             ]
                         }
                     }
-                },
-                "description": "Returns whether OIDC/SSO login is enabled for this Enlace instance."
+                }
+            }
+        },
+        "/api/v1/auth/oidc/exchange": {
+            "post": {
+                "description": "Exchanges the short-lived HttpOnly pending-token cookie (set during OIDC callback) for the JWT access and refresh token pair. The cookie is consumed on first use.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oidc"
+                ],
+                "summary": "Exchange OIDC pending token",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handler.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handler.TokenPair"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/auth/oidc/login": {
             "get": {
+                "description": "Initiates the OIDC authorization code flow with PKCE. Redirects the browser to the configured identity provider.",
                 "tags": [
                     "oidc"
                 ],
@@ -853,12 +1061,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Initiates the OIDC authorization code flow with PKCE. Redirects the browser to the configured identity provider."
+                }
             }
         },
         "/api/v1/auth/refresh": {
             "post": {
+                "description": "Exchanges a valid refresh token for a new access token and refresh token pair.",
                 "consumes": [
                     "application/json"
                 ],
@@ -917,12 +1125,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Exchanges a valid refresh token for a new access token and refresh token pair."
+                }
             }
         },
         "/api/v1/auth/register": {
             "post": {
+                "description": "Creates a new user account. Email must be a valid address format and password must be at least 8 characters.",
                 "consumes": [
                     "application/json"
                 ],
@@ -981,8 +1189,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Creates a new user account. Email must be a valid address format and password must be at least 8 characters."
+                }
             }
         },
         "/api/v1/files/{id}": {
@@ -992,6 +1199,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Permanently deletes a file. Only the owner of the share containing this file may delete it.",
                 "produces": [
                     "application/json"
                 ],
@@ -1033,8 +1241,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Permanently deletes a file. Only the owner of the share containing this file may delete it."
+                }
             }
         },
         "/api/v1/me": {
@@ -1044,6 +1251,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Returns the current user's profile including email, display name, admin status, whether an OIDC identity is linked, and whether a local password is set. For 2FA enrollment state use GET /api/v1/me/2fa/status.",
                 "produces": [
                     "application/json"
                 ],
@@ -1088,8 +1296,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Returns the current user's profile including email, display name, admin status, whether an OIDC identity is linked, and whether a local password is set. For 2FA enrollment state use GET /api/v1/me/2fa/status."
+                }
             },
             "patch": {
                 "security": [
@@ -1097,6 +1304,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Updates the current user's display name and/or email address. At least one field must be provided.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1161,8 +1369,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Updates the current user's display name and/or email address. At least one field must be provided."
+                }
             }
         },
         "/api/v1/me/2fa/confirm": {
@@ -1428,6 +1635,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Returns the current user's 2FA enrollment status and whether the administrator has required 2FA.",
                 "produces": [
                     "application/json"
                 ],
@@ -1466,8 +1674,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Returns the current user's 2FA enrollment status and whether the administrator has required 2FA."
+                }
             }
         },
         "/api/v1/me/oidc": {
@@ -1477,6 +1684,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Removes the OIDC identity link from the current user account. Requires that the account has a local password set.",
                 "produces": [
                     "application/json"
                 ],
@@ -1509,12 +1717,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Removes the OIDC identity link from the current user account. Requires that the account has a local password set."
+                }
             }
         },
         "/api/v1/me/oidc/callback": {
             "get": {
+                "description": "Handles the OAuth 2.0 callback for account linking. Verifies state, exchanges the code, and links the OIDC identity to the current user account.",
                 "tags": [
                     "oidc"
                 ],
@@ -1542,8 +1750,7 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
-                },
-                "description": "Handles the OAuth 2.0 callback for account linking. Verifies state, exchanges the code, and links the OIDC identity to the current user account."
+                }
             }
         },
         "/api/v1/me/oidc/link": {
@@ -1553,6 +1760,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Initiates the OIDC authorization code flow to link an external identity to the current user account.",
                 "tags": [
                     "oidc"
                 ],
@@ -1582,8 +1790,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Initiates the OIDC authorization code flow to link an external identity to the current user account."
+                }
             }
         },
         "/api/v1/me/password": {
@@ -1593,6 +1800,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Changes the current user's password. Requires the existing password for verification.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1639,8 +1847,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Changes the current user's password. Requires the existing password for verification."
+                }
             }
         },
         "/api/v1/shares": {
@@ -1650,6 +1857,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Returns all shares created by the current user.",
                 "produces": [
                     "application/json"
                 ],
@@ -1691,8 +1899,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Returns all shares created by the current user."
+                }
             },
             "post": {
                 "security": [
@@ -1700,6 +1907,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Creates a new share. When recipients are supplied, notification emails are sent immediately on creation.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1764,8 +1972,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Creates a new share. When recipients are supplied, notification emails are sent immediately on creation."
+                }
             }
         },
         "/api/v1/shares/{id}": {
@@ -1775,6 +1982,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Returns full details of a share owned by the current user. Returns 404 for shares that do not exist or are not owned by the requester.",
                 "produces": [
                     "application/json"
                 ],
@@ -1828,8 +2036,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Returns full details of a share owned by the current user. Returns 404 for shares that do not exist or are not owned by the requester."
+                }
             },
             "delete": {
                 "security": [
@@ -1837,6 +2044,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Permanently deletes a share and all its associated files. Only the share owner may call this endpoint.",
                 "produces": [
                     "application/json"
                 ],
@@ -1878,8 +2086,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Permanently deletes a share and all its associated files. Only the share owner may call this endpoint."
+                }
             },
             "patch": {
                 "security": [
@@ -1887,6 +2094,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Updates one or more fields of an existing share. Only the share owner may call this endpoint.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1958,8 +2166,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Updates one or more fields of an existing share. Only the share owner may call this endpoint."
+                }
             }
         },
         "/api/v1/shares/{id}/files": {
@@ -1969,6 +2176,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Returns all files attached to a share owned by the current user.",
                 "produces": [
                     "application/json"
                 ],
@@ -2025,8 +2233,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Returns all files attached to a share owned by the current user."
+                }
             },
             "post": {
                 "security": [
@@ -2034,6 +2241,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Uploads one or more files to a share using multipart/form-data. Only the share owner may upload files.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -2106,8 +2314,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Uploads one or more files to a share using multipart/form-data. Only the share owner may upload files."
+                }
             }
         },
         "/api/v1/shares/{id}/notify": {
@@ -2117,6 +2324,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Sends or resends share notification emails to the specified recipients and records each delivery.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2176,8 +2384,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Sends or resends share notification emails to the specified recipients and records each delivery."
+                }
             }
         },
         "/api/v1/shares/{id}/recipients": {
@@ -2187,6 +2394,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Returns the list of email addresses that have been notified about this share, along with their delivery timestamps.",
                 "produces": [
                     "application/json"
                 ],
@@ -2243,12 +2451,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Returns the list of email addresses that have been notified about this share, along with their delivery timestamps."
+                }
             }
         },
         "/health": {
             "get": {
+                "description": "Returns the application health status. Used by load balancers and container orchestrators to verify the service is running.",
                 "produces": [
                     "application/json"
                 ],
@@ -2263,8 +2471,7 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.APIResponse"
                         }
                     }
-                },
-                "description": "Returns the application health status. Used by load balancers and container orchestrators to verify the service is running."
+                }
             }
         },
         "/s/{slug}": {
@@ -2334,7 +2541,7 @@ const docTemplate = `{
         },
         "/s/{slug}/files/{fileId}": {
             "get": {
-                "description": "Downloads a file from a public share. Use X-Share-Token header or token query param for password-protected shares.",
+                "description": "Downloads a file from a public share. Use X-Share-Token header or the share_token cookie for password-protected shares.",
                 "produces": [
                     "application/octet-stream"
                 ],
@@ -2356,12 +2563,6 @@ const docTemplate = `{
                         "name": "fileId",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Share access token",
-                        "name": "token",
-                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2400,7 +2601,7 @@ const docTemplate = `{
         },
         "/s/{slug}/files/{fileId}/preview": {
             "get": {
-                "description": "Previews a file inline. Use X-Share-Token header or token query param for password-protected shares.",
+                "description": "Previews a file inline. Use X-Share-Token header or the share_token cookie for password-protected shares.",
                 "produces": [
                     "application/octet-stream"
                 ],
@@ -2422,12 +2623,6 @@ const docTemplate = `{
                         "name": "fileId",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Share access token",
-                        "name": "token",
-                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2645,6 +2840,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.TokenPair": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.ValidationErrorResponse": {
             "type": "object",
             "properties": {
@@ -2661,64 +2867,6 @@ const docTemplate = `{
                 "success": {
                     "type": "boolean",
                     "example": false
-                }
-            }
-        },
-        "handler.storageConfigResponse": {
-            "type": "object",
-            "properties": {
-                "s3_access_key": {
-                    "type": "string"
-                },
-                "s3_bucket": {
-                    "type": "string"
-                },
-                "s3_endpoint": {
-                    "type": "string"
-                },
-                "s3_path_prefix": {
-                    "type": "string"
-                },
-                "s3_region": {
-                    "type": "string"
-                },
-                "s3_secret_key_set": {
-                    "type": "boolean"
-                },
-                "storage_local_path": {
-                    "type": "string"
-                },
-                "storage_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.updateStorageConfigRequest": {
-            "type": "object",
-            "properties": {
-                "s3_access_key": {
-                    "type": "string"
-                },
-                "s3_bucket": {
-                    "type": "string"
-                },
-                "s3_endpoint": {
-                    "type": "string"
-                },
-                "s3_path_prefix": {
-                    "type": "string"
-                },
-                "s3_region": {
-                    "type": "string"
-                },
-                "s3_secret_key": {
-                    "type": "string"
-                },
-                "storage_local_path": {
-                    "type": "string"
-                },
-                "storage_type": {
-                    "type": "string"
                 }
             }
         },
@@ -2814,23 +2962,28 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.fileRestrictionsResponse": {
+            "type": "object",
+            "properties": {
+                "blocked_extensions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "max_file_size": {
+                    "type": "integer"
+                }
+            }
+        },
         "handler.loginRequest": {
             "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
             "properties": {
                 "email": {
-                    "description": "Registered email address",
-                    "type": "string",
-                    "format": "email",
-                    "example": "user@example.com"
+                    "type": "string"
                 },
                 "password": {
-                    "description": "Account password",
-                    "type": "string",
-                    "example": "password123"
+                    "type": "string"
                 }
             }
         },
@@ -2973,28 +3126,15 @@ const docTemplate = `{
         },
         "handler.registerRequest": {
             "type": "object",
-            "required": [
-                "display_name",
-                "email",
-                "password"
-            ],
             "properties": {
                 "display_name": {
-                    "description": "Display name shown in the UI",
-                    "type": "string",
-                    "example": "Alice"
+                    "type": "string"
                 },
                 "email": {
-                    "description": "Valid email address",
-                    "type": "string",
-                    "format": "email",
-                    "example": "user@example.com"
+                    "type": "string"
                 },
                 "password": {
-                    "description": "Password (minimum 8 characters)",
-                    "type": "string",
-                    "minLength": 8,
-                    "example": "password123"
+                    "type": "string"
                 }
             }
         },
@@ -3067,6 +3207,35 @@ const docTemplate = `{
                 },
                 "view_count": {
                     "type": "integer"
+                }
+            }
+        },
+        "handler.storageConfigResponse": {
+            "type": "object",
+            "properties": {
+                "s3_access_key": {
+                    "type": "string"
+                },
+                "s3_bucket": {
+                    "type": "string"
+                },
+                "s3_endpoint": {
+                    "type": "string"
+                },
+                "s3_path_prefix": {
+                    "type": "string"
+                },
+                "s3_region": {
+                    "type": "string"
+                },
+                "s3_secret_key_set": {
+                    "type": "boolean"
+                },
+                "storage_local_path": {
+                    "type": "string"
+                },
+                "storage_type": {
+                    "type": "string"
                 }
             }
         },
@@ -3163,6 +3332,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.updateFileRestrictionsRequest": {
+            "type": "object",
+            "properties": {
+                "blocked_extensions": {
+                    "type": "string"
+                },
+                "max_file_size": {
+                    "type": "integer"
+                }
+            }
+        },
         "handler.updatePasswordRequest": {
             "type": "object",
             "properties": {
@@ -3213,6 +3393,35 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.updateStorageConfigRequest": {
+            "type": "object",
+            "properties": {
+                "s3_access_key": {
+                    "type": "string"
+                },
+                "s3_bucket": {
+                    "type": "string"
+                },
+                "s3_endpoint": {
+                    "type": "string"
+                },
+                "s3_path_prefix": {
+                    "type": "string"
+                },
+                "s3_region": {
+                    "type": "string"
+                },
+                "s3_secret_key": {
+                    "type": "string"
+                },
+                "storage_local_path": {
+                    "type": "string"
+                },
+                "storage_type": {
                     "type": "string"
                 }
             }

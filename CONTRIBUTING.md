@@ -10,6 +10,8 @@ Thank you for your interest in contributing! This document covers how to set up 
 - [goreman](https://github.com/mattn/goreman) or [overmind](https://github.com/DarthSim/overmind) for `make dev`
 - [swag](https://github.com/swaggo/swag) (optional; only needed to regenerate the OpenAPI/Swagger docs)
 
+For detailed development environment setup including local S3, email testing, and all Make targets, see [docs/development.md](docs/development.md).
+
 ## Development setup
 
 ```bash
