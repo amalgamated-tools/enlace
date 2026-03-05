@@ -4,6 +4,23 @@ All authenticated endpoints require an `Authorization: Bearer <access_token>` he
 
 > **Token types:** Enlace issues two distinct JWT token types. Access tokens (`token_type: "access"`, 15-minute expiry) are required for all API calls. Refresh tokens (`token_type: "refresh"`, 7-day expiry) are accepted **only** by `POST /api/v1/auth/refresh` — passing a refresh token to any other endpoint returns HTTP 401. Likewise, presenting an access token to the refresh endpoint returns HTTP 401. This prevents token misuse and limits the blast radius of a leaked token.
 
+## Rate Limiting
+
+Several sensitive endpoints enforce per-IP rate limits to protect against brute-force attacks. Exceeding a limit returns **HTTP 429** with:
+
+```json
+{ "error": "rate limit exceeded" }
+```
+
+| Endpoint | Limit |
+|---|---|
+| `POST /api/v1/auth/register` | 3 requests per minute |
+| `POST /api/v1/auth/login` | 5 requests per minute |
+| `POST /api/v1/auth/2fa/verify` | 5 requests per minute |
+| `POST /api/v1/auth/2fa/recovery` | 5 requests per minute |
+
+Limits are tracked per source IP address. When Enlace runs behind a trusted reverse proxy (configured via `TRUSTED_PROXIES`), the real client IP from `X-Forwarded-For` / `X-Real-IP` is used instead of the proxy's address. See [Networking / Reverse Proxy](configuration.md#networking--reverse-proxy) for details.
+
 ## Response Format
 
 Every endpoint returns a JSON object with the following envelope:
