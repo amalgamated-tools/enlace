@@ -194,7 +194,7 @@
 
     savingPassword = true;
     try {
-      await api.post<void>("/me/password", {
+      await api.put<void>("/me/password", {
         current_password: currentPassword,
         new_password: newPassword,
       });
