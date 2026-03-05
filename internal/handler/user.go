@@ -167,7 +167,7 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 //	@Accept		json
 //	@Produce	json
 //	@Security	BearerAuth
-//	@Param		body	body		updatePasswordRequest	true	"Old and new password"
+//	@Param		body	body		updatePasswordRequest	true	"Current and new password"
 //	@Success	200		{object}	APIResponse
 //	@Failure	400		{object}	ValidationErrorResponse
 //	@Failure	401		{object}	APIResponse

@@ -339,7 +339,7 @@ definitions:
     properties:
       new_password:
         type: string
-      old_password:
+      current_password:
         type: string
     type: object
   handler.updateProfileRequest:

@@ -3349,7 +3349,7 @@ const docTemplate = `{
                 "new_password": {
                     "type": "string"
                 },
-                "old_password": {
+                "current_password": {
                     "type": "string"
                 }
             }
