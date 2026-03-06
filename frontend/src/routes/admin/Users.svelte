@@ -1,9 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { push } from "svelte-spa-router";
+  import { push, location } from "svelte-spa-router";
   import { Button, Input, Modal } from "../../lib/components";
   import { auth, isAuthenticated, isAdmin, toast } from "../../lib/stores";
   import { api, type User } from "../../lib/api";
+
+  $: usersActive = $location === "/admin/users";
+  $: storageActive = $location === "/admin/storage";
 
   let users: User[] = [];
   let loading = true;
@@ -143,6 +146,25 @@
     }
   }
 </script>
+
+<div class="flex items-center gap-1 mb-6">
+  <a
+    href="#/admin/users"
+    class="px-3 py-1.5 text-sm rounded-md transition-colors {usersActive
+      ? 'text-text bg-surface-muted font-medium'
+      : 'text-muted hover:text-text hover:bg-surface-subtle'}"
+  >
+    Users
+  </a>
+  <a
+    href="#/admin/storage"
+    class="px-3 py-1.5 text-sm rounded-md transition-colors {storageActive
+      ? 'text-text bg-surface-muted font-medium'
+      : 'text-muted hover:text-text hover:bg-surface-subtle'}"
+  >
+    Storage
+  </a>
+</div>
 
 <div class="flex items-center justify-between mb-6">
   <h2 class="text-lg font-semibold text-text">User Management</h2>
