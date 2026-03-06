@@ -31,7 +31,16 @@
   let resetModal = false;
   let resetting = false;
 
-  $: hasOverrides = smtpHost !== "";
+  // Password clearing
+  let clearPassword = false;
+
+  $: hasOverrides =
+    smtpHost !== "" ||
+    smtpPort !== "" ||
+    smtpUser !== "" ||
+    smtpPassSet ||
+    smtpFrom !== "" ||
+    smtpTlsPolicy !== "";
 
   $: if ($auth.initialized && !$isAuthenticated) {
     push("/login");
@@ -52,6 +61,7 @@
     smtpUser = config.smtp_user || "";
     smtpPassSet = config.smtp_pass_set;
     smtpPass = "";
+    clearPassword = false;
     smtpFrom = config.smtp_from || "";
     smtpTlsPolicy = config.smtp_tls_policy || "";
   }
@@ -96,6 +106,8 @@
     }
     if (smtpPass.trim()) {
       payload.smtp_pass = smtpPass.trim();
+    } else if (clearPassword) {
+      payload.smtp_pass = "";
     }
     if (smtpTlsPolicy) {
       payload.smtp_tls_policy = smtpTlsPolicy;
@@ -138,6 +150,7 @@
       smtpUser = "";
       smtpPass = "";
       smtpPassSet = false;
+      clearPassword = false;
       smtpFrom = "";
       smtpTlsPolicy = "";
       resetModal = false;
@@ -255,8 +268,19 @@
               : "(optional)"}
             error={errors.smtp_pass}
             autocomplete="off"
+            disabled={clearPassword}
           />
         </div>
+        {#if smtpPassSet && !smtpPass.trim()}
+          <label class="flex items-center gap-2 cursor-pointer -mt-3">
+            <input
+              type="checkbox"
+              bind:checked={clearPassword}
+              class="w-4 h-4 text-accent border-border focus:ring-accent/20 rounded"
+            />
+            <span class="text-sm text-muted">Clear saved password</span>
+          </label>
+        {/if}
 
         {#if smtpHost}
           <Button type="submit" loading={saving}>
