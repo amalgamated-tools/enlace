@@ -762,6 +762,83 @@ Returns an array of delivery objects:
 | `duration_ms` | int | Round-trip time in milliseconds |
 | `created_at` | string (RFC3339) | When this delivery attempt was created |
 
+## Webhook event payloads
+
+Every webhook delivery POSTs a JSON body with the following envelope:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string (UUID) | Unique event identifier (same value as `X-Enlace-Event-Id`) |
+| `type` | string | Event type (e.g. `share.created`) |
+| `occurred_at` | string (RFC3339Nano) | When the event occurred |
+| `actor` | object or omitted | `{ "id": "<user-uuid>" }` — the user who triggered the event; omitted for system-initiated events |
+| `resource` | object | `{ "id": "<resource-uuid>" }` — primary resource affected (share or file) |
+| `data` | object | Event-specific fields; see per-event details below |
+
+### `share.created`
+
+Fired when an authenticated user creates a new share.
+
+`data` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `share_id` | string | Share UUID |
+| `slug` | string | Public URL slug |
+| `name` | string | Share display name |
+
+### `file.upload.completed`
+
+Fired when one or more files are successfully uploaded to a share (both authenticated upload and reverse-share upload).
+
+`data` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `share_id` | string | Share UUID the files were uploaded to |
+| `count` | int | Number of files uploaded in this batch |
+| `files` | array of objects | Each item: `{ "id": "<uuid>", "name": "<filename>", "size": <bytes>, "mime_type": "<type>" }` |
+
+### `share.viewed`
+
+Fired when a public share is viewed (i.e., `GET /s/{slug}` is called). Not fired on password-protected shares until the password has been verified.
+
+`data` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `share_id` | string | Share UUID |
+| `slug` | string | Public URL slug |
+
+### `share.downloaded`
+
+Fired when a file is downloaded from a public share.
+
+`data` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `share_id` | string | Share UUID |
+| `file_id` | string | File UUID that was downloaded |
+| `name` | string | Filename |
+
+**Example envelope** (`share.created`):
+
+```json
+{
+  "id": "3f6a8c1d-...",
+  "type": "share.created",
+  "occurred_at": "2026-01-15T10:30:00.123456789Z",
+  "actor": { "id": "user-uuid" },
+  "resource": { "id": "share-uuid" },
+  "data": {
+    "share_id": "share-uuid",
+    "slug": "my-share",
+    "name": "Project files"
+  }
+}
+```
+
 ## Webhook verification and replay protection
 
 Webhook deliveries include the headers below:
