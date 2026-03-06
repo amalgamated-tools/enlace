@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/amalgamated-tools/enlace/internal/database"
 	"github.com/amalgamated-tools/enlace/internal/handler"
@@ -22,6 +23,7 @@ const testJWTSecret = "integration-test-jwt-secret"
 // TestServer wraps an httptest.Server backed by the full Enlace stack.
 type TestServer struct {
 	URL    string
+	Client *http.Client
 	server *httptest.Server
 }
 
@@ -92,6 +94,7 @@ func NewTestServer(t *testing.T) *TestServer {
 
 	return &TestServer{
 		URL:    srv.URL,
+		Client: &http.Client{Timeout: 10 * time.Second},
 		server: srv,
 	}
 }
@@ -105,7 +108,7 @@ func (ts *TestServer) PostJSON(t *testing.T, path string, body any) *http.Respon
 		t.Fatalf("failed to marshal request body: %v", err)
 	}
 
-	resp, err := http.Post(ts.URL+path, "application/json", bytes.NewReader(data))
+	resp, err := ts.Client.Post(ts.URL+path, "application/json", bytes.NewReader(data))
 	if err != nil {
 		t.Fatalf("POST %s failed: %v", path, err)
 	}
@@ -123,7 +126,7 @@ func (ts *TestServer) GetWithToken(t *testing.T, path, token string) *http.Respo
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := ts.Client.Do(req)
 	if err != nil {
 		t.Fatalf("GET %s failed: %v", path, err)
 	}
@@ -147,7 +150,7 @@ func (ts *TestServer) PostJSONWithToken(t *testing.T, path string, body any, tok
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := ts.Client.Do(req)
 	if err != nil {
 		t.Fatalf("POST %s failed: %v", path, err)
 	}
@@ -171,7 +174,7 @@ func (ts *TestServer) PutJSONWithToken(t *testing.T, path string, body any, toke
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := ts.Client.Do(req)
 	if err != nil {
 		t.Fatalf("PUT %s failed: %v", path, err)
 	}

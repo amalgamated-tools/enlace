@@ -221,7 +221,7 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 func TestProtectedEndpointWithoutToken(t *testing.T) {
 	ts := NewTestServer(t)
 
-	resp, err := http.Get(ts.URL + "/api/v1/me/")
+	resp, err := ts.Client.Get(ts.URL + "/api/v1/me/")
 	if err != nil {
 		t.Fatalf("GET /api/v1/me/ failed: %v", err)
 	}
