@@ -1,2 +1,2 @@
 backend: PORT=8080 air -c .air.toml
-frontend: pnpm --dir frontend dev
+frontend: pnpm --dir frontend dev --host
