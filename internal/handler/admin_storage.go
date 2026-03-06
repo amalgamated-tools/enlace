@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strings"
 
@@ -16,9 +17,6 @@ var storageSettingKeys = []string{
 	"storage_type", "storage_local_path",
 	"s3_endpoint", "s3_bucket", "s3_access_key", "s3_secret_key", "s3_region", "s3_path_prefix",
 }
-
-// storageEncryptionSalt is the salt used to derive the AES key for encrypting storage secrets.
-const storageEncryptionSalt = "storage-secret-encryption"
 
 // SettingsRepositoryInterface defines the interface for settings repository operations.
 type SettingsRepositoryInterface interface {
@@ -49,7 +47,7 @@ type StorageConfigHandler struct {
 func NewStorageConfigHandler(settingsRepo SettingsRepositoryInterface, jwtSecret []byte) *StorageConfigHandler {
 	return &StorageConfigHandler{
 		settingsRepo:  settingsRepo,
-		encryptionKey: crypto.DeriveKey(jwtSecret, storageEncryptionSalt),
+		encryptionKey: crypto.DeriveKey(jwtSecret, crypto.StorageEncryptionSalt),
 		newS3Storage: func(ctx context.Context, cfg storage.S3Config) (S3Connector, error) {
 			return storage.NewS3Storage(ctx, cfg)
 		},
@@ -203,12 +201,8 @@ func (h *StorageConfigHandler) UpdateStorageConfig(w http.ResponseWriter, r *htt
 		return
 	}
 	effective := make(map[string]string)
-	for k, v := range existing {
-		effective[k] = v
-	}
-	for k, v := range toSet {
-		effective[k] = v
-	}
+	maps.Copy(effective, existing)
+	maps.Copy(effective, toSet)
 
 	if fieldErrors := validateEffectiveStorageConfig(effective); len(fieldErrors) > 0 {
 		ValidationError(w, fieldErrors)

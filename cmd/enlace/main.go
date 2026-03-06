@@ -222,7 +222,7 @@ func initStorage(ctx context.Context, cfg *config.Config, settingsRepo *reposito
 
 	// Decrypt the S3 secret key if it was stored encrypted
 	if raw, ok := dbSettings["s3_secret_key"]; ok && raw != "" {
-		encKey := crypto.DeriveKey([]byte(cfg.JWTSecret), "storage-secret-encryption")
+		encKey := crypto.DeriveKey([]byte(cfg.JWTSecret), crypto.StorageEncryptionSalt)
 		decrypted, err := crypto.Decrypt(raw, encKey)
 		if err != nil {
 			slog.WarnContext(ctx, "failed to decrypt s3_secret_key from database, ignoring DB value", slog.Any("error", err))
@@ -280,7 +280,7 @@ func initSMTPConfig(ctx context.Context, cfg *config.Config, settingsRepo *repos
 
 	// Decrypt smtp_pass if it was stored encrypted
 	if raw, ok := dbSettings["smtp_pass"]; ok && raw != "" {
-		encKey := crypto.DeriveKey([]byte(cfg.JWTSecret), "smtp-secret-encryption")
+		encKey := crypto.DeriveKey([]byte(cfg.JWTSecret), crypto.SMTPEncryptionSalt)
 		decrypted, err := crypto.Decrypt(raw, encKey)
 		if err != nil {
 			slog.WarnContext(ctx, "failed to decrypt smtp_pass from database, ignoring DB value", slog.Any("error", err))

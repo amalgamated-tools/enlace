@@ -14,9 +14,6 @@ var smtpSettingKeys = []string{
 	"smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from", "smtp_tls_policy",
 }
 
-// smtpEncryptionSalt is the salt used to derive the AES key for encrypting SMTP secrets.
-const smtpEncryptionSalt = "smtp-secret-encryption"
-
 // SMTPConfigHandler handles admin SMTP configuration HTTP requests.
 type SMTPConfigHandler struct {
 	settingsRepo  SettingsRepositoryInterface
@@ -27,7 +24,7 @@ type SMTPConfigHandler struct {
 func NewSMTPConfigHandler(settingsRepo SettingsRepositoryInterface, jwtSecret []byte) *SMTPConfigHandler {
 	return &SMTPConfigHandler{
 		settingsRepo:  settingsRepo,
-		encryptionKey: crypto.DeriveKey(jwtSecret, smtpEncryptionSalt),
+		encryptionKey: crypto.DeriveKey(jwtSecret, crypto.SMTPEncryptionSalt),
 	}
 }
 
