@@ -37,11 +37,11 @@
     $location.startsWith("/s/");
   $: showLayout = $auth.initialized && $isAuthenticated && !isPublicPage;
 
-  // Active nav link helper
-  function isActive(path: string): boolean {
-    if (path === "/") return $location === "/";
-    return $location.startsWith(path);
-  }
+  // Active nav link helpers (reactive so Svelte tracks $location dependency)
+  $: dashboardActive = $location === "/";
+  $: sharesActive = $location.startsWith("/shares");
+  $: settingsActive = $location.startsWith("/settings");
+  $: adminActive = $location.startsWith("/admin");
 </script>
 
 {#if !$auth.initialized}
@@ -83,9 +83,7 @@
           <nav class="flex items-center gap-1">
             <a
               href="#/"
-              class="px-3 py-1.5 text-sm rounded-md transition-colors {isActive(
-                '/',
-              )
+              class="px-3 py-1.5 text-sm rounded-md transition-colors {dashboardActive
                 ? 'text-text bg-surface-muted font-medium'
                 : 'text-muted hover:text-text hover:bg-surface-subtle'}"
             >
@@ -93,9 +91,7 @@
             </a>
             <a
               href="#/shares"
-              class="px-3 py-1.5 text-sm rounded-md transition-colors {isActive(
-                '/shares',
-              )
+              class="px-3 py-1.5 text-sm rounded-md transition-colors {sharesActive
                 ? 'text-text bg-surface-muted font-medium'
                 : 'text-muted hover:text-text hover:bg-surface-subtle'}"
             >
@@ -103,9 +99,7 @@
             </a>
             <a
               href="#/settings"
-              class="px-3 py-1.5 text-sm rounded-md transition-colors {isActive(
-                '/settings',
-              )
+              class="px-3 py-1.5 text-sm rounded-md transition-colors {settingsActive
                 ? 'text-text bg-surface-muted font-medium'
                 : 'text-muted hover:text-text hover:bg-surface-subtle'}"
             >
@@ -114,9 +108,7 @@
             {#if $auth.user?.is_admin}
               <a
                 href="#/admin/users"
-                class="px-3 py-1.5 text-sm rounded-md transition-colors {isActive(
-                  '/admin',
-                )
+                class="px-3 py-1.5 text-sm rounded-md transition-colors {adminActive
                   ? 'text-text bg-surface-muted font-medium'
                   : 'text-muted hover:text-text hover:bg-surface-subtle'}"
               >
