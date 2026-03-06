@@ -325,26 +325,32 @@ func newOIDCServiceAdapter(svc *service.OIDCService) OIDCServiceInterface {
 	return &oidcServiceAdapter{svc: svc}
 }
 
+// IsEnabled reports whether OIDC is configured and available.
 func (a *oidcServiceAdapter) IsEnabled() bool {
 	return a.svc != nil && a.svc.IsEnabled()
 }
 
+// GenerateState creates an OIDC state value for a new auth flow.
 func (a *oidcServiceAdapter) GenerateState() (string, error) {
 	return a.svc.GenerateState()
 }
 
+// GenerateCodeVerifier creates a PKCE code verifier for a new auth flow.
 func (a *oidcServiceAdapter) GenerateCodeVerifier() (string, error) {
 	return a.svc.GenerateCodeVerifier()
 }
 
+// GetAuthURL returns the OIDC authorization URL for sign-in.
 func (a *oidcServiceAdapter) GetAuthURL(state, codeVerifier string) string {
 	return a.svc.GetAuthURL(state, codeVerifier)
 }
 
+// GetLinkAuthURL returns the OIDC authorization URL for account linking.
 func (a *oidcServiceAdapter) GetLinkAuthURL(state, codeVerifier string) string {
 	return a.svc.GetLinkAuthURL(state, codeVerifier)
 }
 
+// ExchangeCode exchanges an authorization code for OIDC user information.
 func (a *oidcServiceAdapter) ExchangeCode(ctx context.Context, code, codeVerifier string) (*OIDCUserInfo, error) {
 	info, err := a.svc.ExchangeCode(ctx, code, codeVerifier)
 	if err != nil {
@@ -358,6 +364,7 @@ func (a *oidcServiceAdapter) ExchangeCode(ctx context.Context, code, codeVerifie
 	}, nil
 }
 
+// FindOrCreateUser resolves the OIDC identity to a local user account.
 func (a *oidcServiceAdapter) FindOrCreateUser(ctx context.Context, info *OIDCUserInfo) (*OIDCUser, error) {
 	svcInfo := &service.OIDCUserInfo{
 		Subject:     info.Subject,
@@ -375,6 +382,7 @@ func (a *oidcServiceAdapter) FindOrCreateUser(ctx context.Context, info *OIDCUse
 	}, nil
 }
 
+// LinkOIDC links an OIDC identity to an existing local user.
 func (a *oidcServiceAdapter) LinkOIDC(ctx context.Context, userID string, info *OIDCUserInfo) error {
 	svcInfo := &service.OIDCUserInfo{
 		Subject:     info.Subject,
@@ -385,6 +393,7 @@ func (a *oidcServiceAdapter) LinkOIDC(ctx context.Context, userID string, info *
 	return a.svc.LinkOIDC(ctx, userID, svcInfo)
 }
 
+// UnlinkOIDC removes the linked OIDC identity from a local user.
 func (a *oidcServiceAdapter) UnlinkOIDC(ctx context.Context, userID string) error {
 	return a.svc.UnlinkOIDC(ctx, userID)
 }
@@ -401,6 +410,7 @@ func newAuthTokenAdapter(svc *service.AuthService) AuthTokenServiceInterface {
 	return &authTokenAdapter{svc: svc}
 }
 
+// GenerateTokensForUser creates an access and refresh token pair for a user.
 func (a *authTokenAdapter) GenerateTokensForUser(userID string, isAdmin bool) (*TokenPair, error) {
 	tokens, err := a.svc.GenerateTokensForUser(userID, isAdmin)
 	if err != nil {
@@ -424,38 +434,47 @@ func newTOTPServiceAdapter(svc *service.TOTPService) TOTPServiceInterface {
 	return &totpServiceAdapterImpl{svc: svc}
 }
 
+// BeginSetup starts TOTP enrollment for the user and returns setup details.
 func (a *totpServiceAdapterImpl) BeginSetup(ctx context.Context, userID string) (string, string, string, error) {
 	return a.svc.BeginSetup(ctx, userID)
 }
 
+// ConfirmSetup confirms TOTP enrollment and returns recovery codes.
 func (a *totpServiceAdapterImpl) ConfirmSetup(ctx context.Context, userID, code string) ([]string, error) {
 	return a.svc.ConfirmSetup(ctx, userID, code)
 }
 
+// Verify validates a TOTP code for the user.
 func (a *totpServiceAdapterImpl) Verify(ctx context.Context, userID, code string) error {
 	return a.svc.Verify(ctx, userID, code)
 }
 
+// VerifyRecoveryCode validates a recovery code for the user.
 func (a *totpServiceAdapterImpl) VerifyRecoveryCode(ctx context.Context, userID, code string) error {
 	return a.svc.VerifyRecoveryCode(ctx, userID, code)
 }
 
+// Disable turns off TOTP for the user.
 func (a *totpServiceAdapterImpl) Disable(ctx context.Context, userID string) error {
 	return a.svc.Disable(ctx, userID)
 }
 
+// RegenerateRecoveryCodes replaces the user's recovery codes.
 func (a *totpServiceAdapterImpl) RegenerateRecoveryCodes(ctx context.Context, userID string) ([]string, error) {
 	return a.svc.RegenerateRecoveryCodes(ctx, userID)
 }
 
+// GetStatus reports whether TOTP is enabled for the user.
 func (a *totpServiceAdapterImpl) GetStatus(ctx context.Context, userID string) (bool, error) {
 	return a.svc.GetStatus(ctx, userID)
 }
 
+// GeneratePendingToken creates a temporary token for a pending 2FA challenge.
 func (a *totpServiceAdapterImpl) GeneratePendingToken(userID string, isAdmin bool) (string, error) {
 	return a.svc.GeneratePendingToken(userID, isAdmin)
 }
 
+// ValidatePendingToken parses and validates a pending 2FA challenge token.
 func (a *totpServiceAdapterImpl) ValidatePendingToken(tokenStr string) (*service.Claims, error) {
 	return a.svc.ValidatePendingToken(tokenStr)
 }
@@ -472,6 +491,7 @@ func newPasswordVerifierAdapter(svc *service.AuthService) PasswordVerifier {
 	return &passwordVerifierAdapter{svc: svc}
 }
 
+// VerifyPassword checks the supplied password for the user.
 func (a *passwordVerifierAdapter) VerifyPassword(ctx context.Context, userID, password string) error {
 	return a.svc.VerifyPassword(ctx, userID, password)
 }

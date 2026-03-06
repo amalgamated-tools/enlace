@@ -10,6 +10,7 @@ import (
 
 var Version = "dev"
 
+// SetupLogger configures the default structured logger and starts telemetry.
 func SetupLogger(v string) {
 	if v != "" {
 		Version = v

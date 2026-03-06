@@ -25,6 +25,7 @@ type Payload struct {
 	UnixTimestamp int64  `json:"unix_timestamp"`
 }
 
+// Send submits the anonymous install telemetry payload when telemetry is enabled.
 func Send(version string) {
 	// Telemetry is opt-in meaning it is disabled by default unless explicitly enabled
 	envTelemetryEnabled, ok := os.LookupEnv("TELEMETRY_ENABLED")
