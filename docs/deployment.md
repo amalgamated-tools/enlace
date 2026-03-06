@@ -19,7 +19,7 @@ Open <http://localhost:8080> and register your first user.
 
 ## Admin Panel
 
-The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has two tabs:
+The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has three tabs:
 
 ### Users tab (`/#/admin/users`)
 
@@ -39,6 +39,16 @@ View and override the storage configuration without restarting or redeploying. T
 - **Reset to environment defaults** — removes all DB overrides so Enlace reverts to environment variables on the next restart.
 
 > **Note:** Storage configuration changes require a restart to take effect. See [Configuration — Storage](configuration.md#storage) for environment variable reference and encryption details.
+
+### Email tab (`/#/admin/email`)
+
+View and override the SMTP email configuration without restarting or redeploying. The page shows the current database overrides (if any).
+
+- **No overrides configured** — Enlace is using the environment variable SMTP configuration (or email is disabled if `SMTP_HOST` is unset).
+- **Set SMTP overrides** — configure host, port, username, password, sender address, and TLS policy. The password field is masked; leave it blank to keep the currently stored value, or check **Clear saved password** to remove it.
+- **Reset to environment defaults** — removes all DB overrides so Enlace reverts to environment variables on the next restart.
+
+> **Note:** SMTP configuration changes require a restart to take effect. See [Configuration — SMTP](configuration.md#smtp-email-notifications) for environment variable reference.
 
 ### Available tags
 
