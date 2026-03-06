@@ -53,6 +53,17 @@ type createAPIKeyResponse struct {
 }
 
 // List handles GET /api/v1/admin/api-keys.
+//
+//	@Summary		List API keys
+//	@Description	Returns all API keys created by the authenticated admin. Requires admin role.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	APIResponse{data=[]apiKeyResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		403	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/admin/api-keys [get]
 func (h *APIKeyHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -74,6 +85,20 @@ func (h *APIKeyHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 // Create handles POST /api/v1/admin/api-keys.
+//
+//	@Summary		Create API key
+//	@Description	Creates a scoped API key for the authenticated admin. The full key value is returned only once at creation. Requires admin role.
+//	@Tags			admin
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		createAPIKeyRequest	true	"API key name and scopes"
+//	@Success		201		{object}	APIResponse{data=createAPIKeyResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		403		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/admin/api-keys [post]
 func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -113,6 +138,20 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // Revoke handles DELETE /api/v1/admin/api-keys/{id}.
+//
+//	@Summary		Revoke API key
+//	@Description	Revokes an API key. Revoked keys are rejected immediately. Returns HTTP 404 if the key does not exist or belongs to a different admin. Requires admin role.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"API key ID"
+//	@Success		200	{object}	APIResponse
+//	@Failure		400	{object}	APIResponse
+//	@Failure		401	{object}	APIResponse
+//	@Failure		403	{object}	APIResponse
+//	@Failure		404	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/admin/api-keys/{id} [delete]
 func (h *APIKeyHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
