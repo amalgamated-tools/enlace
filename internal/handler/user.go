@@ -62,13 +62,13 @@ var userEmailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z
 //	@Summary		Get current user profile
 //	@Description	Returns the current user's profile including email, display name, admin status, whether an OIDC identity is linked, and whether a local password is set. For 2FA enrollment state use GET /api/v1/me/2fa/status.
 //	@Tags			user
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Success	200	{object}	APIResponse{data=profileResponse}
-//	@Failure	401	{object}	APIResponse
-//	@Failure	404	{object}	APIResponse
-//	@Failure	500	{object}	APIResponse
-//	@Router		/api/v1/me [get]
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	APIResponse{data=profileResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		404	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/me [get]
 func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -97,16 +97,16 @@ func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 //	@Summary		Update current user profile
 //	@Description	Updates the current user's display name and/or email address. At least one field must be provided.
 //	@Tags			user
-//	@Accept		json
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		body	body		updateProfileRequest	true	"Fields to update"
-//	@Success	200		{object}	APIResponse{data=profileResponse}
-//	@Failure	400		{object}	ValidationErrorResponse
-//	@Failure	401		{object}	APIResponse
-//	@Failure	409		{object}	APIResponse
-//	@Failure	500		{object}	APIResponse
-//	@Router		/api/v1/me [patch]
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		updateProfileRequest	true	"Fields to update"
+//	@Success		200		{object}	APIResponse{data=profileResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		409		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/me [patch]
 func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -164,15 +164,15 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 //	@Summary		Change password
 //	@Description	Changes the current user's password. Requires the existing password for verification.
 //	@Tags			user
-//	@Accept		json
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		body	body		updatePasswordRequest	true	"Current and new password"
-//	@Success	200		{object}	APIResponse
-//	@Failure	400		{object}	ValidationErrorResponse
-//	@Failure	401		{object}	APIResponse
-//	@Failure	500		{object}	APIResponse
-//	@Router		/api/v1/me/password [put]
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		updatePasswordRequest	true	"Current and new password"
+//	@Success		200		{object}	APIResponse
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/me/password [put]
 func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {

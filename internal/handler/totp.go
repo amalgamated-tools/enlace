@@ -120,12 +120,12 @@ type totpRecoveryRequest struct {
 //	@Summary		Get 2FA status
 //	@Description	Returns the current user's 2FA enrollment status and whether the administrator has required 2FA.
 //	@Tags			2fa
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Success	200	{object}	APIResponse{data=totpStatusResponse}
-//	@Failure	401	{object}	APIResponse
-//	@Failure	500	{object}	APIResponse
-//	@Router		/api/v1/me/2fa/status [get]
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	APIResponse{data=totpStatusResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/me/2fa/status [get]
 func (h *TOTPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 

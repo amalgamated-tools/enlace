@@ -97,17 +97,17 @@ type fileResponse struct {
 //	@Summary		Upload files to a share
 //	@Description	Uploads one or more files to a share using multipart/form-data. Only the share owner may upload files.
 //	@Tags			files
-//	@Accept		multipart/form-data
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		id		path		string	true	"Share ID (UUID)"
-//	@Param		files	formData	file	true	"Files to upload"
-//	@Success	201		{object}	APIResponse{data=[]fileResponse}
-//	@Failure	400		{object}	APIResponse
-//	@Failure	401		{object}	APIResponse
-//	@Failure	404		{object}	APIResponse
-//	@Failure	500		{object}	APIResponse
-//	@Router		/api/v1/shares/{id}/files [post]
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string	true	"Share ID (UUID)"
+//	@Param			files	formData	file	true	"Files to upload"
+//	@Success		201		{object}	APIResponse{data=[]fileResponse}
+//	@Failure		400		{object}	APIResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/shares/{id}/files [post]
 func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -246,14 +246,14 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 //	@Summary		List files in a share
 //	@Description	Returns all files attached to a share owned by the current user.
 //	@Tags			files
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		id	path		string	true	"Share ID (UUID)"
-//	@Success	200	{object}	APIResponse{data=[]fileResponse}
-//	@Failure	401	{object}	APIResponse
-//	@Failure	404	{object}	APIResponse
-//	@Failure	500	{object}	APIResponse
-//	@Router		/api/v1/shares/{id}/files [get]
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"Share ID (UUID)"
+//	@Success		200	{object}	APIResponse{data=[]fileResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		404	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/shares/{id}/files [get]
 func (h *FileHandler) ListByShare(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -308,14 +308,14 @@ func (h *FileHandler) ListByShare(w http.ResponseWriter, r *http.Request) {
 //	@Summary		Delete a file
 //	@Description	Permanently deletes a file. Only the owner of the share containing this file may delete it.
 //	@Tags			files
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		id	path		string	true	"File ID (UUID)"
-//	@Success	200	{object}	APIResponse
-//	@Failure	401	{object}	APIResponse
-//	@Failure	404	{object}	APIResponse
-//	@Failure	500	{object}	APIResponse
-//	@Router		/api/v1/files/{id} [delete]
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"File ID (UUID)"
+//	@Success		200	{object}	APIResponse
+//	@Failure		401	{object}	APIResponse
+//	@Failure		404	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/files/{id} [delete]
 func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {

@@ -86,14 +86,14 @@ var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]
 //	@Summary		Register a new user
 //	@Description	Creates a new user account. Email must be a valid address format and password must be at least 8 characters.
 //	@Tags			auth
-//	@Accept		json
-//	@Produce	json
-//	@Param		body	body		registerRequest	true	"Registration details"
-//	@Success	201		{object}	APIResponse{data=userResponse}
-//	@Failure	400		{object}	ValidationErrorResponse
-//	@Failure	409		{object}	APIResponse
-//	@Failure	500		{object}	APIResponse
-//	@Router		/api/v1/auth/register [post]
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		registerRequest	true	"Registration details"
+//	@Success		201		{object}	APIResponse{data=userResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		409		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := DecodeJSON(r, &req); err != nil {
@@ -217,14 +217,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 //	@Summary		Refresh tokens
 //	@Description	Exchanges a valid refresh token for a new access token and refresh token pair.
 //	@Tags			auth
-//	@Accept		json
-//	@Produce	json
-//	@Param		body	body		refreshRequest	true	"Refresh token"
-//	@Success	200		{object}	APIResponse{data=tokenResponse}
-//	@Failure	400		{object}	ValidationErrorResponse
-//	@Failure	401		{object}	APIResponse
-//	@Failure	500		{object}	APIResponse
-//	@Router		/api/v1/auth/refresh [post]
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		refreshRequest	true	"Refresh token"
+//	@Success		200		{object}	APIResponse{data=tokenResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/auth/refresh [post]
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
 	if err := DecodeJSON(r, &req); err != nil {
@@ -257,9 +257,9 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 //	@Summary		Logout
 //	@Description	Invalidates the current session. Since Enlace uses stateless JWTs, this endpoint always succeeds and the client is responsible for discarding the tokens.
 //	@Tags			auth
-//	@Produce	json
-//	@Success	200	{object}	APIResponse
-//	@Router		/api/v1/auth/logout [post]
+//	@Produce		json
+//	@Success		200	{object}	APIResponse
+//	@Router			/api/v1/auth/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	// JWT logout is client-side, just return success
 	Success(w, http.StatusOK, nil)
