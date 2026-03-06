@@ -13,9 +13,22 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/amalgamated-tools/enlace/internal/handler"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 var storageTestJWTSecret = []byte("test-jwt-secret-for-storage-tests")
+
+// mockS3Connector implements handler.S3Connector for testing.
+type mockS3Connector struct {
+	validateConnectionFn func(ctx context.Context) error
+}
+
+func (m *mockS3Connector) ValidateConnection(ctx context.Context) error {
+	if m.validateConnectionFn != nil {
+		return m.validateConnectionFn(ctx)
+	}
+	return nil
+}
 
 // mockSettingsRepository implements handler.SettingsRepositoryInterface for testing.
 type mockSettingsRepository struct {
@@ -68,6 +81,7 @@ func setupStorageRouter(h *handler.StorageConfigHandler) *chi.Mux {
 		r.Get("/", h.GetStorageConfig)
 		r.Put("/", h.UpdateStorageConfig)
 		r.Delete("/", h.DeleteStorageConfig)
+		r.Post("/test", h.TestStorageConnection)
 	})
 	return r
 }
@@ -591,5 +605,202 @@ func TestStorageConfigHandler_DeleteStorageConfig_DatabaseError(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+// --- TestStorageConnection Tests ---
+
+func TestStorageConfigHandler_TestStorageConnection_MissingFields(t *testing.T) {
+	mock := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{}, nil
+		},
+	}
+
+	h := handler.NewStorageConfigHandler(mock, storageTestJWTSecret)
+	router := setupStorageRouter(h)
+
+	body := `{}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/storage/test", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withAdminRequestContext(req)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d: %s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Success bool              `json:"success"`
+		Fields  map[string]string `json:"fields"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Success {
+		t.Error("expected success to be false")
+	}
+	if _, ok := response.Fields["s3_bucket"]; !ok {
+		t.Error("expected field error for s3_bucket")
+	}
+	if _, ok := response.Fields["s3_access_key"]; !ok {
+		t.Error("expected field error for s3_access_key")
+	}
+	if _, ok := response.Fields["s3_secret_key"]; !ok {
+		t.Error("expected field error for s3_secret_key")
+	}
+}
+
+func TestStorageConfigHandler_TestStorageConnection_InvalidJSON(t *testing.T) {
+	mock := &mockSettingsRepository{}
+
+	h := handler.NewStorageConfigHandler(mock, storageTestJWTSecret)
+	router := setupStorageRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/storage/test", bytes.NewBufferString(`{invalid`))
+	req.Header.Set("Content-Type", "application/json")
+	req = withAdminRequestContext(req)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestStorageConfigHandler_TestStorageConnection_DatabaseError(t *testing.T) {
+	mock := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return nil, errors.New("database error")
+		},
+	}
+
+	h := handler.NewStorageConfigHandler(mock, storageTestJWTSecret)
+	router := setupStorageRouter(h)
+
+	body := `{"s3_bucket": "test-bucket", "s3_access_key": "AKIA123", "s3_secret_key": "secret"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/storage/test", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withAdminRequestContext(req)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d: %s", http.StatusInternalServerError, w.Code, w.Body.String())
+	}
+}
+
+func TestStorageConfigHandler_TestStorageConnection_MergesDBSettings(t *testing.T) {
+	// DB has access_key and secret_key already; request only provides bucket
+	mock := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{
+				"s3_access_key": "AKIA_FROM_DB",
+				"s3_secret_key": "plaintext-secret", // unencrypted legacy value
+			}, nil
+		},
+	}
+
+	h := handler.NewStorageConfigHandler(mock, storageTestJWTSecret)
+	router := setupStorageRouter(h)
+
+	// Only provide bucket — access_key and secret_key come from DB
+	body := `{"s3_bucket": "test-bucket", "s3_endpoint": "http://localhost:19000"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/storage/test", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withAdminRequestContext(req)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// We expect 422 (connection failed to fake endpoint) rather than 400 (missing fields),
+	// proving the merge worked.
+	if w.Code == http.StatusBadRequest {
+		t.Errorf("expected merge to fill missing fields, but got 400: %s", w.Body.String())
+	}
+}
+
+func TestStorageConfigHandler_TestStorageConnection_InvalidEndpoint(t *testing.T) {
+	mock := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{}, nil
+		},
+	}
+
+	h := handler.NewStorageConfigHandler(mock, storageTestJWTSecret)
+	router := setupStorageRouter(h)
+
+	body := `{"s3_bucket": "test-bucket", "s3_access_key": "AKIA123", "s3_secret_key": "secret", "s3_endpoint": "http://localhost:19000"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/storage/test", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withAdminRequestContext(req)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// Should get 422 because connection to fake endpoint fails
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected status %d, got %d: %s", http.StatusUnprocessableEntity, w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Success bool   `json:"success"`
+		Error   string `json:"error"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if response.Success {
+		t.Error("expected success to be false")
+	}
+	if !strings.Contains(response.Error, "S3 connection failed") {
+		t.Errorf("expected error to mention S3 connection failure, got %q", response.Error)
+	}
+}
+
+func TestStorageConfigHandler_TestStorageConnection_Success(t *testing.T) {
+	mock := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{}, nil
+		},
+	}
+
+	connector := &mockS3Connector{
+		validateConnectionFn: func(ctx context.Context) error {
+			return nil
+		},
+	}
+
+	h := handler.NewStorageConfigHandler(mock, storageTestJWTSecret)
+	h.WithS3StorageFactory(func(ctx context.Context, cfg storage.S3Config) (handler.S3Connector, error) {
+		return connector, nil
+	})
+	router := setupStorageRouter(h)
+
+	body := `{"s3_bucket": "test-bucket", "s3_access_key": "AKIA123", "s3_secret_key": "secret"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/storage/test", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withAdminRequestContext(req)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Success bool `json:"success"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !response.Success {
+		t.Error("expected success to be true")
 	}
 }

@@ -2,10 +2,13 @@ package handler
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/amalgamated-tools/enlace/internal/crypto"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 // storageSettingKeys are the known storage-related setting keys.
@@ -26,10 +29,20 @@ type SettingsRepositoryInterface interface {
 	DeleteMultiple(ctx context.Context, keys []string) error
 }
 
+// S3Connector can validate connectivity to an S3-compatible service.
+type S3Connector interface {
+	ValidateConnection(ctx context.Context) error
+}
+
+// S3StorageFactory creates an S3Connector for the given configuration.
+// It is called during TestStorageConnection to validate credentials.
+type S3StorageFactory func(ctx context.Context, cfg storage.S3Config) (S3Connector, error)
+
 // StorageConfigHandler handles admin storage configuration HTTP requests.
 type StorageConfigHandler struct {
 	settingsRepo  SettingsRepositoryInterface
 	encryptionKey []byte
+	newS3Storage  S3StorageFactory
 }
 
 // NewStorageConfigHandler creates a new StorageConfigHandler.
@@ -37,7 +50,17 @@ func NewStorageConfigHandler(settingsRepo SettingsRepositoryInterface, jwtSecret
 	return &StorageConfigHandler{
 		settingsRepo:  settingsRepo,
 		encryptionKey: crypto.DeriveKey(jwtSecret, storageEncryptionSalt),
+		newS3Storage: func(ctx context.Context, cfg storage.S3Config) (S3Connector, error) {
+			return storage.NewS3Storage(ctx, cfg)
+		},
 	}
+}
+
+// WithS3StorageFactory replaces the default S3 storage factory used by TestStorageConnection.
+// This must be called before the handler is registered with a router.
+// Intended for testing only.
+func (h *StorageConfigHandler) WithS3StorageFactory(factory S3StorageFactory) {
+	h.newS3Storage = factory
 }
 
 // storageConfigResponse represents the GET response for storage configuration.
@@ -269,4 +292,125 @@ func validateEffectiveStorageConfig(effective map[string]string) map[string]stri
 	}
 
 	return errs
+}
+
+// TestStorageConnection handles POST /api/v1/admin/storage/test - validates S3 connectivity.
+//
+//	@Summary		Test S3 connection
+//	@Description	Tests the S3 connection by performing a HeadBucket operation using the provided credentials merged with existing DB settings. Requires admin role.
+//	@Tags			admin
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		updateStorageConfigRequest	true	"S3 configuration fields to test (merged with existing DB settings)"
+//	@Success		200		{object}	APIResponse
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		403		{object}	APIResponse
+//	@Failure		422		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/admin/storage/test [post]
+func (h *StorageConfigHandler) TestStorageConnection(w http.ResponseWriter, r *http.Request) {
+	var req updateStorageConfigRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Build the effective configuration by merging existing DB settings with the request.
+	existing, err := h.settingsRepo.GetMultiple(r.Context(), storageSettingKeys)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to retrieve current storage settings")
+		return
+	}
+
+	effective := make(map[string]string)
+	for k, v := range existing {
+		effective[k] = v
+	}
+	if req.S3Endpoint != nil {
+		effective["s3_endpoint"] = strings.TrimSpace(*req.S3Endpoint)
+	}
+	if req.S3Bucket != nil {
+		effective["s3_bucket"] = strings.TrimSpace(*req.S3Bucket)
+	}
+	if req.S3AccessKey != nil {
+		effective["s3_access_key"] = strings.TrimSpace(*req.S3AccessKey)
+	}
+	if req.S3SecretKey != nil {
+		effective["s3_secret_key"] = strings.TrimSpace(*req.S3SecretKey)
+	}
+	if req.S3Region != nil {
+		effective["s3_region"] = strings.TrimSpace(*req.S3Region)
+	}
+	if req.S3PathPrefix != nil {
+		effective["s3_path_prefix"] = strings.TrimSpace(*req.S3PathPrefix)
+	}
+
+	// Validate required S3 fields are present.
+	errs := make(map[string]string)
+	if effective["s3_bucket"] == "" {
+		errs["s3_bucket"] = "required for connection test"
+	}
+	if effective["s3_access_key"] == "" {
+		errs["s3_access_key"] = "required for connection test"
+	}
+	if effective["s3_secret_key"] == "" {
+		errs["s3_secret_key"] = "required for connection test"
+	}
+	if len(errs) > 0 {
+		ValidationError(w, errs)
+		return
+	}
+
+	// Handle the secret key, decrypting only when appropriate. If decryption
+	// fails (e.g., for a user-provided plaintext that happens to start with
+	// "enc:"), fall back to using the original value as plaintext so that the
+	// connection test can still proceed.
+	secretKey := effective["s3_secret_key"]
+	decrypted := secretKey
+	if strings.HasPrefix(secretKey, "enc:") {
+		if v, err := crypto.Decrypt(secretKey, h.encryptionKey); err == nil {
+			decrypted = v
+		}
+	}
+
+	s3Store, err := h.newS3Storage(r.Context(), storage.S3Config{
+		Endpoint:   effective["s3_endpoint"],
+		Bucket:     effective["s3_bucket"],
+		AccessKey:  effective["s3_access_key"],
+		SecretKey:  decrypted,
+		Region:     effective["s3_region"],
+		PathPrefix: effective["s3_path_prefix"],
+	})
+	if err != nil {
+		slog.WarnContext(r.Context(), "failed to initialize S3 client", "error", err)
+		Error(w, http.StatusUnprocessableEntity, "failed to initialize S3 client")
+		return
+	}
+
+	if err := s3Store.ValidateConnection(r.Context()); err != nil {
+		slog.WarnContext(r.Context(), "S3 connection test failed", "error", err)
+		Error(w, http.StatusUnprocessableEntity, s3ConnectionErrorMessage(err))
+		return
+	}
+
+	Success(w, http.StatusOK, nil)
+}
+
+// s3ConnectionErrorMessage maps an S3 error to a user-facing message that does not
+// expose internal endpoint or SDK details.
+func s3ConnectionErrorMessage(err error) string {
+	var apiErr interface {
+		ErrorCode() string
+	}
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		case "NoSuchBucket":
+			return "S3 connection failed: bucket not found"
+		case "AccessDenied", "InvalidAccessKeyId", "SignatureDoesNotMatch":
+			return "S3 connection failed: authentication failed"
+		}
+	}
+	return "S3 connection failed"
 }
