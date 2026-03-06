@@ -82,9 +82,10 @@ Enlace collects **opt-in, anonymous** telemetry to help improve the project. Tel
 
 ## API & CORS
 
+The Swagger UI is always available at `/swagger/` and the OpenAPI spec at `/swagger/doc.json`. No additional configuration is required.
+
 | Variable | Default | Description |
 |---|---|---|
-| `SWAGGER_ENABLED` | `false` | Set to `true` to serve the Swagger UI at `/swagger/` and the OpenAPI spec at `/swagger/doc.json` |
 | `CORS_ORIGINS` | *(equals `BASE_URL`)* | Comma-separated list of allowed CORS origins. Defaults to the value of `BASE_URL` when not set |
 
 ## Two-Factor Authentication (optional)
