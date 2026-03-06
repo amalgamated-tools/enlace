@@ -10,7 +10,9 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
 - **Two-factor authentication** — per-user TOTP 2FA with QR-code setup, recovery codes, and optional admin-enforced enrollment (`REQUIRE_2FA`); mutually exclusive with SSO/OIDC
 - **Storage backends** — local filesystem or any S3-compatible object store; storage settings can be overridden at runtime via the admin API without redeploying (changes take effect after restart)
-- **Admin panel** — manage users from the UI; configure file upload restrictions (max size, blocked extensions) at runtime
+- **Admin panel** — manage users from the UI; configure storage, SMTP, and file upload restrictions (max size, blocked extensions) at runtime via the admin API or panel
+- **API keys** — create scoped, long-lived API keys for programmatic access without user credentials; each key is limited to a set of permission scopes
+- **Webhooks** — subscribe to server-side events (`share.created`, `file.uploaded`, etc.) with HMAC-SHA256 signed deliveries, retry logic, and a delivery log
 - **Rate limiting** — IP-based rate limiting middleware. `LoginRateLimiter` (5 req/min) is applied to `POST /auth/login`, `RegisterRateLimiter` (3 req/min) to `POST /auth/register`, and `TFAVerifyRateLimiter` (5 req/min) to the 2FA verification endpoints. The `APIRateLimiter` (60 req/min) helper is available in `internal/middleware/ratelimit.go` but not wired up by default. When running behind a reverse proxy, configure `TRUSTED_PROXIES` so that forwarded client IPs are used for rate limiting instead of the proxy's address — see [Networking / Reverse Proxy](docs/configuration.md#networking--reverse-proxy).
 - **Email notifications** — optionally email share links to recipients via SMTP; resend from the share detail page
 - **Dark mode** — three-way theme toggle (system, light, dark) with preference persisted in the browser

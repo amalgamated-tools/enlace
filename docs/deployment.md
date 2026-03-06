@@ -51,6 +51,14 @@ View and override the SMTP configuration. Changes take effect on the next restar
 
 > **Note:** SMTP configuration changes require a restart to take effect. See [Configuration — SMTP](configuration.md#smtp-email-notifications) for environment variable reference and encryption details.
 
+### Admin API features (API-only, no UI tab)
+
+The following admin capabilities are available via the REST API but do not have a dedicated panel tab:
+
+- **File restrictions** (`GET/PUT/DELETE /api/v1/admin/files`) — set a maximum upload size and a list of blocked file extensions. Changes take effect immediately without a restart.
+- **API keys** (`GET/POST/DELETE /api/v1/admin/api-keys`) — create scoped, long-lived keys for programmatic access. Each key is limited to a set of permission scopes; the full key value is returned only once at creation.
+- **Webhooks** (`GET/POST/PATCH/DELETE /api/v1/admin/webhooks`, `GET /api/v1/admin/webhooks/deliveries`) — subscribe to server-side events with HMAC-SHA256 signed HTTP deliveries. See [Admin webhook endpoints](api.md#admin-webhook-endpoints) for the event catalogue and signature verification guide.
+
 
 ### Available tags
 
