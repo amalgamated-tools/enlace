@@ -12,6 +12,9 @@ import (
 // ErrNotFound is returned when a requested record does not exist.
 var ErrNotFound = errors.New("not found")
 
+// ErrDuplicate is returned when a unique constraint is violated.
+var ErrDuplicate = errors.New("duplicate")
+
 // UserRepository provides CRUD operations for users.
 type UserRepository struct {
 	db *sql.DB

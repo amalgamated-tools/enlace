@@ -590,6 +590,22 @@ Fields in each recipient object:
 | `email` | string | Notified email address |
 | `sent_at` | string (RFC3339) | Timestamp when the notification was sent |
 
+## Webhook verification and replay protection
+
+Webhook deliveries include the headers below:
+
+- `X-Enlace-Event`: canonical event type.
+- `X-Enlace-Event-Id`: stable event identifier.
+- `X-Enlace-Timestamp`: RFC3339 timestamp used in signing.
+- `X-Enlace-Signature`: `sha256=<hex>` HMAC signature over `<timestamp>.<raw_request_body>`.
+- `Idempotency-Key`: stable key for that event + subscription, reused across retries.
+
+Receiver guidance:
+
+1. Recompute HMAC-SHA256 with your shared webhook secret and compare signatures in constant time.
+2. Reject messages with stale timestamps (recommended window: <=5 minutes) to limit replay risk.
+3. Store `Idempotency-Key` and ignore duplicates so retried deliveries are safe to process multiple times.
+
 ## Endpoint reference
 
 | Method | Path | Auth | Description |
@@ -638,6 +654,14 @@ Fields in each recipient object:
 | `GET` | `/api/v1/admin/files` | ✔ admin | Get file upload restriction configuration |
 | `PUT` | `/api/v1/admin/files` | ✔ admin | Update file upload restrictions |
 | `DELETE` | `/api/v1/admin/files` | ✔ admin | Clear file upload restrictions (revert to defaults) |
+| `GET` | `/api/v1/admin/api-keys` | ✔ admin | List API keys created by the current admin |
+| `POST` | `/api/v1/admin/api-keys` | ✔ admin | Create a scoped API key (secret returned once) |
+| `DELETE` | `/api/v1/admin/api-keys/{id}` | ✔ admin | Revoke an API key |
+| `GET` | `/api/v1/admin/webhooks` | ✔ admin | List webhook subscriptions created by the current admin |
+| `POST` | `/api/v1/admin/webhooks` | ✔ admin | Create a webhook subscription |
+| `PATCH` | `/api/v1/admin/webhooks/{id}` | ✔ admin | Update a webhook subscription |
+| `DELETE` | `/api/v1/admin/webhooks/{id}` | ✔ admin | Delete a webhook subscription |
+| `GET` | `/api/v1/admin/webhooks/deliveries` | ✔ admin | View webhook delivery logs |
 | `GET` | `/s/{slug}` | — | View a public share |
 | `POST` | `/s/{slug}/verify` | — | Unlock a password-protected share |
 | `GET` | `/s/{slug}/files/{fileId}` | — | Download a file |
