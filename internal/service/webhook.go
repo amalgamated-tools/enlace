@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -24,6 +25,9 @@ import (
 	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/repository"
 )
+
+// ErrSSRFBlocked is returned when a webhook target resolves to a private or reserved IP.
+var ErrSSRFBlocked = errors.New("webhook target address is not allowed")
 
 var (
 	// ErrInvalidWebhookURL is returned when the webhook URL is not allowed.
@@ -92,7 +96,7 @@ type WebhookService struct {
 // NewWebhookService creates a new WebhookService.
 func NewWebhookService(repo *repository.WebhookRepository, secret []byte, client *http.Client) *WebhookService {
 	if client == nil {
-		client = &http.Client{Timeout: webhookDeliveryTimeout}
+		client = newSafeHTTPClient(webhookDeliveryTimeout)
 	}
 	return &WebhookService{
 		repo:          repo,
@@ -100,6 +104,104 @@ func NewWebhookService(repo *repository.WebhookRepository, secret []byte, client
 		httpClient:    client,
 		now:           time.Now,
 	}
+}
+
+// newSafeHTTPClient returns an http.Client configured to prevent SSRF attacks.
+// It uses a custom DialContext that rejects connections to private/reserved IPs
+// and disables automatic redirect following so a malicious endpoint cannot
+// redirect to an internal service.
+func newSafeHTTPClient(timeout time.Duration) *http.Client {
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			DialContext: safeDialContext(dialer),
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
+
+// safeDialContext wraps a net.Dialer to resolve DNS first and reject connections
+// to private, loopback, link-local, or otherwise reserved IP addresses.
+func safeDialContext(dialer *net.Dialer) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid address %q: %w", addr, err)
+		}
+
+		ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+		if err != nil {
+			return nil, fmt.Errorf("DNS resolution failed for %q: %w", host, err)
+		}
+		if len(ips) == 0 {
+			return nil, fmt.Errorf("no IP addresses found for %q", host)
+		}
+
+		for _, ip := range ips {
+			if isBlockedIP(ip.IP) {
+				return nil, fmt.Errorf("%w: %s resolves to blocked address %s", ErrSSRFBlocked, host, ip.IP)
+			}
+		}
+
+		// Connect to the first allowed IP to prevent the stdlib from
+		// re-resolving and potentially hitting a different (blocked) address.
+		return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+	}
+}
+
+// isBlockedIP returns true for IPs that should not be reachable from webhook
+// deliveries: loopback, private (RFC 1918), link-local, multicast, and other
+// IANA-reserved ranges.
+func isBlockedIP(ip net.IP) bool {
+	// Normalize IPv4-mapped IPv6 (e.g. ::ffff:10.0.0.1) to plain IPv4 so
+	// that the standard library helpers (IsPrivate, IsLoopback, etc.)
+	// match correctly.
+	if v4 := ip.To4(); v4 != nil {
+		ip = v4
+	}
+	return ip.IsLoopback() ||
+		ip.IsPrivate() ||
+		ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() ||
+		ip.IsMulticast() ||
+		ip.IsUnspecified() ||
+		isReservedIP(ip)
+}
+
+// isReservedIP checks additional reserved ranges not covered by the net.IP
+// helper methods: CGNAT (100.64.0.0/10), benchmarking (198.18.0.0/15),
+// documentation (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24),
+// and 6to4 relay anycast (192.88.99.0/24).
+func isReservedIP(ip net.IP) bool {
+	reservedRanges := []struct {
+		network *net.IPNet
+	}{
+		{mustParseCIDR("100.64.0.0/10")},   // CGNAT
+		{mustParseCIDR("198.18.0.0/15")},   // Benchmarking
+		{mustParseCIDR("192.0.2.0/24")},    // TEST-NET-1
+		{mustParseCIDR("198.51.100.0/24")}, // TEST-NET-2
+		{mustParseCIDR("203.0.113.0/24")},  // TEST-NET-3
+		{mustParseCIDR("192.88.99.0/24")},  // 6to4 relay
+		{mustParseCIDR("fc00::/7")},        // IPv6 unique local
+		{mustParseCIDR("2001:db8::/32")},   // IPv6 documentation
+	}
+	for _, r := range reservedRanges {
+		if r.network.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func mustParseCIDR(s string) *net.IPNet {
+	_, network, err := net.ParseCIDR(s)
+	if err != nil {
+		panic(fmt.Sprintf("invalid CIDR %q: %v", s, err))
+	}
+	return network
 }
 
 // AllowedWebhookEvents returns all supported event names.
@@ -440,10 +542,18 @@ func validateWebhookURL(raw string) error {
 	if u.Scheme == "" || u.Host == "" {
 		return ErrInvalidWebhookURL
 	}
+	hostname := u.Hostname()
 	if u.Scheme == "https" {
+		// Reject URLs that point to known-local hostnames even over HTTPS.
+		if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" || hostname == "0.0.0.0" {
+			return ErrInvalidWebhookURL
+		}
 		return nil
 	}
-	if u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
+	// HTTP is only allowed for local development against localhost / 127.0.0.1.
+	// Even then, the safeDialContext will block the connection at dial time if
+	// it resolves to a private IP, but we keep this as a first-pass filter.
+	if u.Scheme == "http" && (hostname == "localhost" || hostname == "127.0.0.1") {
 		return nil
 	}
 	return ErrInvalidWebhookURL
