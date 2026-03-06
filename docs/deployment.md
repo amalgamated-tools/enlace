@@ -42,13 +42,15 @@ View and override the storage configuration without restarting or redeploying. T
 
 ### Email tab (`/#/admin/email`)
 
-View and override the SMTP email configuration without restarting or redeploying. The page shows the current database overrides (if any).
 
-- **No overrides configured** — Enlace is using the environment variable SMTP configuration (or email is disabled if `SMTP_HOST` is unset).
-- **Set SMTP overrides** — configure host, port, username, password, sender address, and TLS policy. The password field is masked; leave it blank to keep the currently stored value, or check **Clear saved password** to remove it.
+View and override the SMTP configuration. Changes take effect on the next restart. The page shows the current database overrides (if any).
+
+- **No overrides configured** — Enlace is using the environment variable SMTP configuration (or email is disabled if `SMTP_HOST` is not set).
+- **Configuring SMTP** — set the host, port, username, password, sender address, and TLS policy. The password field is masked; leave it blank to keep the currently stored value unchanged. Use the **Clear password** checkbox to explicitly remove a stored password.
 - **Reset to environment defaults** — removes all DB overrides so Enlace reverts to environment variables on the next restart.
 
-> **Note:** SMTP configuration changes require a restart to take effect. See [Configuration — SMTP](configuration.md#smtp-email-notifications) for environment variable reference.
+> **Note:** SMTP configuration changes require a restart to take effect. See [Configuration — SMTP](configuration.md#smtp-email-notifications) for environment variable reference and encryption details.
+
 
 ### Available tags
 
