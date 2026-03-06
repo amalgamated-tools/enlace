@@ -93,7 +93,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	}))
 
 	// Health check endpoint (always accessible)
-	r.Get("/health", healthHandler)
+	r.Get("/health", healthHandler(cfg.EmailService))
 
 	// Create handlers
 	var totpServiceAdapter TOTPServiceInterface
@@ -302,15 +302,19 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 // healthHandler returns the health status of the service.
 //
 //	@Summary		Health check
-//	@Description	Returns the application health status. Used by load balancers and container orchestrators to verify the service is running.
+//	@Description	Returns the application health status and feature flags. Used by load balancers, container orchestrators, and the frontend to verify the service is running and discover available features.
 //	@Tags			system
 //	@Produce	json
 //	@Success	200	{object}	APIResponse
 //	@Router		/health [get]
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	Success(w, http.StatusOK, map[string]string{
-		"status": "ok",
-	})
+func healthHandler(emailService *service.EmailService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		emailConfigured := emailService != nil && emailService.IsConfigured()
+		Success(w, http.StatusOK, map[string]interface{}{
+			"status":           "ok",
+			"email_configured": emailConfigured,
+		})
+	}
 }
 
 // oidcServiceAdapter adapts *service.OIDCService to OIDCServiceInterface.

@@ -2,13 +2,20 @@
   import Router, { location } from "svelte-spa-router";
   import routes from "./routes";
   import { Toast } from "./lib/components";
-  import { auth, destroyTheme, initTheme, isAuthenticated } from "./lib/stores";
+  import {
+    auth,
+    destroyTheme,
+    initTheme,
+    isAuthenticated,
+    loadFeatures,
+  } from "./lib/stores";
   import { push } from "svelte-spa-router";
   import { onDestroy, onMount } from "svelte";
 
   onMount(() => {
     initTheme();
     auth.init();
+    loadFeatures();
   });
 
   onDestroy(() => {

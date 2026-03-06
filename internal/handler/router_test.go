@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
 func TestNewRouter(t *testing.T) {
@@ -46,6 +48,48 @@ func TestHealthHandler(t *testing.T) {
 
 	if data["status"] != "ok" {
 		t.Errorf("health endpoint data.status = %v, want 'ok'", data["status"])
+	}
+
+	// When no email service is configured, email_configured should be false
+	if data["email_configured"] != false {
+		t.Errorf("health endpoint data.email_configured = %v, want false", data["email_configured"])
+	}
+}
+
+func TestHealthHandler_EmailConfigured(t *testing.T) {
+	emailSvc := service.NewEmailService(service.SMTPConfig{
+		Host: "smtp.example.com",
+		Port: 587,
+		From: "test@example.com",
+	}, nil, "http://localhost")
+
+	cfg := RouterConfig{EmailService: emailSvc}
+	router := NewRouter(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("health endpoint status = %v, want %v", w.Code, http.StatusOK)
+	}
+
+	var response APIResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	data, ok := response.Data.(map[string]interface{})
+	if !ok {
+		t.Fatal("health endpoint response.Data is not a map")
+	}
+
+	// NewEmailService with a valid host/port/from creates a mail client,
+	// so email_configured should be true
+	emailConfigured, _ := data["email_configured"].(bool)
+	if !emailConfigured {
+		t.Errorf("health endpoint data.email_configured = %v, want true", data["email_configured"])
 	}
 }
 
