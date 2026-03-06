@@ -56,6 +56,31 @@ func TestAuthService_Register(t *testing.T) {
 	}
 }
 
+func TestAuthService_Register_FirstUserIsAdmin(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// First user should be admin
+	first, err := svc.Register(ctx, "first@example.com", "password123", "First User")
+	if err != nil {
+		t.Fatalf("failed to register first user: %v", err)
+	}
+	if !first.IsAdmin {
+		t.Error("expected first user to be admin")
+	}
+
+	// Second user should not be admin
+	second, err := svc.Register(ctx, "second@example.com", "password123", "Second User")
+	if err != nil {
+		t.Fatalf("failed to register second user: %v", err)
+	}
+	if second.IsAdmin {
+		t.Error("expected second user to not be admin")
+	}
+}
+
 func TestAuthService_Register_DuplicateEmail(t *testing.T) {
 	svc, cleanup := setupAuthService(t)
 	defer cleanup()
@@ -516,7 +541,12 @@ func TestAuthService_TokenClaimsContainAdminStatus(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Register a regular user
+	// Register a regular user (register a dummy first so this one isn't auto-admin)
+	_, err = svc.Register(ctx, "first@example.com", "password123", "First User")
+	if err != nil {
+		t.Fatalf("failed to register first user: %v", err)
+	}
+
 	user, err := svc.Register(ctx, "test@example.com", "password123", "Test User")
 	if err != nil {
 		t.Fatalf("failed to register user: %v", err)

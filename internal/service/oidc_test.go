@@ -170,6 +170,46 @@ func TestOIDCService_FindOrCreateUser_NewUser(t *testing.T) {
 	}
 }
 
+func TestOIDCService_FindOrCreateUser_FirstUserIsAdmin(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com", nil)
+	ctx := context.Background()
+
+	// First OIDC user should be admin
+	first, err := svc.FindOrCreateUser(ctx, &service.OIDCUserInfo{
+		Subject:     "sub-first",
+		Email:       "first@example.com",
+		DisplayName: "First User",
+		Issuer:      "https://issuer.example.com",
+	})
+	if err != nil {
+		t.Fatalf("FindOrCreateUser failed: %v", err)
+	}
+	if !first.IsAdmin {
+		t.Error("expected first OIDC user to be admin")
+	}
+
+	// Second OIDC user should not be admin
+	second, err := svc.FindOrCreateUser(ctx, &service.OIDCUserInfo{
+		Subject:     "sub-second",
+		Email:       "second@example.com",
+		DisplayName: "Second User",
+		Issuer:      "https://issuer.example.com",
+	})
+	if err != nil {
+		t.Fatalf("FindOrCreateUser failed: %v", err)
+	}
+	if second.IsAdmin {
+		t.Error("expected second OIDC user to not be admin")
+	}
+}
+
 func TestOIDCService_UnlinkOIDC_RequiresPassword(t *testing.T) {
 	db, err := database.New(":memory:")
 	if err != nil {

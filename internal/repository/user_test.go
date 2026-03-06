@@ -279,6 +279,57 @@ func TestUserRepository_EmailExists(t *testing.T) {
 	}
 }
 
+func TestUserRepository_Count(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := repository.NewUserRepository(db.DB())
+	ctx := context.Background()
+
+	// Empty database should return 0
+	count, err := repo.Count(ctx)
+	if err != nil {
+		t.Fatalf("failed to count users: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expected 0 users, got %d", count)
+	}
+
+	// After creating a user, count should be 1
+	user := &model.User{
+		ID:           "user-123",
+		Email:        "test@example.com",
+		PasswordHash: "hashed",
+		DisplayName:  "Test User",
+	}
+	_ = repo.Create(ctx, user)
+
+	count, err = repo.Count(ctx)
+	if err != nil {
+		t.Fatalf("failed to count users: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 user, got %d", count)
+	}
+
+	// After creating another user, count should be 2
+	user2 := &model.User{
+		ID:           "user-456",
+		Email:        "test2@example.com",
+		PasswordHash: "hashed",
+		DisplayName:  "Test User 2",
+	}
+	_ = repo.Create(ctx, user2)
+
+	count, err = repo.Count(ctx)
+	if err != nil {
+		t.Fatalf("failed to count users: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("expected 2 users, got %d", count)
+	}
+}
+
 func TestUserRepository_GetByOIDC(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
