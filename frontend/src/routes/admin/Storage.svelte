@@ -36,6 +36,9 @@
   let resetModal = false;
   let resetting = false;
 
+  // Test connection
+  let testing = false;
+
   $: hasOverrides = storageType !== "";
 
   $: if ($auth.initialized && !$isAuthenticated) {
@@ -178,6 +181,31 @@
       resetting = false;
     }
   }
+
+  async function handleTestConnection() {
+    testing = true;
+    try {
+      const payload: Record<string, string> = {};
+      payload.s3_bucket = s3Bucket.trim();
+      payload.s3_region = s3Region.trim();
+      payload.s3_path_prefix = s3PathPrefix.trim();
+      payload.s3_endpoint = s3Endpoint.trim();
+      if (s3AccessKey.trim()) {
+        payload.s3_access_key = s3AccessKey.trim();
+      }
+      if (s3SecretKey.trim()) {
+        payload.s3_secret_key = s3SecretKey.trim();
+      }
+      await api.post<void>("/admin/storage/test", payload);
+      toast.success("S3 connection successful");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "S3 connection test failed";
+      toast.error(message);
+    } finally {
+      testing = false;
+    }
+  }
 </script>
 
 <AdminNav />
@@ -290,9 +318,21 @@
         {/if}
 
         {#if storageType}
-          <Button type="submit" loading={saving}>
-            {saving ? "Saving..." : "Save Configuration"}
-          </Button>
+          <div class="flex items-center gap-3">
+            <Button type="submit" loading={saving}>
+              {saving ? "Saving..." : "Save Configuration"}
+            </Button>
+            {#if storageType === "s3"}
+              <Button
+                type="button"
+                variant="secondary"
+                loading={testing}
+                on:click={handleTestConnection}
+              >
+                {testing ? "Testing..." : "Test Connection"}
+              </Button>
+            {/if}
+          </div>
         {/if}
       </form>
     </div>

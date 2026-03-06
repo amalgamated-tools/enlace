@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/amalgamated-tools/enlace/internal/crypto"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 // storageSettingKeys are the known storage-related setting keys.
@@ -269,4 +270,102 @@ func validateEffectiveStorageConfig(effective map[string]string) map[string]stri
 	}
 
 	return errs
+}
+
+// TestStorageConnection handles POST /api/v1/admin/storage/test - validates S3 connectivity.
+//
+//	@Summary		Test S3 connection
+//	@Description	Tests the S3 connection by performing a HeadBucket operation using the provided credentials merged with existing DB settings. Requires admin role.
+//	@Tags			admin
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		updateStorageConfigRequest	true	"S3 configuration fields to test (merged with existing DB settings)"
+//	@Success		200		{object}	APIResponse
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		403		{object}	APIResponse
+//	@Failure		422		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/admin/storage/test [post]
+func (h *StorageConfigHandler) TestStorageConnection(w http.ResponseWriter, r *http.Request) {
+	var req updateStorageConfigRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Build the effective configuration by merging existing DB settings with the request.
+	existing, err := h.settingsRepo.GetMultiple(r.Context(), storageSettingKeys)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to retrieve current storage settings")
+		return
+	}
+
+	effective := make(map[string]string)
+	for k, v := range existing {
+		effective[k] = v
+	}
+	if req.S3Endpoint != nil {
+		effective["s3_endpoint"] = strings.TrimSpace(*req.S3Endpoint)
+	}
+	if req.S3Bucket != nil {
+		effective["s3_bucket"] = strings.TrimSpace(*req.S3Bucket)
+	}
+	if req.S3AccessKey != nil {
+		effective["s3_access_key"] = strings.TrimSpace(*req.S3AccessKey)
+	}
+	if req.S3SecretKey != nil {
+		effective["s3_secret_key"] = strings.TrimSpace(*req.S3SecretKey)
+	}
+	if req.S3Region != nil {
+		effective["s3_region"] = strings.TrimSpace(*req.S3Region)
+	}
+	if req.S3PathPrefix != nil {
+		effective["s3_path_prefix"] = strings.TrimSpace(*req.S3PathPrefix)
+	}
+
+	// Validate required S3 fields are present.
+	errs := make(map[string]string)
+	if effective["s3_bucket"] == "" {
+		errs["s3_bucket"] = "required for connection test"
+	}
+	if effective["s3_access_key"] == "" {
+		errs["s3_access_key"] = "required for connection test"
+	}
+	if effective["s3_secret_key"] == "" {
+		errs["s3_secret_key"] = "required for connection test"
+	}
+	if len(errs) > 0 {
+		ValidationError(w, errs)
+		return
+	}
+
+	// Decrypt the secret key if it's stored encrypted in DB.
+	secretKey := effective["s3_secret_key"]
+	decrypted, err := crypto.Decrypt(secretKey, h.encryptionKey)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to decrypt secret key")
+		return
+	}
+
+	s3Store, err := storage.NewS3Storage(r.Context(), storage.S3Config{
+		Endpoint:   effective["s3_endpoint"],
+		Bucket:     effective["s3_bucket"],
+		AccessKey:  effective["s3_access_key"],
+		SecretKey:  decrypted,
+		Region:     effective["s3_region"],
+		PathPrefix: effective["s3_path_prefix"],
+	})
+	if err != nil {
+		Error(w, http.StatusUnprocessableEntity, "failed to initialize S3 client: "+err.Error())
+		return
+	}
+
+	if err := s3Store.ValidateConnection(r.Context()); err != nil {
+		Error(w, http.StatusUnprocessableEntity, "S3 connection failed: "+err.Error())
+		return
+	}
+
+	Success(w, http.StatusOK, nil)
 }
