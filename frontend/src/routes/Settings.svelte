@@ -6,7 +6,6 @@
     auth,
     isAuthenticated,
     setThemePreference,
-    themeEffective,
     themePreference,
     toast,
   } from "../lib/stores";
