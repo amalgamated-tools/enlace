@@ -211,11 +211,11 @@ services:
 
 ## Health Check
 
-The `/health` endpoint returns HTTP 200 with `{"status":"ok"}` and requires no authentication. Use it for load balancer health checks and container readiness probes:
+The `/health` endpoint returns HTTP 200 and requires no authentication. Use it for load balancer health checks and container readiness probes:
 
 ```bash
 curl https://enlace.example.com/health
-# {"status":"ok"}
+# {"success":true,"data":{"status":"ok"}}
 ```
 
 The included `docker-compose.yml` already configures a `healthcheck` using this endpoint.
