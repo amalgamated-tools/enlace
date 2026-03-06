@@ -3,7 +3,9 @@ package handler
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -217,7 +219,10 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		go func() {
-			_ = h.webhooks.Emit(context.WithoutCancel(r.Context()), service.WebhookEvent{
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := h.webhooks.Emit(ctx, service.WebhookEvent{
 				Type:      "file.upload.completed",
 				CreatorID: creatorID,
 				ActorID:   userID,
@@ -227,7 +232,9 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 					"count":    len(uploadedFiles),
 					"files":    uploaded,
 				},
-			})
+			}); err != nil {
+				slog.Warn("failed to emit webhook", "event_type", "file.upload.completed", "share_id", shareID, "error", err)
+			}
 		}()
 	}
 

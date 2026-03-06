@@ -230,6 +230,10 @@ func (h *WebhookAdminHandler) ListDeliveries(w http.ResponseWriter, r *http.Requ
 			ValidationError(w, map[string]string{"limit": "must be a positive integer"})
 			return
 		}
+		if v > 500 {
+			ValidationError(w, map[string]string{"limit": "must not exceed 500"})
+			return
+		}
 		limit = v
 	}
 

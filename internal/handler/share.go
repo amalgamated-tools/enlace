@@ -239,10 +239,12 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
-		bgCtx := context.WithoutCancel(r.Context())
 		creatorID := *share.CreatorID
 		go func() {
-			_ = h.webhooks.Emit(bgCtx, service.WebhookEvent{
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := h.webhooks.Emit(ctx, service.WebhookEvent{
 				Type:      "share.created",
 				CreatorID: creatorID,
 				ActorID:   userID,
@@ -252,7 +254,9 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 					"slug":     share.Slug,
 					"name":     share.Name,
 				},
-			})
+			}); err != nil {
+				slog.Warn("failed to emit webhook", "event_type", "share.created", "share_id", share.ID, "error", err)
+			}
 		}()
 	}
 

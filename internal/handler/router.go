@@ -161,7 +161,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 		// Share routes - require authentication
 		r.Route("/shares", func(r chi.Router) {
-			r.Use(intMiddleware.RequireAuth(cfg.AuthService, intMiddleware.WithAPIKeyAuth(cfg.APIKeyService)))
+			authOpts := []intMiddleware.RequireAuthOption{}
+			if cfg.APIKeyService != nil {
+				authOpts = append(authOpts, intMiddleware.WithAPIKeyAuth(cfg.APIKeyService))
+			}
+			r.Use(intMiddleware.RequireAuth(cfg.AuthService, authOpts...))
 			r.With(intMiddleware.RequireScope("shares:read")).Get("/", shareHandler.List)
 			r.With(intMiddleware.RequireScope("shares:write")).Post("/", shareHandler.Create)
 
@@ -180,7 +184,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 		// File routes - require authentication
 		r.Route("/files", func(r chi.Router) {
-			r.Use(intMiddleware.RequireAuth(cfg.AuthService, intMiddleware.WithAPIKeyAuth(cfg.APIKeyService)))
+			authOpts := []intMiddleware.RequireAuthOption{}
+			if cfg.APIKeyService != nil {
+				authOpts = append(authOpts, intMiddleware.WithAPIKeyAuth(cfg.APIKeyService))
+			}
+			r.Use(intMiddleware.RequireAuth(cfg.AuthService, authOpts...))
 			r.With(intMiddleware.RequireScope("files:write")).Delete("/{id}", fileHandler.Delete)
 		})
 
