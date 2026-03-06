@@ -92,3 +92,23 @@ jobs:
             gofmt -d .
             exit 1
           fi
+
+  integration-tests:
+    needs: frontend-tests
+    runs-on: ubuntu-latest
+    name: Integration Tests
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: frontend/dist
+
+      - name: Set up Go
+        uses: actions/setup-go@v6.2.0
+        with:
+          go-version: stable
+
+      - name: Run integration tests
+        run: go test -tags integration -v -count=1 ./internal/integration/...

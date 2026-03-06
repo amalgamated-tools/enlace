@@ -1,4 +1,4 @@
-.PHONY: all build run test clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs swagger swagger-fmt help ensure-embed-dir
+.PHONY: all build run test test-integration clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs swagger swagger-fmt help ensure-embed-dir
 
 # Default target
 all: build
@@ -32,6 +32,10 @@ ensure-embed-dir:
 # Run all tests
 test: ensure-embed-dir
 	go test ./... -v
+
+# Run integration tests (requires frontend/dist to exist for embed)
+test-integration: ensure-embed-dir
+	go test -tags integration -v -count=1 ./internal/integration/...
 
 # Run tests with coverage
 test-coverage: ensure-embed-dir
@@ -121,6 +125,7 @@ help:
 	@echo "  run-backend    - Run backend with go run"
 	@echo "  dev            - Live reload dev (air + pnpm dev)"
 	@echo "  test           - Run all tests"
+	@echo "  test-integration - Run integration tests"
 	@echo "  test-coverage  - Run tests with coverage report"
 	@echo "  clean          - Remove build artifacts"
 	@echo "  frontend-dev   - Start frontend dev server"
