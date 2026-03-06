@@ -2,15 +2,7 @@
   import Router, { location } from "svelte-spa-router";
   import routes from "./routes";
   import { Toast } from "./lib/components";
-  import {
-    auth,
-    cycleThemePreference,
-    destroyTheme,
-    initTheme,
-    isAuthenticated,
-    themeEffective,
-    themePreference,
-  } from "./lib/stores";
+  import { auth, destroyTheme, initTheme, isAuthenticated } from "./lib/stores";
   import { push } from "svelte-spa-router";
   import { onDestroy, onMount } from "svelte";
 
@@ -117,70 +109,27 @@
             {/if}
           </nav>
         </div>
-        <div class="flex items-center gap-4">
-          <button
-            on:click={cycleThemePreference}
-            class="flex items-center gap-2 text-xs font-medium text-muted hover:text-text transition-colors"
-            aria-label={`Theme: ${$themePreference}`}
-            title={`Theme: ${$themePreference}`}
-          >
-            {#if $themePreference === "system"}
-              <svg
-                class="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <rect x="3" y="4" width="18" height="12" rx="2"></rect>
-                <path d="M8 20h8"></path>
-                <path d="M12 16v4"></path>
-              </svg>
-              <span>System</span>
-            {:else if $themeEffective === "dark"}
-              <svg
-                class="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"></path>
-              </svg>
-              <span>Dark</span>
-            {:else}
-              <svg
-                class="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <circle cx="12" cy="12" r="4"></circle>
-                <path d="M12 2v2"></path>
-                <path d="M12 20v2"></path>
-                <path d="M4.93 4.93l1.41 1.41"></path>
-                <path d="M17.66 17.66l1.41 1.41"></path>
-                <path d="M2 12h2"></path>
-                <path d="M20 12h2"></path>
-                <path d="M6.34 17.66l-1.41 1.41"></path>
-                <path d="M19.07 4.93l-1.41 1.41"></path>
-              </svg>
-              <span>Light</span>
-            {/if}
-          </button>
+        <div class="flex items-center gap-3">
           <span class="text-sm text-muted">{$auth.user?.display_name}</span>
           <button
             on:click={handleLogout}
-            class="text-sm text-muted hover:text-text transition-colors"
+            class="text-muted hover:text-text transition-colors"
+            aria-label="Sign out"
+            title="Sign out"
           >
-            Sign out
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
           </button>
         </div>
       </div>
