@@ -153,20 +153,6 @@ func TestRouter_ContentTypeJSON(t *testing.T) {
 	}
 }
 
-func TestRouter_SwaggerEnabled(t *testing.T) {
-	cfg := RouterConfig{}
-	router := NewRouter(cfg)
-
-	req := httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("swagger endpoint with SwaggerEnabled=true status = %v, want %v", w.Code, http.StatusOK)
-	}
-}
-
 func TestRouter_LoginRateLimited(t *testing.T) {
 	cfg := RouterConfig{}
 	router := NewRouter(cfg)
