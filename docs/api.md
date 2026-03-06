@@ -379,6 +379,23 @@ Returns the current storage configuration after the update (same shape as `GET`)
 
 **`DELETE /api/v1/admin/storage`** — removes all storage configuration overrides from the database. On next restart, Enlace reverts to the environment variable configuration.
 
+**`POST /api/v1/admin/storage/test`** — tests the S3 connection using the currently effective storage configuration (DB overrides merged with environment variables). This endpoint is only useful when `storage_type` is `s3`; calling it with local storage returns HTTP 422.
+
+Returns HTTP 200 on success. On failure, returns HTTP 422 with a human-readable error message:
+
+```json
+{ "success": false, "error": "S3 connection failed: bucket not found" }
+```
+
+Possible error messages:
+
+| Message | Cause |
+|---|---|
+| `S3 connection failed: bucket not found` | The configured bucket does not exist |
+| `S3 connection failed: authentication failed` | Invalid access key, secret key, or signature |
+| `S3 connection failed` | Other connectivity or configuration error |
+| `failed to initialize S3 client` | The current effective configuration is incomplete or malformed |
+
 ## Admin file restriction endpoints
 
 All admin file restriction endpoints require authentication with an account that has `is_admin: true`. Changes take effect immediately — no restart required.
@@ -590,6 +607,161 @@ Fields in each recipient object:
 | `email` | string | Notified email address |
 | `sent_at` | string (RFC3339) | Timestamp when the notification was sent |
 
+## Admin API key endpoints
+
+All admin API key endpoints require authentication with an account that has `is_admin: true`. API keys allow programmatic access to Enlace without user credentials. Each key is scoped to a fixed set of permissions and is identified by a short prefix (the first 8 characters) for management purposes. The full key value is returned **only once** at creation time.
+
+**`GET /api/v1/admin/api-keys`** — list all API keys created by the current admin account.
+
+Returns an array of API key objects:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string (UUID) | Key identifier |
+| `name` | string | Human-readable label |
+| `key_prefix` | string | First 8 characters of the key (safe to display) |
+| `scopes` | array of strings | Granted permission scopes |
+| `revoked_at` | string (RFC3339) or null | When the key was revoked; `null` if still active |
+| `last_used_at` | string (RFC3339) or null | When the key was last used; `null` if never used |
+| `created_at` | string (RFC3339) | Creation timestamp |
+
+**`POST /api/v1/admin/api-keys`** — create a scoped API key. Returns HTTP 201 on success.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | ✔ | Human-readable label for the key |
+| `scopes` | array of strings | ✔ | One or more permission scopes to grant |
+
+Supported scopes:
+
+| Scope | Grants access to |
+|---|---|
+| `shares:read` | Read shares and their metadata |
+| `shares:write` | Create, update, and delete shares |
+| `files:read` | Download and list files |
+| `files:write` | Upload and delete files |
+
+Returns the created key object plus the full key value (same fields as list, with an additional `key` field):
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "CI uploader",
+    "key_prefix": "enlk_abc",
+    "scopes": ["files:write", "shares:write"],
+    "revoked_at": null,
+    "last_used_at": null,
+    "created_at": "2026-01-01T00:00:00Z",
+    "key": "enlk_abcdef1234567890..."
+  }
+}
+```
+
+> **Important:** The `key` field is returned **only at creation time** and cannot be retrieved later. Store it securely immediately.
+
+Returns HTTP 400 if `name` is empty or `scopes` is empty. Returns HTTP 422 if any scope value is not in the supported set.
+
+**`DELETE /api/v1/admin/api-keys/{id}`** — revoke an API key. Revoked keys are rejected immediately. Returns HTTP 404 if the key does not exist or belongs to a different admin.
+
+## Admin webhook endpoints
+
+All admin webhook endpoints require authentication with an account that has `is_admin: true`. Webhooks send HTTP `POST` requests to a configured URL whenever specific events occur in Enlace. The `secret` returned at creation is used to sign all outgoing requests — see [Webhook verification and replay protection](#webhook-verification-and-replay-protection) for how to verify signatures.
+
+Supported event types:
+
+| Event | Fired when |
+|---|---|
+| `file.upload.completed` | A file is successfully uploaded to a share |
+| `share.viewed` | A public share is viewed |
+| `share.downloaded` | A file is downloaded from a public share |
+| `share.created` | A new share is created |
+
+**`GET /api/v1/admin/webhooks`** — list all webhook subscriptions created by the current admin account.
+
+Returns an array of webhook subscription objects:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string (UUID) | Subscription identifier |
+| `name` | string | Human-readable label |
+| `url` | string | Destination HTTPS URL |
+| `events` | array of strings | Subscribed event types |
+| `enabled` | bool | Whether the subscription is active |
+| `created_at` | string (RFC3339) | Creation timestamp |
+| `updated_at` | string (RFC3339) | Last update timestamp |
+
+**`POST /api/v1/admin/webhooks`** — create a webhook subscription. Returns HTTP 201 on success.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | ✔ | Human-readable label |
+| `url` | string | ✔ | Destination URL (must be `https://`; localhost/loopback URLs are rejected to prevent SSRF) |
+| `events` | array of strings | | Event types to subscribe to; omit or pass `[]` to subscribe to all supported events |
+
+Returns the subscription object plus the signing secret (same fields as list, with an additional `secret` field):
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "My receiver",
+    "url": "https://example.com/hook",
+    "events": ["file.upload.completed", "share.created"],
+    "enabled": true,
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "secret": "whsec_..."
+  }
+}
+```
+
+> **Important:** The `secret` is returned **only at creation time** and cannot be retrieved later. Store it immediately and use it to verify `X-Enlace-Signature` headers on incoming requests.
+
+Returns HTTP 400 if `name` or `url` is empty. Returns HTTP 422 if the URL is not a valid HTTPS URL or resolves to a loopback/localhost address. Returns HTTP 422 if `events` contains an unsupported event name.
+
+**`PATCH /api/v1/admin/webhooks/{id}`** — update an existing webhook subscription. All fields are optional; omitted fields are left unchanged.
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | New label |
+| `url` | string | New destination URL |
+| `events` | array of strings | Replacement event list (replaces the entire subscription set) |
+| `enabled` | bool | Enable or disable the subscription |
+
+Returns the updated subscription object (same shape as list). Returns HTTP 404 if the subscription does not exist or belongs to a different admin.
+
+**`DELETE /api/v1/admin/webhooks/{id}`** — delete a webhook subscription. Pending deliveries for this subscription will not be retried. Returns HTTP 404 if the subscription does not exist or belongs to a different admin.
+
+**`GET /api/v1/admin/webhooks/deliveries`** — list recent delivery attempts for the current admin's webhook subscriptions. Accepts optional query parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `subscription_id` | string | Filter by subscription ID |
+| `status` | string | Filter by status: `pending`, `delivered`, or `failed` |
+| `event_type` | string | Filter by event type (e.g. `share.created`) |
+| `limit` | int | Maximum number of results (1–500, default 100) |
+
+Returns an array of delivery objects:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string (UUID) | Delivery identifier |
+| `subscription_id` | string | Subscription this delivery belongs to |
+| `event_type` | string | Event that triggered the delivery |
+| `event_id` | string | Stable identifier for the emitted event |
+| `idempotency_key` | string | `{event_id}:{subscription_id}` — reused across retries |
+| `attempt` | int | Attempt number (starts at 1) |
+| `status` | string | `pending`, `delivered`, or `failed` |
+| `status_code` | int or null | HTTP status code returned by the receiver |
+| `next_attempt_at` | string (RFC3339) or null | When the next retry will be sent; `null` if delivered or no retry scheduled |
+| `delivered_at` | string (RFC3339) or null | When the delivery succeeded; `null` if not yet delivered |
+| `error` | string | Error message if delivery failed; empty string otherwise |
+| `duration_ms` | int | Round-trip time in milliseconds |
+| `created_at` | string (RFC3339) | When this delivery attempt was created |
+
 ## Webhook verification and replay protection
 
 Webhook deliveries include the headers below:
@@ -651,6 +823,7 @@ Receiver guidance:
 | `GET` | `/api/v1/admin/storage` | ✔ admin | Get storage configuration |
 | `PUT` | `/api/v1/admin/storage` | ✔ admin | Update storage configuration |
 | `DELETE` | `/api/v1/admin/storage` | ✔ admin | Clear storage configuration (revert to env vars) |
+| `POST` | `/api/v1/admin/storage/test` | ✔ admin | Test S3 connection with current effective configuration |
 | `GET` | `/api/v1/admin/files` | ✔ admin | Get file upload restriction configuration |
 | `PUT` | `/api/v1/admin/files` | ✔ admin | Update file upload restrictions |
 | `DELETE` | `/api/v1/admin/files` | ✔ admin | Clear file upload restrictions (revert to defaults) |
