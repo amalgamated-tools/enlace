@@ -44,8 +44,6 @@ type Config struct {
 	OIDCClientSecret string
 	OIDCRedirectURL  string
 	OIDCScopes       string
-	// Swagger/API docs
-	SwaggerEnabled bool
 	// CORS
 	CORSOrigins string
 	// 2FA enforcement
@@ -82,7 +80,6 @@ func Load() *Config {
 		OIDCClientSecret:  getEnv("OIDC_CLIENT_SECRET", ""),
 		OIDCRedirectURL:   getEnv("OIDC_REDIRECT_URL", ""),
 		OIDCScopes:        getEnv("OIDC_SCOPES", "openid email profile"),
-		SwaggerEnabled:    getEnvBool("SWAGGER_ENABLED", false),
 		CORSOrigins:       getEnv("CORS_ORIGINS", ""),
 		Require2FA:        getEnvBool("REQUIRE_2FA", false),
 		TrustedProxyCIDRs: getEnvStringSlice("TRUSTED_PROXIES", ","),
@@ -117,7 +114,6 @@ func (c *Config) LogValue() slog.Value {
 		slog.String("oidc_client_secret", maskSecret(c.OIDCClientSecret)),
 		slog.String("oidc_redirect_url", c.OIDCRedirectURL),
 		slog.String("oidc_scopes", c.OIDCScopes),
-		slog.Bool("swagger_enabled", c.SwaggerEnabled),
 		slog.String("cors_origins", c.CORSOrigins),
 		slog.Bool("require_2fa", c.Require2FA),
 	)

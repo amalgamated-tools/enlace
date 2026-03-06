@@ -80,7 +80,6 @@ func NewTestServer(t *testing.T) *TestServer {
 		JWTSecret:      testJWTSecret,
 		BaseURL:        "http://localhost",
 		FrontendFS:     nil,
-		SwaggerEnabled: false,
 		TOTPService:    totpService,
 		Require2FA:     false,
 	})

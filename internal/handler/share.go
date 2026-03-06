@@ -149,16 +149,16 @@ func (h *ShareHandler) List(w http.ResponseWriter, r *http.Request) {
 //	@Summary		Create a share
 //	@Description	Creates a new share. When recipients are supplied, notification emails are sent immediately on creation.
 //	@Tags			shares
-//	@Accept		json
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		body	body		createShareRequest	true	"Share details"
-//	@Success	201		{object}	APIResponse{data=shareResponse}
-//	@Failure	400		{object}	ValidationErrorResponse
-//	@Failure	401		{object}	APIResponse
-//	@Failure	409		{object}	APIResponse
-//	@Failure	500		{object}	APIResponse
-//	@Router		/api/v1/shares [post]
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		createShareRequest	true	"Share details"
+//	@Success		201		{object}	APIResponse{data=shareResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		409		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/shares [post]
 func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -268,14 +268,14 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 //	@Summary		Get a share
 //	@Description	Returns full details of a share owned by the current user. Returns 404 for shares that do not exist or are not owned by the requester.
 //	@Tags			shares
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		id	path		string	true	"Share ID (UUID)"
-//	@Success	200	{object}	APIResponse{data=shareResponse}
-//	@Failure	401	{object}	APIResponse
-//	@Failure	404	{object}	APIResponse
-//	@Failure	500	{object}	APIResponse
-//	@Router		/api/v1/shares/{id} [get]
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"Share ID (UUID)"
+//	@Success		200	{object}	APIResponse{data=shareResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		404	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/shares/{id} [get]
 func (h *ShareHandler) Get(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -314,17 +314,17 @@ func (h *ShareHandler) Get(w http.ResponseWriter, r *http.Request) {
 //	@Summary		Update a share
 //	@Description	Updates one or more fields of an existing share. Only the share owner may call this endpoint.
 //	@Tags			shares
-//	@Accept		json
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		id		path		string				true	"Share ID (UUID)"
-//	@Param		body	body		updateShareRequest	true	"Fields to update"
-//	@Success	200		{object}	APIResponse{data=shareResponse}
-//	@Failure	400		{object}	ValidationErrorResponse
-//	@Failure	401		{object}	APIResponse
-//	@Failure	404		{object}	APIResponse
-//	@Failure	500		{object}	APIResponse
-//	@Router		/api/v1/shares/{id} [patch]
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string				true	"Share ID (UUID)"
+//	@Param			body	body		updateShareRequest	true	"Fields to update"
+//	@Success		200		{object}	APIResponse{data=shareResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/shares/{id} [patch]
 func (h *ShareHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -412,14 +412,14 @@ func (h *ShareHandler) Update(w http.ResponseWriter, r *http.Request) {
 //	@Summary		Delete a share
 //	@Description	Permanently deletes a share and all its associated files. Only the share owner may call this endpoint.
 //	@Tags			shares
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		id	path		string	true	"Share ID (UUID)"
-//	@Success	200	{object}	APIResponse
-//	@Failure	401	{object}	APIResponse
-//	@Failure	404	{object}	APIResponse
-//	@Failure	500	{object}	APIResponse
-//	@Router		/api/v1/shares/{id} [delete]
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"Share ID (UUID)"
+//	@Success		200	{object}	APIResponse
+//	@Failure		401	{object}	APIResponse
+//	@Failure		404	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/shares/{id} [delete]
 func (h *ShareHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -609,17 +609,17 @@ func validateEmail(email string) bool {
 //	@Summary		Send share notification emails
 //	@Description	Sends or resends share notification emails to the specified recipients and records each delivery.
 //	@Tags			shares
-//	@Accept		json
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		id		path		string					true	"Share ID (UUID)"
-//	@Param		body	body		sendNotificationRequest	true	"Recipient emails"
-//	@Success	200		{object}	APIResponse
-//	@Failure	400		{object}	ValidationErrorResponse
-//	@Failure	401		{object}	APIResponse
-//	@Failure	404		{object}	APIResponse
-//	@Failure	500		{object}	APIResponse
-//	@Router		/api/v1/shares/{id}/notify [post]
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string					true	"Share ID (UUID)"
+//	@Param			body	body		sendNotificationRequest	true	"Recipient emails"
+//	@Success		200		{object}	APIResponse
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/shares/{id}/notify [post]
 func (h *ShareHandler) SendNotification(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -692,14 +692,14 @@ func (h *ShareHandler) SendNotification(w http.ResponseWriter, r *http.Request) 
 //	@Summary		List share notification recipients
 //	@Description	Returns the list of email addresses that have been notified about this share, along with their delivery timestamps.
 //	@Tags			shares
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Param		id	path		string	true	"Share ID (UUID)"
-//	@Success	200	{object}	APIResponse{data=[]recipientResponse}
-//	@Failure	401	{object}	APIResponse
-//	@Failure	404	{object}	APIResponse
-//	@Failure	500	{object}	APIResponse
-//	@Router		/api/v1/shares/{id}/recipients [get]
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"Share ID (UUID)"
+//	@Success		200	{object}	APIResponse{data=[]recipientResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		404	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/shares/{id}/recipients [get]
 func (h *ShareHandler) ListRecipients(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {

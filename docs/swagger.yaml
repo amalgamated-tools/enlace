@@ -43,6 +43,55 @@ definitions:
       updated_at:
         type: string
     type: object
+  handler.apiKeyResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      key_prefix:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        type: string
+      revoked_at:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+    type: object
+  handler.createAPIKeyRequest:
+    properties:
+      name:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+    type: object
+  handler.createAPIKeyResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      key:
+        type: string
+      key_prefix:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        type: string
+      revoked_at:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+    type: object
   handler.createShareRequest:
     properties:
       description:
@@ -75,6 +124,38 @@ definitions:
       is_admin:
         type: boolean
       password:
+        type: string
+    type: object
+  handler.createWebhookRequest:
+    properties:
+      events:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      url:
+        type: string
+    type: object
+  handler.createWebhookResponse:
+    properties:
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      events:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+      secret:
+        type: string
+      updated_at:
+        type: string
+      url:
         type: string
     type: object
   handler.fileResponse:
@@ -250,6 +331,21 @@ definitions:
       view_count:
         type: integer
     type: object
+  handler.smtpConfigResponse:
+    properties:
+      smtp_from:
+        type: string
+      smtp_host:
+        type: string
+      smtp_pass_set:
+        type: boolean
+      smtp_port:
+        type: string
+      smtp_tls_policy:
+        type: string
+      smtp_user:
+        type: string
+    type: object
   handler.storageConfigResponse:
     properties:
       s3_access_key:
@@ -337,9 +433,9 @@ definitions:
     type: object
   handler.updatePasswordRequest:
     properties:
-      new_password:
-        type: string
       current_password:
+        type: string
+      new_password:
         type: string
     type: object
   handler.updateProfileRequest:
@@ -347,6 +443,21 @@ definitions:
       display_name:
         type: string
       email:
+        type: string
+    type: object
+  handler.updateSMTPConfigRequest:
+    properties:
+      smtp_from:
+        type: string
+      smtp_host:
+        type: string
+      smtp_pass:
+        type: string
+      smtp_port:
+        type: string
+      smtp_tls_policy:
+        type: string
+      smtp_user:
         type: string
     type: object
   handler.updateShareRequest:
@@ -400,6 +511,19 @@ definitions:
       password:
         type: string
     type: object
+  handler.updateWebhookRequest:
+    properties:
+      enabled:
+        type: boolean
+      events:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      url:
+        type: string
+    type: object
   handler.userResponse:
     properties:
       display_name:
@@ -419,6 +543,54 @@ definitions:
       token:
         type: string
     type: object
+  handler.webhookDeliveryResponse:
+    properties:
+      attempt:
+        type: integer
+      created_at:
+        type: string
+      delivered_at:
+        type: string
+      duration_ms:
+        type: integer
+      error:
+        type: string
+      event_id:
+        type: string
+      event_type:
+        type: string
+      id:
+        type: string
+      idempotency_key:
+        type: string
+      next_attempt_at:
+        type: string
+      status:
+        type: string
+      status_code:
+        type: integer
+      subscription_id:
+        type: string
+    type: object
+  handler.webhookResponse:
+    properties:
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      events:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -427,6 +599,129 @@ info:
   title: Enlace API
   version: "1.0"
 paths:
+  /api/v1/admin/api-keys:
+    get:
+      description: Returns all API keys created by the authenticated admin. Requires
+        admin role.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handler.apiKeyResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List API keys
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      description: Creates a scoped API key for the authenticated admin. The full
+        key value is returned only once at creation. Requires admin role.
+      parameters:
+      - description: API key name and scopes
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createAPIKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.createAPIKeyResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create API key
+      tags:
+      - admin
+  /api/v1/admin/api-keys/{id}:
+    delete:
+      description: Revokes an API key. Revoked keys are rejected immediately. Returns
+        HTTP 404 if the key does not exist or belongs to a different admin. Requires
+        admin role.
+      parameters:
+      - description: API key ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke API key
+      tags:
+      - admin
   /api/v1/admin/files:
     delete:
       description: Removes all file restriction overrides from the database, reverting
@@ -530,6 +825,112 @@ paths:
       security:
       - BearerAuth: []
       summary: Update file restriction configuration
+      tags:
+      - admin
+  /api/v1/admin/smtp:
+    delete:
+      description: Removes all SMTP configuration overrides from the database, reverting
+        to environment variable configuration on next restart. Requires admin role.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete SMTP configuration
+      tags:
+      - admin
+    get:
+      description: Returns SMTP configuration overrides stored in the database. Requires
+        admin role. The smtp_pass value is never returned; use smtp_pass_set to check
+        if one is configured.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.smtpConfigResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get SMTP configuration
+      tags:
+      - admin
+    put:
+      consumes:
+      - application/json
+      description: Updates SMTP configuration overrides in the database. Only provided
+        fields are updated. Requires admin role. Changes take effect after restart.
+      parameters:
+      - description: SMTP configuration fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.updateSMTPConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.smtpConfigResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update SMTP configuration
       tags:
       - admin
   /api/v1/admin/storage:
@@ -637,6 +1038,52 @@ paths:
       security:
       - BearerAuth: []
       summary: Update storage configuration
+      tags:
+      - admin
+  /api/v1/admin/storage/test:
+    post:
+      consumes:
+      - application/json
+      description: Tests the S3 connection by performing a HeadBucket operation using
+        the provided credentials merged with existing DB settings. Requires admin
+        role.
+      parameters:
+      - description: S3 configuration fields to test (merged with existing DB settings)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.updateStorageConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Test S3 connection
       tags:
       - admin
   /api/v1/admin/users:
@@ -854,6 +1301,236 @@ paths:
       security:
       - BearerAuth: []
       summary: Update a user
+      tags:
+      - admin
+  /api/v1/admin/webhooks:
+    get:
+      description: Returns all webhook subscriptions created by the authenticated
+        admin. Requires admin role.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handler.webhookResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List webhook subscriptions
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      description: Creates a webhook subscription. The secret is returned only once
+        at creation and is used to verify webhook signatures. Requires admin role.
+      parameters:
+      - description: Webhook subscription details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.createWebhookResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create webhook subscription
+      tags:
+      - admin
+  /api/v1/admin/webhooks/{id}:
+    delete:
+      description: Deletes a webhook subscription. Pending deliveries for this subscription
+        will not be retried. Returns HTTP 404 if the subscription does not exist or
+        belongs to a different admin. Requires admin role.
+      parameters:
+      - description: Webhook subscription ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete webhook subscription
+      tags:
+      - admin
+    patch:
+      consumes:
+      - application/json
+      description: Updates an existing webhook subscription. All fields are optional;
+        omitted fields are left unchanged. Requires admin role.
+      parameters:
+      - description: Webhook subscription ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.updateWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.webhookResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update webhook subscription
+      tags:
+      - admin
+  /api/v1/admin/webhooks/deliveries:
+    get:
+      description: 'Lists recent webhook delivery attempts for the authenticated admin''s
+        subscriptions. Accepts optional query parameters: subscription_id, status,
+        event_type, and limit (default 100, max 500). Requires admin role.'
+      parameters:
+      - description: Filter by subscription ID
+        in: query
+        name: subscription_id
+        type: string
+      - description: Filter by status (e.g. delivered, failed, pending)
+        in: query
+        name: status
+        type: string
+      - description: Filter by event type (e.g. share.created)
+        in: query
+        name: event_type
+        type: string
+      - description: Maximum number of results (1–500, default 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handler.webhookDeliveryResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ValidationErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List webhook delivery attempts
       tags:
       - admin
   /api/v1/auth/2fa/recovery:
@@ -1549,7 +2226,7 @@ paths:
       description: Changes the current user's password. Requires the existing password
         for verification.
       parameters:
-      - description: Old and new password
+      - description: Current and new password
         in: body
         name: body
         required: true
