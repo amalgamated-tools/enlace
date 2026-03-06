@@ -27,11 +27,17 @@ The Go backend listens on `http://localhost:8080`. The Vite dev server runs on `
 ## Running tests
 
 ```bash
-# Go tests
+# Go unit tests
 make test
 
 # Go tests with HTML coverage report
 make test-coverage
+
+# Go integration tests (requires a running server; gated by //go:build integration)
+make test-integration
+
+# Playwright end-to-end tests (builds the app first)
+make test-e2e
 
 # Frontend unit tests (Vitest)
 cd frontend && pnpm test
