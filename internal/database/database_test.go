@@ -37,6 +37,9 @@ func TestNew_CreatesAllTables(t *testing.T) {
 		"files",
 		"password_reset_tokens",
 		"refresh_tokens",
+		"api_keys",
+		"webhook_subscriptions",
+		"webhook_deliveries",
 	}
 
 	for _, table := range expectedTables {
@@ -69,6 +72,11 @@ func TestNew_CreatesIndexes(t *testing.T) {
 		"idx_files_share_id",
 		"idx_password_reset_tokens_user_id",
 		"idx_refresh_tokens_user_id",
+		"idx_api_keys_creator_id",
+		"idx_api_keys_key_prefix",
+		"idx_webhook_subscriptions_creator_id",
+		"idx_webhook_deliveries_subscription_created",
+		"idx_webhook_deliveries_status_next_attempt",
 	}
 
 	for _, index := range expectedIndexes {

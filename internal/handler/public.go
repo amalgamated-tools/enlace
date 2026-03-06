@@ -52,6 +52,7 @@ type PublicHandler struct {
 	maxFileSize   int64
 	settingsRepo  SettingsRepositoryInterface
 	secureCookies bool
+	webhooks      WebhookEmitter
 }
 
 // PublicHandlerOption configures a PublicHandler.
@@ -75,6 +76,13 @@ func WithPublicSettingsRepo(repo SettingsRepositoryInterface) PublicHandlerOptio
 func WithSecureCookies(secure bool) PublicHandlerOption {
 	return func(h *PublicHandler) {
 		h.secureCookies = secure
+	}
+}
+
+// WithPublicWebhookEmitter sets the webhook emitter used for public-share events.
+func WithPublicWebhookEmitter(emitter WebhookEmitter) PublicHandlerOption {
+	return func(h *PublicHandler) {
+		h.webhooks = emitter
 	}
 }
 
@@ -197,6 +205,26 @@ func (h *PublicHandler) ViewShare(w http.ResponseWriter, r *http.Request) {
 	response := shareDetailsResponse{
 		Share: h.toPublicShareResponse(share),
 		Files: h.toPublicFileResponseList(files),
+	}
+
+	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
+		creatorID := *share.CreatorID
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := h.webhooks.Emit(ctx, service.WebhookEvent{
+				Type:      "share.viewed",
+				CreatorID: creatorID,
+				Resource:  share.ID,
+				Data: map[string]interface{}{
+					"share_id": share.ID,
+					"slug":     share.Slug,
+				},
+			}); err != nil {
+				slog.Warn("failed to emit webhook", "event_type", "share.viewed", "share_id", share.ID, "error", err)
+			}
+		}()
 	}
 
 	Success(w, http.StatusOK, response)
@@ -386,6 +414,27 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 		slog.Warn("failed to increment download count", "share_id", share.ID, "error", err)
 	}
 
+	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
+		creatorID := *share.CreatorID
+		go func(shareID, fileID, fileName string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := h.webhooks.Emit(ctx, service.WebhookEvent{
+				Type:      "share.downloaded",
+				CreatorID: creatorID,
+				Resource:  shareID,
+				Data: map[string]interface{}{
+					"share_id": shareID,
+					"file_id":  fileID,
+					"name":     fileName,
+				},
+			}); err != nil {
+				slog.Warn("failed to emit webhook", "event_type", "share.downloaded", "share_id", shareID, "file_id", fileID, "error", err)
+			}
+		}(share.ID, file.ID, file.Name)
+	}
+
 	// Get file content
 	content, _, err := h.fileService.GetContent(r.Context(), fileID)
 	if err != nil {
@@ -541,6 +590,36 @@ func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Requ
 			Size:     uploadedFile.Size,
 			MimeType: uploadedFile.MimeType,
 		})
+	}
+
+	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
+		creatorID := *share.CreatorID
+		uploaded := make([]map[string]interface{}, 0, len(uploadedFiles))
+		for _, item := range uploadedFiles {
+			uploaded = append(uploaded, map[string]interface{}{
+				"id":        item.ID,
+				"name":      item.Name,
+				"size":      item.Size,
+				"mime_type": item.MimeType,
+			})
+		}
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := h.webhooks.Emit(ctx, service.WebhookEvent{
+				Type:      "file.upload.completed",
+				CreatorID: creatorID,
+				Resource:  share.ID,
+				Data: map[string]interface{}{
+					"share_id": share.ID,
+					"count":    len(uploadedFiles),
+					"files":    uploaded,
+				},
+			}); err != nil {
+				slog.Warn("failed to emit webhook", "event_type", "file.upload.completed", "share_id", share.ID, "error", err)
+			}
+		}()
 	}
 
 	Success(w, http.StatusCreated, uploadedFiles)

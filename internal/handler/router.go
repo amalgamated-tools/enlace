@@ -21,10 +21,12 @@ import (
 // RouterConfig contains all dependencies required to create the router.
 type RouterConfig struct {
 	// Services
-	AuthService  *service.AuthService
-	ShareService *service.ShareService
-	FileService  *service.FileService
-	EmailService *service.EmailService
+	AuthService    *service.AuthService
+	ShareService   *service.ShareService
+	FileService    *service.FileService
+	EmailService   *service.EmailService
+	APIKeyService  *service.APIKeyService
+	WebhookService *service.WebhookService
 
 	// Repositories (for middleware/handlers that need direct access)
 	UserRepo  *repository.UserRepository
@@ -103,10 +105,18 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	if totpServiceAdapter != nil {
 		totpHandler = NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), newPasswordVerifierAdapter(cfg.AuthService), cfg.Require2FA, cfg.AuthService)
 	}
-	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService, cfg.EmailService)
-	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService, WithSettingsRepo(cfg.SettingsRepo))
+	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService, cfg.EmailService, WithShareWebhookEmitter(cfg.WebhookService))
+	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService, WithSettingsRepo(cfg.SettingsRepo), WithFileWebhookEmitter(cfg.WebhookService))
 	userHandler := NewUserHandler(cfg.AuthService)
 	adminHandler := NewAdminHandler(cfg.UserRepo)
+	var apiKeyHandler *APIKeyHandler
+	if cfg.APIKeyService != nil {
+		apiKeyHandler = NewAPIKeyHandler(cfg.APIKeyService)
+	}
+	var webhookHandler *WebhookAdminHandler
+	if cfg.WebhookService != nil {
+		webhookHandler = NewWebhookAdminHandler(cfg.WebhookService)
+	}
 	var storageConfigHandler *StorageConfigHandler
 	var fileRestrictionsHandler *FileRestrictionsHandler
 	if cfg.SettingsRepo != nil {
@@ -114,7 +124,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		fileRestrictionsHandler = NewFileRestrictionsHandler(cfg.SettingsRepo)
 	}
 	secureCookies := strings.HasPrefix(cfg.BaseURL, "https://")
-	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret), WithPublicSettingsRepo(cfg.SettingsRepo), WithSecureCookies(secureCookies))
+	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret), WithPublicSettingsRepo(cfg.SettingsRepo), WithSecureCookies(secureCookies), WithPublicWebhookEmitter(cfg.WebhookService))
 	oidcHandler := NewOIDCHandler(newOIDCServiceAdapter(cfg.OIDCService), newAuthTokenAdapter(cfg.AuthService), cfg.BaseURL, []byte(cfg.JWTSecret))
 
 	// Rate limiters
@@ -151,27 +161,35 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 		// Share routes - require authentication
 		r.Route("/shares", func(r chi.Router) {
-			r.Use(intMiddleware.RequireAuth(cfg.AuthService))
-			r.Get("/", shareHandler.List)
-			r.Post("/", shareHandler.Create)
+			authOpts := []intMiddleware.RequireAuthOption{}
+			if cfg.APIKeyService != nil {
+				authOpts = append(authOpts, intMiddleware.WithAPIKeyAuth(cfg.APIKeyService))
+			}
+			r.Use(intMiddleware.RequireAuth(cfg.AuthService, authOpts...))
+			r.With(intMiddleware.RequireScope("shares:read")).Get("/", shareHandler.List)
+			r.With(intMiddleware.RequireScope("shares:write")).Post("/", shareHandler.Create)
 
 			r.Route("/{id}", func(r chi.Router) {
-				r.Get("/", shareHandler.Get)
-				r.Patch("/", shareHandler.Update)
-				r.Delete("/", shareHandler.Delete)
-				r.Post("/notify", shareHandler.SendNotification)
-				r.Get("/recipients", shareHandler.ListRecipients)
+				r.With(intMiddleware.RequireScope("shares:read")).Get("/", shareHandler.Get)
+				r.With(intMiddleware.RequireScope("shares:write")).Patch("/", shareHandler.Update)
+				r.With(intMiddleware.RequireScope("shares:write")).Delete("/", shareHandler.Delete)
+				r.With(intMiddleware.RequireScope("shares:write")).Post("/notify", shareHandler.SendNotification)
+				r.With(intMiddleware.RequireScope("shares:read")).Get("/recipients", shareHandler.ListRecipients)
 
 				// File routes for a specific share
-				r.Get("/files", fileHandler.ListByShare)
-				r.Post("/files", fileHandler.Upload)
+				r.With(intMiddleware.RequireScope("files:read")).Get("/files", fileHandler.ListByShare)
+				r.With(intMiddleware.RequireScope("files:write")).Post("/files", fileHandler.Upload)
 			})
 		})
 
 		// File routes - require authentication
 		r.Route("/files", func(r chi.Router) {
-			r.Use(intMiddleware.RequireAuth(cfg.AuthService))
-			r.Delete("/{id}", fileHandler.Delete)
+			authOpts := []intMiddleware.RequireAuthOption{}
+			if cfg.APIKeyService != nil {
+				authOpts = append(authOpts, intMiddleware.WithAPIKeyAuth(cfg.APIKeyService))
+			}
+			r.Use(intMiddleware.RequireAuth(cfg.AuthService, authOpts...))
+			r.With(intMiddleware.RequireScope("files:write")).Delete("/{id}", fileHandler.Delete)
 		})
 
 		// User profile routes - require authentication
@@ -223,6 +241,22 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 					r.Get("/", fileRestrictionsHandler.GetFileRestrictions)
 					r.Put("/", fileRestrictionsHandler.UpdateFileRestrictions)
 					r.Delete("/", fileRestrictionsHandler.DeleteFileRestrictions)
+				})
+			}
+			if apiKeyHandler != nil {
+				r.Route("/api-keys", func(r chi.Router) {
+					r.Get("/", apiKeyHandler.List)
+					r.Post("/", apiKeyHandler.Create)
+					r.Delete("/{id}", apiKeyHandler.Revoke)
+				})
+			}
+			if webhookHandler != nil {
+				r.Route("/webhooks", func(r chi.Router) {
+					r.Get("/", webhookHandler.ListSubscriptions)
+					r.Post("/", webhookHandler.CreateSubscription)
+					r.Get("/deliveries", webhookHandler.ListDeliveries)
+					r.Patch("/{id}", webhookHandler.UpdateSubscription)
+					r.Delete("/{id}", webhookHandler.DeleteSubscription)
 				})
 			}
 		})
