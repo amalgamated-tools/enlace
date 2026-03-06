@@ -420,6 +420,44 @@ Returns the current file restriction configuration after the update (same shape 
 
 > **Extension normalization:** extensions sent to `PUT` are lowercased, deduplicated, and given a leading dot if one is missing (e.g. `"EXE"` becomes `".exe"`). The same normalization is applied when reading from the database, so manually inserted values are always returned in a consistent form.
 
+## Admin SMTP endpoints
+
+All admin SMTP endpoints require authentication with an account that has `is_admin: true`. Changes take effect after restart.
+
+**`GET /api/v1/admin/smtp`** — returns the current SMTP configuration stored in the database. Environment variable values are not included; this endpoint shows only DB overrides.
+
+Response fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `smtp_host` | string | SMTP server hostname; empty if not overridden |
+| `smtp_port` | string | SMTP port; empty if not overridden |
+| `smtp_user` | string | SMTP username; empty if not overridden |
+| `smtp_pass_set` | bool | `true` if a password is stored (the value is never returned) |
+| `smtp_from` | string | Sender address; empty if not overridden |
+| `smtp_tls_policy` | string | TLS mode; empty if not overridden |
+
+**`PUT /api/v1/admin/smtp`** — updates SMTP configuration in the database. Only fields present in the request body are updated; omitted fields are left unchanged.
+
+| Field | Type | Description |
+|---|---|---|
+| `smtp_host` | string | SMTP server hostname |
+| `smtp_port` | string | SMTP port (1–65535) |
+| `smtp_user` | string | SMTP username (omit for unauthenticated relays) |
+| `smtp_pass` | string | SMTP password; encrypted at rest. Send an empty string to clear a saved password |
+| `smtp_from` | string | Sender address (required when `smtp_host` is set) |
+| `smtp_tls_policy` | string | TLS mode: `opportunistic`, `mandatory`, or `none` |
+
+The effective configuration (existing DB values merged with the incoming request) is validated before saving. Setting `smtp_host` without `smtp_from` returns HTTP 400.
+
+Returns the current SMTP configuration after the update (same shape as `GET`).
+
+**`DELETE /api/v1/admin/smtp`** — removes all SMTP configuration overrides from the database. On next restart, Enlace reverts to the environment variable configuration.
+
+> **Note:** The `smtp_pass` is encrypted with AES-GCM before being stored in the database. The plaintext value is never returned by the GET endpoint; use the `smtp_pass_set` boolean field to check whether a password is configured.
+
+> **Note:** SMTP configuration changes **require a restart** to take effect.
+
 ## Share endpoints
 
 **`GET /api/v1/shares`** — list all shares owned by the authenticated user. Returns an array of share objects.
@@ -904,6 +942,9 @@ Receiver guidance:
 | `GET` | `/api/v1/admin/files` | ✔ admin | Get file upload restriction configuration |
 | `PUT` | `/api/v1/admin/files` | ✔ admin | Update file upload restrictions |
 | `DELETE` | `/api/v1/admin/files` | ✔ admin | Clear file upload restrictions (revert to defaults) |
+| `GET` | `/api/v1/admin/smtp` | ✔ admin | Get SMTP configuration |
+| `PUT` | `/api/v1/admin/smtp` | ✔ admin | Update SMTP configuration |
+| `DELETE` | `/api/v1/admin/smtp` | ✔ admin | Clear SMTP configuration (revert to env vars) |
 | `GET` | `/api/v1/admin/api-keys` | ✔ admin | List API keys created by the current admin |
 | `POST` | `/api/v1/admin/api-keys` | ✔ admin | Create a scoped API key (secret returned once) |
 | `DELETE` | `/api/v1/admin/api-keys/{id}` | ✔ admin | Revoke an API key |

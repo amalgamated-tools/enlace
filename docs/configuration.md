@@ -52,6 +52,16 @@ Email notifications are **disabled** when `SMTP_HOST` is not set. When configure
 - Supply a `recipients` array on share creation to notify addresses immediately.
 - Call `POST /api/v1/shares/{id}/notify` at any time to (re-)send the share link.
 
+### Admin SMTP API override
+
+SMTP settings can be overridden via the admin API without changing environment variables or redeploying. When a DB override is present, it takes precedence over the corresponding environment variable on startup. Clearing an override via the API removes the env-var value for that key as well.
+
+See [Admin SMTP endpoints](api.md#admin-smtp-endpoints) for the API reference.
+
+> **Note:** The `smtp_pass` is encrypted with AES-GCM before it is stored in the database. The plaintext value is never returned by the GET endpoint; use the `smtp_pass_set` boolean field to check whether a password is configured.
+
+> **Note:** SMTP configuration changes **require a restart** to take effect.
+
 ## Logging
 
 | Variable | Default | Description |
