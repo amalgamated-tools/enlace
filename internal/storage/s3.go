@@ -177,6 +177,15 @@ func (s *S3Storage) Exists(ctx context.Context, key string) (bool, error) {
 	return true, nil
 }
 
+// ValidateConnection checks that the S3 credentials and bucket are valid
+// by performing a HeadBucket operation.
+func (s *S3Storage) ValidateConnection(ctx context.Context) error {
+	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{
+		Bucket: aws.String(s.bucket),
+	})
+	return err
+}
+
 // isNotFoundError checks if the error indicates a missing object.
 func isNotFoundError(err error) bool {
 	var noSuchKey *types.NoSuchKey

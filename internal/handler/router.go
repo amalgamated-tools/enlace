@@ -234,6 +234,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 					r.Get("/", storageConfigHandler.GetStorageConfig)
 					r.Put("/", storageConfigHandler.UpdateStorageConfig)
 					r.Delete("/", storageConfigHandler.DeleteStorageConfig)
+					r.Post("/test", storageConfigHandler.TestStorageConnection)
 				})
 			}
 			if fileRestrictionsHandler != nil {
