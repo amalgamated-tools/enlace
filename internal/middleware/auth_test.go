@@ -32,7 +32,12 @@ func TestRequireAuth_ValidToken(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Register and login to get a valid token
+	// Register a first user (auto-admin) and then a non-admin user for testing
+	_, err := authService.Register(ctx, "admin@example.com", "password123", "Admin User")
+	if err != nil {
+		t.Fatalf("failed to register admin user: %v", err)
+	}
+
 	user, err := authService.Register(ctx, "test@example.com", "password123", "Test User")
 	if err != nil {
 		t.Fatalf("failed to register user: %v", err)
@@ -345,8 +350,14 @@ func TestRequireAuthAndRequireAdmin_ChainedMiddleware(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Register user
-	_, err := authService.Register(ctx, "test@example.com", "password123", "Test User")
+	// Register a first user (auto-admin) then a non-admin user for testing
+	_, err := authService.Register(ctx, "admin@example.com", "password123", "Admin User")
+	if err != nil {
+		t.Fatalf("failed to register admin user: %v", err)
+	}
+
+	// Register non-admin user
+	_, err = authService.Register(ctx, "test@example.com", "password123", "Test User")
 	if err != nil {
 		t.Fatalf("failed to register user: %v", err)
 	}

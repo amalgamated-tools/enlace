@@ -82,12 +82,18 @@ func (s *AuthService) Register(ctx context.Context, email, password, displayName
 		return nil, err
 	}
 
+	// Auto-admin: first user in the database becomes admin
+	count, err := s.userRepo.Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	user := &model.User{
 		ID:           uuid.NewString(),
 		Email:        email,
 		PasswordHash: string(passwordHash),
 		DisplayName:  displayName,
-		IsAdmin:      false,
+		IsAdmin:      count == 0,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {

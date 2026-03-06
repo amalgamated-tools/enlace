@@ -134,6 +134,13 @@ func (r *UserRepository) List(ctx context.Context) ([]*model.User, error) {
 	return users, rows.Err()
 }
 
+// Count returns the total number of users in the database.
+func (r *UserRepository) Count(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&count)
+	return count, err
+}
+
 // EmailExists checks if a user with the given email address already exists.
 func (r *UserRepository) EmailExists(ctx context.Context, email string) (bool, error) {
 	var count int

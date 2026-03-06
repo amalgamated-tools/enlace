@@ -215,10 +215,17 @@ func (s *OIDCService) FindOrCreateUser(ctx context.Context, info *OIDCUserInfo) 
 	}
 
 	// Create new user
+	// Auto-admin: first user in the database becomes admin
+	count, err := s.userRepo.Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	newUser := &model.User{
 		ID:          uuid.NewString(),
 		Email:       info.Email,
 		DisplayName: info.DisplayName,
+		IsAdmin:     count == 0,
 		OIDCSubject: info.Subject,
 		OIDCIssuer:  info.Issuer,
 	}
