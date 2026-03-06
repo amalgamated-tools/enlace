@@ -52,6 +52,8 @@ Email notifications are **disabled** when `SMTP_HOST` is not set. When configure
 - Supply a `recipients` array on share creation to notify addresses immediately.
 - Call `POST /api/v1/shares/{id}/notify` at any time to (re-)send the share link.
 
+The `GET /health` endpoint exposes an `email_configured` flag that reflects whether SMTP is active. The frontend reads this flag at startup and hides the **Send via Email** and **Notify by Email** UI elements when email is not configured.
+
 ### Admin SMTP API override
 
 SMTP settings can be overridden via the admin API without changing environment variables or redeploying. When a DB override is present, it takes precedence over the corresponding environment variable on startup. Clearing an override via the API removes the env-var value for that key as well.
