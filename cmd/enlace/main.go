@@ -172,7 +172,6 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	})
 
 	workerCtx, stopWorker := context.WithCancel(cancelCtx)
-	defer stopWorker()
 	go webhookService.RunDeliveryWorker(workerCtx, 10*time.Second)
 
 	// Create server
