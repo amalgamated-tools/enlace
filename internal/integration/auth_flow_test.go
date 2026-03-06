@@ -194,8 +194,11 @@ func TestRegisterDuplicateEmail(t *testing.T) {
 	}
 
 	// Second registration with the same email should fail
-	body["display_name"] = "Second User"
-	resp2 := ts.PostJSON(t, "/api/v1/auth/register", body)
+	resp2 := ts.PostJSON(t, "/api/v1/auth/register", map[string]string{
+		"email":        "dup@example.com",
+		"password":     "password123",
+		"display_name": "Second User",
+	})
 	defer resp2.Body.Close()
 
 	if resp2.StatusCode != http.StatusConflict {
@@ -226,5 +229,147 @@ func TestProtectedEndpointWithoutToken(t *testing.T) {
 
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("me without token: expected status 401, got %d", resp.StatusCode)
+	}
+}
+
+// registerAndLogin is a helper that registers a user and logs in, returning the tokens.
+func registerAndLogin(t *testing.T, ts *TestServer, email, password, displayName string) loginData {
+	t.Helper()
+
+	resp := ts.PostJSON(t, "/api/v1/auth/register", map[string]string{
+		"email":        email,
+		"password":     password,
+		"display_name": displayName,
+	})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("register: expected status 201, got %d", resp.StatusCode)
+	}
+
+	resp2 := ts.PostJSON(t, "/api/v1/auth/login", map[string]string{
+		"email":    email,
+		"password": password,
+	})
+	defer resp2.Body.Close()
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("login: expected status 200, got %d", resp2.StatusCode)
+	}
+
+	var loginResp apiResponse
+	if err := json.NewDecoder(resp2.Body).Decode(&loginResp); err != nil {
+		t.Fatalf("login: failed to decode response: %v", err)
+	}
+
+	var data loginData
+	if err := json.Unmarshal(loginResp.Data, &data); err != nil {
+		t.Fatalf("login: failed to decode login data: %v", err)
+	}
+
+	return data
+}
+
+func TestTokenRefresh(t *testing.T) {
+	ts := NewTestServer(t)
+	login := registerAndLogin(t, ts, "refresh@example.com", "password123", "Refresh User")
+
+	// Use the refresh token to get new tokens
+	resp := ts.PostJSON(t, "/api/v1/auth/refresh", map[string]string{
+		"refresh_token": login.RefreshToken,
+	})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("refresh: expected status 200, got %d", resp.StatusCode)
+	}
+
+	var refreshResp apiResponse
+	if err := json.NewDecoder(resp.Body).Decode(&refreshResp); err != nil {
+		t.Fatalf("refresh: failed to decode response: %v", err)
+	}
+
+	if !refreshResp.Success {
+		t.Fatalf("refresh: expected success=true, got false (error: %s)", refreshResp.Error)
+	}
+
+	var tokens struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := json.Unmarshal(refreshResp.Data, &tokens); err != nil {
+		t.Fatalf("refresh: failed to decode token data: %v", err)
+	}
+
+	if tokens.AccessToken == "" {
+		t.Error("refresh: expected non-empty access_token")
+	}
+	if tokens.RefreshToken == "" {
+		t.Error("refresh: expected non-empty refresh_token")
+	}
+
+	// Verify the new access token works
+	resp2 := ts.GetWithToken(t, "/api/v1/me/", tokens.AccessToken)
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("me with refreshed token: expected status 200, got %d", resp2.StatusCode)
+	}
+}
+
+func TestLogout(t *testing.T) {
+	ts := NewTestServer(t)
+
+	// Logout is stateless (JWT), so it always succeeds
+	resp := ts.PostJSON(t, "/api/v1/auth/logout", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("logout: expected status 200, got %d", resp.StatusCode)
+	}
+
+	var logoutResp apiResponse
+	if err := json.NewDecoder(resp.Body).Decode(&logoutResp); err != nil {
+		t.Fatalf("logout: failed to decode response: %v", err)
+	}
+
+	if !logoutResp.Success {
+		t.Fatalf("logout: expected success=true, got false (error: %s)", logoutResp.Error)
+	}
+}
+
+func TestPasswordChange(t *testing.T) {
+	ts := NewTestServer(t)
+	login := registerAndLogin(t, ts, "pwchange@example.com", "oldpassword1", "PW User")
+
+	// Change the password
+	resp := ts.PutJSONWithToken(t, "/api/v1/me/password", map[string]string{
+		"current_password": "oldpassword1",
+		"new_password":     "newpassword1",
+	}, login.AccessToken)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("password change: expected status 200, got %d", resp.StatusCode)
+	}
+
+	// Login with old password should fail
+	resp2 := ts.PostJSON(t, "/api/v1/auth/login", map[string]string{
+		"email":    "pwchange@example.com",
+		"password": "oldpassword1",
+	})
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("login with old password: expected status 401, got %d", resp2.StatusCode)
+	}
+
+	// Login with new password should succeed
+	resp3 := ts.PostJSON(t, "/api/v1/auth/login", map[string]string{
+		"email":    "pwchange@example.com",
+		"password": "newpassword1",
+	})
+	defer resp3.Body.Close()
+
+	if resp3.StatusCode != http.StatusOK {
+		t.Fatalf("login with new password: expected status 200, got %d", resp3.StatusCode)
 	}
 }

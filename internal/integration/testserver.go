@@ -130,3 +130,51 @@ func (ts *TestServer) GetWithToken(t *testing.T, path, token string) *http.Respo
 
 	return resp
 }
+
+// PostJSONWithToken sends a POST request with a JSON body and Bearer token.
+func (ts *TestServer) PostJSONWithToken(t *testing.T, path string, body any, token string) *http.Response {
+	t.Helper()
+
+	data, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("failed to marshal request body: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, ts.URL+path, bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST %s failed: %v", path, err)
+	}
+
+	return resp
+}
+
+// PutJSONWithToken sends a PUT request with a JSON body and Bearer token.
+func (ts *TestServer) PutJSONWithToken(t *testing.T, path string, body any, token string) *http.Response {
+	t.Helper()
+
+	data, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("failed to marshal request body: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPut, ts.URL+path, bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT %s failed: %v", path, err)
+	}
+
+	return resp
+}
