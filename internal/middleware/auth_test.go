@@ -91,7 +91,7 @@ func TestRequireAuth_MissingHeader(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
 	}
-	if rec.Body.String() != `{"error":"missing authorization header"}`+"\n" {
+	if rec.Body.String() != `{"error":"missing authorization header"}` {
 		t.Errorf("unexpected body: %q", rec.Body.String())
 	}
 }
@@ -115,7 +115,7 @@ func TestRequireAuth_InvalidFormat_NoBearer(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
 	}
-	if rec.Body.String() != `{"error":"invalid authorization format"}`+"\n" {
+	if rec.Body.String() != `{"error":"invalid authorization format"}` {
 		t.Errorf("unexpected body: %q", rec.Body.String())
 	}
 }
@@ -139,7 +139,7 @@ func TestRequireAuth_InvalidFormat_WrongScheme(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
 	}
-	if rec.Body.String() != `{"error":"invalid authorization format"}`+"\n" {
+	if rec.Body.String() != `{"error":"invalid authorization format"}` {
 		t.Errorf("unexpected body: %q", rec.Body.String())
 	}
 }
@@ -163,7 +163,7 @@ func TestRequireAuth_InvalidToken(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
 	}
-	if rec.Body.String() != `{"error":"invalid token"}`+"\n" {
+	if rec.Body.String() != `{"error":"invalid token"}` {
 		t.Errorf("unexpected body: %q", rec.Body.String())
 	}
 }
@@ -252,7 +252,7 @@ func TestRequireAdmin_NonAdminUser(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("expected status %d, got %d", http.StatusForbidden, rec.Code)
 	}
-	if rec.Body.String() != `{"error":"admin access required"}`+"\n" {
+	if rec.Body.String() != `{"error":"admin access required"}` {
 		t.Errorf("unexpected body: %q", rec.Body.String())
 	}
 	if handlerCalled {

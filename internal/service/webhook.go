@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -50,7 +51,8 @@ var defaultRetryBackoff = []time.Duration{
 	6 * time.Hour,
 }
 
-var webhookMaxAttempts = len(defaultRetryBackoff)
+// webhookMaxAttempts is the total number of delivery attempts: 1 initial + len(defaultRetryBackoff) retries.
+var webhookMaxAttempts = len(defaultRetryBackoff) + 1
 
 const (
 	webhookResponseBodyMax  = 2048
@@ -423,7 +425,9 @@ func (s *WebhookService) RunDeliveryWorker(ctx context.Context, interval time.Du
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			_ = s.ProcessDueDeliveries(ctx, webhookWorkerBatchLimit)
+			if err := s.ProcessDueDeliveries(ctx, webhookWorkerBatchLimit); err != nil {
+				slog.WarnContext(ctx, "webhook delivery worker error", slog.Any("error", err))
+			}
 		}
 	}
 }

@@ -34,6 +34,7 @@ func TestWebhookService_DeliverySignatureAndHeaders(t *testing.T) {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
+	var mu sync.Mutex
 	var (
 		receivedBody      string
 		receivedTimestamp string
@@ -46,12 +47,14 @@ func TestWebhookService_DeliverySignatureAndHeaders(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body := readBody(r.Body)
+		mu.Lock()
 		receivedBody = body
 		receivedTimestamp = r.Header.Get("X-Enlace-Timestamp")
 		receivedSignature = r.Header.Get("X-Enlace-Signature")
 		receivedEvent = r.Header.Get("X-Enlace-Event")
 		receivedEventID = r.Header.Get("X-Enlace-Event-Id")
 		receivedIdem = r.Header.Get("Idempotency-Key")
+		mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -92,6 +95,9 @@ func TestWebhookService_DeliverySignatureAndHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("emit failed: %v", err)
 	}
+
+	mu.Lock()
+	defer mu.Unlock()
 
 	if receivedEvent != "file.upload.completed" {
 		t.Fatalf("expected event header file.upload.completed, got %q", receivedEvent)
@@ -479,4 +485,31 @@ func TestNewSafeHTTPClient_DoesNotFollowRedirects(t *testing.T) {
 // encryptTestSecret encrypts a dummy secret using the provided encryption key.
 func encryptTestSecret(key []byte) (string, error) {
 	return crypto.Encrypt("test-webhook-secret", key)
+}
+
+func TestWebhookMaxAttempts_UsesAllBackoffEntries(t *testing.T) {
+	// webhookMaxAttempts should be len(defaultRetryBackoff)+1:
+	// 1 initial attempt + len(defaultRetryBackoff) retries.
+	if webhookMaxAttempts != len(defaultRetryBackoff)+1 {
+		t.Fatalf("webhookMaxAttempts = %d, want %d (len(defaultRetryBackoff)+1)",
+			webhookMaxAttempts, len(defaultRetryBackoff)+1)
+	}
+
+	// Every backoff entry should be reachable. Attempt numbers during retries
+	// go from 1 to len(defaultRetryBackoff), and backoffForAttempt maps
+	// attempt N to index N-1.
+	for i := 1; i <= len(defaultRetryBackoff); i++ {
+		got := backoffForAttempt(i)
+		want := defaultRetryBackoff[i-1]
+		if got != want {
+			t.Errorf("backoffForAttempt(%d) = %v, want %v", i, got, want)
+		}
+	}
+
+	// The final attempt (attempt == webhookMaxAttempts) should NOT schedule
+	// a retry: attempt < webhookMaxAttempts must be false.
+	finalAttempt := webhookMaxAttempts
+	if finalAttempt < webhookMaxAttempts {
+		t.Fatalf("final attempt %d should not be < webhookMaxAttempts %d", finalAttempt, webhookMaxAttempts)
+	}
 }

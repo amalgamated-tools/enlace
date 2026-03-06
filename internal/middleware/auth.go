@@ -18,6 +18,13 @@ const (
 	AuthTypeKey contextKey = "authType"
 )
 
+// jsonError writes a JSON error response with the correct Content-Type header.
+func jsonError(w http.ResponseWriter, body string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_, _ = w.Write([]byte(body))
+}
+
 // APIKeyAuthenticator verifies API keys and returns principal details.
 type APIKeyAuthenticator interface {
 	Authenticate(ctx context.Context, token string) (*service.APIKeyIdentity, error)
@@ -49,13 +56,13 @@ func RequireAuth(authService *service.AuthService, opts ...RequireAuthOption) fu
 			// Extract token from "Bearer <token>"
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				http.Error(w, `{"error":"missing authorization header"}`, http.StatusUnauthorized)
+				jsonError(w, `{"error":"missing authorization header"}`, http.StatusUnauthorized)
 				return
 			}
 
 			parts := strings.SplitN(authHeader, " ", 2)
 			if len(parts) != 2 || parts[0] != "Bearer" {
-				http.Error(w, `{"error":"invalid authorization format"}`, http.StatusUnauthorized)
+				jsonError(w, `{"error":"invalid authorization format"}`, http.StatusUnauthorized)
 				return
 			}
 
@@ -65,7 +72,7 @@ func RequireAuth(authService *service.AuthService, opts ...RequireAuthOption) fu
 			if cfg.apiKeyAuth != nil && strings.HasPrefix(token, service.APIKeyTokenPrefix+"_") {
 				identity, err := cfg.apiKeyAuth.Authenticate(r.Context(), token)
 				if err != nil {
-					http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+					jsonError(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 					return
 				}
 
@@ -79,19 +86,19 @@ func RequireAuth(authService *service.AuthService, opts ...RequireAuthOption) fu
 
 			claims, err := authService.ValidateToken(token)
 			if err != nil {
-				http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+				jsonError(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 				return
 			}
 
 			// Reject pending 2FA tokens
 			if claims.TFA {
-				http.Error(w, `{"error":"2FA verification required"}`, http.StatusUnauthorized)
+				jsonError(w, `{"error":"2FA verification required"}`, http.StatusUnauthorized)
 				return
 			}
 
 			// Require access tokens; reject refresh or unknown token types
 			if claims.TokenType != service.TokenTypeAccess {
-				http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+				jsonError(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 				return
 			}
 
@@ -109,7 +116,7 @@ func RequireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		isAdmin, ok := r.Context().Value(IsAdminKey).(bool)
 		if !ok || !isAdmin {
-			http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+			jsonError(w, `{"error":"admin access required"}`, http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -161,7 +168,7 @@ func RequireScope(scope string) func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-			http.Error(w, `{"error":"insufficient scope"}`, http.StatusForbidden)
+			jsonError(w, `{"error":"insufficient scope"}`, http.StatusForbidden)
 		})
 	}
 }
