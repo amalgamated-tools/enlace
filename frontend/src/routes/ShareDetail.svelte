@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { get } from "svelte/store";
   import { push } from "svelte-spa-router";
   import {
     Button,
@@ -8,7 +9,7 @@
     FileList,
     Modal,
   } from "../lib/components";
-  import { auth, isAuthenticated, toast } from "../lib/stores";
+  import { auth, isAuthenticated, toast, emailConfigured } from "../lib/stores";
   import {
     sharesApi,
     filesApi,
@@ -335,11 +336,13 @@
               </div>
             </div>
             <div class="flex gap-2 flex-shrink-0 ml-4">
-              <Button
-                variant="secondary"
-                size="sm"
-                on:click={() => (notifyModal = true)}>Send via Email</Button
-              >
+              {#if $emailConfigured}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  on:click={() => (notifyModal = true)}>Send via Email</Button
+                >
+              {/if}
               <Button
                 variant="secondary"
                 size="sm"
@@ -377,7 +380,7 @@
       </div>
 
       <!-- Notified recipients -->
-      {#if recipients.length > 0}
+      {#if $emailConfigured && recipients.length > 0}
         <div class="px-6 py-4 border-t border-border">
           <p
             class="text-xs font-medium text-subtle uppercase tracking-wider mb-2"

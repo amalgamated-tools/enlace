@@ -1,7 +1,7 @@
 <script lang="ts">
   import { push } from "svelte-spa-router";
   import { Button, Input, FileUploader } from "../lib/components";
-  import { auth, isAuthenticated, toast } from "../lib/stores";
+  import { auth, isAuthenticated, toast, emailConfigured } from "../lib/stores";
   import { sharesApi, filesApi } from "../lib/api";
 
   let name = "";
@@ -159,11 +159,13 @@
         />
       </div>
 
-      <Input
-        label="Notify by Email"
-        bind:value={recipients}
-        placeholder="email1@example.com, email2@example.com (optional)"
-      />
+      {#if $emailConfigured}
+        <Input
+          label="Notify by Email"
+          bind:value={recipients}
+          placeholder="email1@example.com, email2@example.com (optional)"
+        />
+      {/if}
 
       <div class="flex items-center gap-2.5">
         <input
