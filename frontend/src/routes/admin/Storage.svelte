@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { push, location } from "svelte-spa-router";
-  import { Button, Input, Modal } from "../../lib/components";
+  import { push } from "svelte-spa-router";
+  import { Button, Input, Modal, AdminNav } from "../../lib/components";
   import { auth, isAuthenticated, isAdmin, toast } from "../../lib/stores";
-  import { api } from "../../lib/api";
+  import { api, ApiError } from "../../lib/api";
 
   interface StorageConfig {
     storage_type: string;
@@ -20,20 +20,23 @@
   let saving = false;
   let errors: Record<string, string> = {};
 
-  // Form state
-  let storageType = "local";
+  // Form state — empty string means no DB override is set
+  let storageType = "";
   let storageLocalPath = "";
   let s3Endpoint = "";
   let s3Bucket = "";
   let s3AccessKey = "";
   let s3SecretKey = "";
   let s3SecretKeySet = false;
+  let s3AccessKeySet = false;
   let s3Region = "";
   let s3PathPrefix = "";
 
   // Reset modal
   let resetModal = false;
   let resetting = false;
+
+  $: hasOverrides = storageType !== "";
 
   $: if ($auth.initialized && !$isAuthenticated) {
     push("/login");
@@ -44,12 +47,22 @@
     push("/");
   }
 
-  $: usersActive = $location === "/admin/users";
-  $: storageActive = $location === "/admin/storage";
-
   onMount(async () => {
     await loadConfig();
   });
+
+  function applyConfig(config: StorageConfig) {
+    storageType = config.storage_type || "";
+    storageLocalPath = config.storage_local_path || "";
+    s3Endpoint = config.s3_endpoint || "";
+    s3Bucket = config.s3_bucket || "";
+    s3AccessKey = "";
+    s3AccessKeySet = (config.s3_access_key || "").length > 0;
+    s3SecretKeySet = config.s3_secret_key_set;
+    s3Region = config.s3_region || "";
+    s3PathPrefix = config.s3_path_prefix || "";
+    s3SecretKey = "";
+  }
 
   async function loadConfig() {
     if (!$isAdmin) return;
@@ -57,15 +70,7 @@
     loading = true;
     try {
       const config = await api.get<StorageConfig>("/admin/storage");
-      storageType = config.storage_type || "local";
-      storageLocalPath = config.storage_local_path || "";
-      s3Endpoint = config.s3_endpoint || "";
-      s3Bucket = config.s3_bucket || "";
-      s3AccessKey = config.s3_access_key || "";
-      s3SecretKeySet = config.s3_secret_key_set;
-      s3Region = config.s3_region || "";
-      s3PathPrefix = config.s3_path_prefix || "";
-      s3SecretKey = "";
+      applyConfig(config);
     } catch (err) {
       const message =
         err instanceof Error
@@ -80,6 +85,11 @@
   async function handleSave(e: Event) {
     e.preventDefault();
     errors = {};
+
+    if (!storageType) {
+      errors = { storage_type: "Select a storage type to configure" };
+      return;
+    }
 
     const payload: Record<string, string> = {
       storage_type: storageType,
@@ -97,7 +107,7 @@
       if (!s3Bucket.trim()) {
         errors = { ...errors, s3_bucket: "Bucket is required" };
       }
-      if (!s3AccessKey.trim()) {
+      if (!s3AccessKey.trim() && !s3AccessKeySet) {
         errors = { ...errors, s3_access_key: "Access key is required" };
       }
       if (!s3SecretKey.trim() && !s3SecretKeySet) {
@@ -105,10 +115,12 @@
       }
 
       payload.s3_bucket = s3Bucket.trim();
-      payload.s3_access_key = s3AccessKey.trim();
       payload.s3_region = s3Region.trim();
       payload.s3_path_prefix = s3PathPrefix.trim();
       payload.s3_endpoint = s3Endpoint.trim();
+      if (s3AccessKey.trim()) {
+        payload.s3_access_key = s3AccessKey.trim();
+      }
       if (s3SecretKey.trim()) {
         payload.s3_secret_key = s3SecretKey.trim();
       }
@@ -121,22 +133,18 @@
     saving = true;
     try {
       const config = await api.put<StorageConfig>("/admin/storage", payload);
-      storageType = config.storage_type || "local";
-      storageLocalPath = config.storage_local_path || "";
-      s3Endpoint = config.s3_endpoint || "";
-      s3Bucket = config.s3_bucket || "";
-      s3AccessKey = config.s3_access_key || "";
-      s3SecretKeySet = config.s3_secret_key_set;
-      s3Region = config.s3_region || "";
-      s3PathPrefix = config.s3_path_prefix || "";
-      s3SecretKey = "";
+      applyConfig(config);
       toast.success("Storage configuration saved");
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to save storage configuration";
-      toast.error(message);
+      if (err instanceof ApiError && err.fields) {
+        errors = err.fields;
+      } else {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to save storage configuration";
+        toast.error(message);
+      }
     } finally {
       saving = false;
     }
@@ -146,13 +154,14 @@
     resetting = true;
     try {
       await api.delete<void>("/admin/storage");
-      storageType = "local";
+      storageType = "";
       storageLocalPath = "";
       s3Endpoint = "";
       s3Bucket = "";
       s3AccessKey = "";
       s3SecretKey = "";
       s3SecretKeySet = false;
+      s3AccessKeySet = false;
       s3Region = "";
       s3PathPrefix = "";
       resetModal = false;
@@ -171,24 +180,7 @@
   }
 </script>
 
-<div class="flex items-center gap-1 mb-6">
-  <a
-    href="#/admin/users"
-    class="px-3 py-1.5 text-sm rounded-md transition-colors {usersActive
-      ? 'text-text bg-surface-muted font-medium'
-      : 'text-muted hover:text-text hover:bg-surface-subtle'}"
-  >
-    Users
-  </a>
-  <a
-    href="#/admin/storage"
-    class="px-3 py-1.5 text-sm rounded-md transition-colors {storageActive
-      ? 'text-text bg-surface-muted font-medium'
-      : 'text-muted hover:text-text hover:bg-surface-subtle'}"
-  >
-    Storage
-  </a>
-</div>
+<AdminNav />
 
 {#if loading}
   <div class="text-center py-16">
@@ -200,11 +192,23 @@
       <h3 class="text-sm font-semibold text-text">Storage Configuration</h3>
     </div>
     <div class="p-6">
+      {#if !hasOverrides}
+        <div class="mb-5 rounded-lg bg-surface-subtle px-4 py-3">
+          <p class="text-sm text-muted">
+            No database overrides are configured. Storage is using environment
+            variable defaults.
+          </p>
+        </div>
+      {/if}
+
       <form on:submit={handleSave} class="space-y-5">
         <fieldset>
           <legend class="block text-sm font-medium text-text mb-2"
             >Storage Type</legend
           >
+          {#if errors.storage_type}
+            <p class="text-xs text-danger mb-2">{errors.storage_type}</p>
+          {/if}
           <div class="flex items-center gap-6">
             <label class="flex items-center gap-2 cursor-pointer">
               <input
@@ -251,11 +255,13 @@
           />
           <div class="grid gap-5 sm:grid-cols-2">
             <Input
+              type="password"
               label="Access Key"
               bind:value={s3AccessKey}
+              placeholder={s3AccessKeySet ? "Leave blank to keep current" : ""}
               error={errors.s3_access_key}
               autocomplete="off"
-              required
+              required={!s3AccessKeySet}
             />
             <Input
               type="password"
@@ -283,9 +289,11 @@
           </div>
         {/if}
 
-        <Button type="submit" loading={saving}>
-          {saving ? "Saving..." : "Save Configuration"}
-        </Button>
+        {#if storageType}
+          <Button type="submit" loading={saving}>
+            {saving ? "Saving..." : "Save Configuration"}
+          </Button>
+        {/if}
       </form>
     </div>
   </div>
