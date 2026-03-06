@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -107,14 +108,8 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 
 	// Initialize recipient repository and email service
 	recipientRepo := repository.NewRecipientRepository(db.DB())
-	emailService := service.NewEmailService(service.SMTPConfig{
-		Host:      cfg.SMTPHost,
-		Port:      cfg.SMTPPort,
-		User:      cfg.SMTPUser,
-		Pass:      cfg.SMTPPass,
-		From:      cfg.SMTPFrom,
-		TLSPolicy: cfg.SMTPTLSPolicy,
-	}, recipientRepo, cfg.BaseURL)
+	smtpCfg := initSMTPConfig(cancelCtx, cfg, settingsRepo)
+	emailService := service.NewEmailService(smtpCfg, recipientRepo, cfg.BaseURL)
 	totpService := service.NewTOTPService(totpRepo, userRepo, jwtSecret)
 	apiKeyService := service.NewAPIKeyService(apiKeyRepo)
 	webhookService := service.NewWebhookService(webhookRepo, jwtSecret, nil)
@@ -227,7 +222,7 @@ func initStorage(ctx context.Context, cfg *config.Config, settingsRepo *reposito
 
 	// Decrypt the S3 secret key if it was stored encrypted
 	if raw, ok := dbSettings["s3_secret_key"]; ok && raw != "" {
-		encKey := crypto.DeriveKey([]byte(cfg.JWTSecret), "storage-secret-encryption")
+		encKey := crypto.DeriveKey([]byte(cfg.JWTSecret), crypto.StorageEncryptionSalt)
 		decrypted, err := crypto.Decrypt(raw, encKey)
 		if err != nil {
 			slog.WarnContext(ctx, "failed to decrypt s3_secret_key from database, ignoring DB value", slog.Any("error", err))
@@ -268,5 +263,54 @@ func initStorage(ctx context.Context, cfg *config.Config, settingsRepo *reposito
 			return nil, fmt.Errorf("failed to initialize local storage: %w", err)
 		}
 		return localStore, nil
+	}
+}
+
+// initSMTPConfig builds an SMTPConfig by checking DB settings first, falling back to env-var config.
+func initSMTPConfig(ctx context.Context, cfg *config.Config, settingsRepo *repository.SettingsRepository) service.SMTPConfig {
+	smtpKeys := []string{
+		"smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from", "smtp_tls_policy",
+	}
+
+	dbSettings, err := settingsRepo.GetMultiple(ctx, smtpKeys)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to load SMTP settings from database, using env config", slog.Any("error", err))
+		dbSettings = map[string]string{}
+	}
+
+	// Decrypt smtp_pass if it was stored encrypted
+	if raw, ok := dbSettings["smtp_pass"]; ok && raw != "" {
+		encKey := crypto.DeriveKey([]byte(cfg.JWTSecret), crypto.SMTPEncryptionSalt)
+		decrypted, err := crypto.Decrypt(raw, encKey)
+		if err != nil {
+			slog.WarnContext(ctx, "failed to decrypt smtp_pass from database, ignoring DB value", slog.Any("error", err))
+			delete(dbSettings, "smtp_pass")
+		} else {
+			dbSettings["smtp_pass"] = decrypted
+		}
+	}
+
+	getVal := func(dbKey string, envVal string) string {
+		if v, ok := dbSettings[dbKey]; ok {
+			return v
+		}
+		return envVal
+	}
+
+	// Port needs special handling: DB stores string, config wants int
+	portStr := getVal("smtp_port", strconv.Itoa(cfg.SMTPPort))
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		slog.WarnContext(ctx, "invalid smtp_port from database, using default", slog.String("value", portStr))
+		port = cfg.SMTPPort
+	}
+
+	return service.SMTPConfig{
+		Host:      getVal("smtp_host", cfg.SMTPHost),
+		Port:      port,
+		User:      getVal("smtp_user", cfg.SMTPUser),
+		Pass:      getVal("smtp_pass", cfg.SMTPPass),
+		From:      getVal("smtp_from", cfg.SMTPFrom),
+		TLSPolicy: getVal("smtp_tls_policy", cfg.SMTPTLSPolicy),
 	}
 }

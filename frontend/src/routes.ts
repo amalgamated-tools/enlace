@@ -7,6 +7,7 @@ import NewShare from "./routes/NewShare.svelte";
 import Settings from "./routes/Settings.svelte";
 import AdminUsers from "./routes/admin/Users.svelte";
 import AdminStorage from "./routes/admin/Storage.svelte";
+import AdminEmail from "./routes/admin/Email.svelte";
 import PublicShare from "./routes/PublicShare.svelte";
 import AuthCallback from "./routes/AuthCallback.svelte";
 import TwoFactorVerify from "./routes/TwoFactorVerify.svelte";
@@ -23,6 +24,7 @@ export default {
   "/settings": Settings,
   "/admin/users": AdminUsers,
   "/admin/storage": AdminStorage,
+  "/admin/email": AdminEmail,
   "/s/:slug": PublicShare,
   "*": Dashboard,
 };

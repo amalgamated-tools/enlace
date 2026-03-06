@@ -4,6 +4,7 @@
   const tabs = [
     { label: "Users", href: "#/admin/users", path: "/admin/users" },
     { label: "Storage", href: "#/admin/storage", path: "/admin/storage" },
+    { label: "Email", href: "#/admin/email", path: "/admin/email" },
   ];
 </script>
 

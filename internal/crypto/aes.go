@@ -12,6 +12,13 @@ import (
 
 const encryptedPrefix = "enc:"
 
+// Encryption salts for DeriveKey. Each domain that encrypts secrets should use
+// its own salt so that the same master secret produces different AES keys.
+const (
+	StorageEncryptionSalt = "storage-secret-encryption"
+	SMTPEncryptionSalt    = "smtp-secret-encryption"
+)
+
 // DeriveKey derives a 32-byte AES key from a secret and a purpose-specific salt.
 func DeriveKey(secret []byte, salt string) []byte {
 	hash := sha256.Sum256(append([]byte(salt+":"), secret...))
