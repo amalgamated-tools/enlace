@@ -55,6 +55,16 @@ cd frontend && pnpm test
 - Format with Prettier (`cd frontend && pnpm format`).
 - Run TypeScript + Svelte type checks with `cd frontend && pnpm check`.
 - Use Svelte 5 syntax and Tailwind CSS utility classes.
+- When deriving values from svelte-spa-router's `$location` store, use reactive declarations (`$:`) rather than plain functions. Plain functions are not re-evaluated when the store changes, so Svelte will not update the DOM. For example:
+
+  ```svelte
+  // ✅ Reactive — Svelte tracks the $location dependency
+  $: dashboardActive = $location === "/";
+  $: sharesActive = $location.startsWith("/shares");
+
+  // ❌ Not reactive — $location is read once and never re-evaluated
+  function isActive(path: string) { return $location === path; }
+  ```
 
 ## Adding a feature
 

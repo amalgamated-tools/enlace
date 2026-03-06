@@ -76,7 +76,7 @@ The frontend is a single-page application built with:
 - **TypeScript** for type safety
 - **Vite** as the build tool and dev server
 - **Tailwind CSS** for styling, with a three-way dark-mode toggle (system / light / dark) that applies `:root[data-theme="dark"]` CSS variable overrides; the preference is persisted in `localStorage` under the key `enlace.theme`
-- **svelte-spa-router** for client-side routing
+- **svelte-spa-router** for client-side routing — route-dependent state (e.g., active nav link) is derived from the `$location` store using Svelte reactive declarations (`$:`) so that DOM updates trigger correctly on navigation
 
 During development, Vite runs on `:5173` and proxies API requests to the Go backend on `:8080`. For production, the frontend is compiled to static assets and embedded into the Go binary via `go:embed`.
 
