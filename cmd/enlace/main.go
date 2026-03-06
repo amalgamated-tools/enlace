@@ -159,7 +159,6 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		BaseURL:           cfg.BaseURL,
 		OIDCService:       oidcService,
 		FrontendFS:        frontendFS,
-		SwaggerEnabled:    cfg.SwaggerEnabled,
 		CORSOrigins:       corsOrigins,
 		TOTPService:       totpService,
 		Require2FA:        cfg.Require2FA,

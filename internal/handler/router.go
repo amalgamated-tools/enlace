@@ -49,9 +49,6 @@ type RouterConfig struct {
 	// Frontend filesystem (embedded)
 	FrontendFS fs.FS
 
-	// Swagger/API docs
-	SwaggerEnabled bool
-
 	// CORS allowed origins (comma-separated). Defaults to BaseURL if empty.
 	CORSOrigins []string
 
@@ -282,11 +279,9 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	})
 
 	// Swagger UI (API documentation)
-	if cfg.SwaggerEnabled {
-		r.Get("/swagger/*", httpSwagger.Handler(
-			httpSwagger.URL("/swagger/doc.json"),
-		))
-	}
+	r.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
 
 	// Serve frontend (catch-all)
 	if cfg.FrontendFS != nil {
