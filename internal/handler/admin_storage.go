@@ -341,12 +341,16 @@ func (h *StorageConfigHandler) TestStorageConnection(w http.ResponseWriter, r *h
 		return
 	}
 
-	// Decrypt the secret key if it's stored encrypted in DB.
+	// Handle the secret key, decrypting only when appropriate. If decryption
+	// fails (e.g., for a user-provided plaintext that happens to start with
+	// "enc:"), fall back to using the original value as plaintext so that the
+	// connection test can still proceed.
 	secretKey := effective["s3_secret_key"]
-	decrypted, err := crypto.Decrypt(secretKey, h.encryptionKey)
-	if err != nil {
-		Error(w, http.StatusInternalServerError, "failed to decrypt secret key")
-		return
+	decrypted := secretKey
+	if strings.HasPrefix(secretKey, "enc:") {
+		if v, err := crypto.Decrypt(secretKey, h.encryptionKey); err == nil {
+			decrypted = v
+		}
 	}
 
 	s3Store, err := storage.NewS3Storage(r.Context(), storage.S3Config{

@@ -199,9 +199,27 @@
       await api.post<void>("/admin/storage/test", payload);
       toast.success("S3 connection successful");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "S3 connection test failed";
-      toast.error(message);
+      if (err instanceof ApiError) {
+        // Surface validation field errors similarly to handleSave
+        const fields = err.fields as Record<string, unknown> | undefined;
+        if (fields && Object.keys(fields).length > 0) {
+          const details = Object.entries(fields)
+            .map(([field, value]) => {
+              if (Array.isArray(value)) {
+                return `${field}: ${value.join(", ")}`;
+              }
+              return `${field}: ${String(value)}`;
+            })
+            .join("; ");
+          toast.error(`Validation failed: ${details}`);
+        } else {
+          toast.error(err.message);
+        }
+      } else {
+        const message =
+          err instanceof Error ? err.message : "S3 connection test failed";
+        toast.error(message);
+      }
     } finally {
       testing = false;
     }
