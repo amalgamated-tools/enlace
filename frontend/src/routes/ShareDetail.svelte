@@ -80,13 +80,11 @@
         files = data.data || [];
       }
 
-      if (get(emailConfigured)) {
-        try {
-          const recipientData = await sharesApi.getRecipients(params.id);
-          recipients = recipientData || [];
-        } catch {
-          recipients = [];
-        }
+      try {
+        const recipientData = await sharesApi.getRecipients(params.id);
+        recipients = recipientData || [];
+      } catch {
+        recipients = [];
       }
     } catch (err) {
       const message =
