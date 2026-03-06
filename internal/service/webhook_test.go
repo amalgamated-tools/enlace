@@ -59,12 +59,23 @@ func TestWebhookService_DeliverySignatureAndHeaders(t *testing.T) {
 	repo := repository.NewWebhookRepository(db.DB())
 	svc := NewWebhookService(repo, []byte("jwt-secret-for-tests"), server.Client())
 
-	sub, secret, err := svc.CreateSubscription(ctx, "user-1", WebhookSubscriptionCreateInput{
-		Name:   "test",
-		URL:    server.URL,
-		Events: []string{"file.upload.completed"},
-	})
+	// Insert subscription directly via repo to bypass HTTPS-only URL validation,
+	// since httptest servers use HTTP.
+	secret := "test-webhook-secret"
+	encrypted, err := crypto.Encrypt(secret, svc.encryptionKey)
 	if err != nil {
+		t.Fatalf("failed to encrypt secret: %v", err)
+	}
+	sub := &model.WebhookSubscription{
+		ID:        "sub-sig-test",
+		CreatorID: "user-1",
+		Name:      "test",
+		URL:       server.URL,
+		SecretEnc: encrypted,
+		Events:    []string{"file.upload.completed"},
+		Enabled:   true,
+	}
+	if err := repo.CreateSubscription(ctx, sub); err != nil {
 		t.Fatalf("failed to create subscription: %v", err)
 	}
 
@@ -161,12 +172,21 @@ func TestWebhookService_RetryKeepsIdempotencyKey(t *testing.T) {
 	fakeNow := time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC)
 	svc.now = func() time.Time { return fakeNow }
 
-	_, _, err = svc.CreateSubscription(ctx, "user-2", WebhookSubscriptionCreateInput{
-		Name:   "retry-sub",
-		URL:    server.URL,
-		Events: []string{"share.viewed"},
-	})
+	// Insert subscription directly via repo to bypass HTTPS-only URL validation.
+	encrypted, err := crypto.Encrypt("test-webhook-secret", svc.encryptionKey)
 	if err != nil {
+		t.Fatalf("failed to encrypt secret: %v", err)
+	}
+	sub := &model.WebhookSubscription{
+		ID:        "sub-retry-test",
+		CreatorID: "user-2",
+		Name:      "retry-sub",
+		URL:       server.URL,
+		SecretEnc: encrypted,
+		Events:    []string{"share.viewed"},
+		Enabled:   true,
+	}
+	if err := repo.CreateSubscription(ctx, sub); err != nil {
 		t.Fatalf("failed to create subscription: %v", err)
 	}
 
@@ -306,17 +326,16 @@ func TestValidateWebhookURL_BlocksLocalAddresses(t *testing.T) {
 		{"HTTPS IPv6 loopback", "https://[::1]/webhook", true},
 		{"HTTPS 0.0.0.0", "https://0.0.0.0/webhook", true},
 		{"HTTP non-local", "http://example.com/webhook", true},
+		{"HTTP localhost", "http://localhost/webhook", true},
+		{"HTTP localhost with port", "http://localhost:8080/webhook", true},
+		{"HTTP 127.0.0.1", "http://127.0.0.1/webhook", true},
 		{"No scheme", "example.com/webhook", true},
 		{"Empty", "", true},
 		{"FTP", "ftp://example.com/webhook", true},
 
-		// Should be allowed at URL validation level
-		// (safeDialContext provides the second layer of defense)
+		// Should be allowed
 		{"HTTPS public", "https://example.com/webhook", false},
 		{"HTTPS with port", "https://hooks.example.com:8443/webhook", false},
-		{"HTTP localhost (dev)", "http://localhost/webhook", false},
-		{"HTTP localhost with port", "http://localhost:8080/webhook", false},
-		{"HTTP 127.0.0.1 (dev)", "http://127.0.0.1/webhook", false},
 	}
 
 	for _, tt := range tests {

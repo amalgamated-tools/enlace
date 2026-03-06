@@ -129,7 +129,7 @@ func (h *WebhookAdminHandler) CreateSubscription(w http.ResponseWriter, r *http.
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidWebhookURL):
-			ValidationError(w, map[string]string{"url": "url must be https (localhost http allowed)"})
+			ValidationError(w, map[string]string{"url": "url must be https"})
 		case errors.Is(err, service.ErrInvalidWebhookEvents):
 			ValidationError(w, map[string]string{"events": "contains unsupported event"})
 		default:
@@ -176,9 +176,11 @@ func (h *WebhookAdminHandler) UpdateSubscription(w http.ResponseWriter, r *http.
 		case errors.Is(err, service.ErrWebhookNotFound):
 			Error(w, http.StatusNotFound, "webhook not found")
 		case errors.Is(err, service.ErrInvalidWebhookURL):
-			ValidationError(w, map[string]string{"url": "url must be https (localhost http allowed)"})
+			ValidationError(w, map[string]string{"url": "url must be https"})
 		case errors.Is(err, service.ErrInvalidWebhookEvents):
 			ValidationError(w, map[string]string{"events": "contains unsupported event"})
+		case errors.Is(err, service.ErrInvalidWebhookName):
+			ValidationError(w, map[string]string{"name": "name must not be empty"})
 		default:
 			Error(w, http.StatusInternalServerError, "failed to update webhook")
 		}

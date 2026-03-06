@@ -34,6 +34,10 @@ var (
 	ErrInvalidWebhookURL = errors.New("invalid webhook url")
 	// ErrInvalidWebhookEvents is returned for unsupported event sets.
 	ErrInvalidWebhookEvents = errors.New("invalid webhook events")
+	// ErrInvalidWebhookName is returned when the subscription name is empty.
+	ErrInvalidWebhookName = errors.New("invalid webhook name")
+	// ErrMissingCreatorID is returned when the creator ID is not provided.
+	ErrMissingCreatorID = errors.New("creator id is required")
 	// ErrWebhookNotFound is returned when a subscription does not exist.
 	ErrWebhookNotFound = errors.New("webhook not found")
 )
@@ -218,7 +222,7 @@ func AllowedWebhookEvents() []string {
 // CreateSubscription creates a webhook subscription and returns the generated secret once.
 func (s *WebhookService) CreateSubscription(ctx context.Context, creatorID string, input WebhookSubscriptionCreateInput) (*model.WebhookSubscription, string, error) {
 	if creatorID == "" {
-		return nil, "", ErrWebhookNotFound
+		return nil, "", ErrMissingCreatorID
 	}
 	if err := validateWebhookURL(input.URL); err != nil {
 		return nil, "", err
@@ -275,7 +279,11 @@ func (s *WebhookService) UpdateSubscription(ctx context.Context, creatorID, id s
 	}
 
 	if input.Name != nil {
-		sub.Name = strings.TrimSpace(*input.Name)
+		trimmed := strings.TrimSpace(*input.Name)
+		if trimmed == "" {
+			return nil, ErrInvalidWebhookName
+		}
+		sub.Name = trimmed
 	}
 	if input.URL != nil {
 		if err := validateWebhookURL(*input.URL); err != nil {
@@ -388,7 +396,7 @@ func (s *WebhookService) Emit(ctx context.Context, event WebhookEvent) error {
 		delivery.NextAttemptAt = &next
 
 		if err := s.repo.CreateDelivery(ctx, delivery); err != nil {
-			if strings.Contains(strings.ToLower(err.Error()), "unique") {
+			if errors.Is(err, repository.ErrDuplicate) {
 				continue
 			}
 			return err
@@ -491,7 +499,7 @@ func (s *WebhookService) processDelivery(ctx context.Context, delivery *model.We
 	req.Header.Set("Idempotency-Key", delivery.IdempotencyKey)
 
 	resp, reqErr := s.httpClient.Do(req)
-	elapsed := time.Since(start).Milliseconds()
+	elapsed := s.now().Sub(start).Milliseconds()
 
 	delivery.Attempt = attempt
 	delivery.DurationMS = elapsed
@@ -543,21 +551,14 @@ func validateWebhookURL(raw string) error {
 	if u.Scheme == "" || u.Host == "" {
 		return ErrInvalidWebhookURL
 	}
+	if u.Scheme != "https" {
+		return ErrInvalidWebhookURL
+	}
 	hostname := u.Hostname()
-	if u.Scheme == "https" {
-		// Reject URLs that point to known-local hostnames even over HTTPS.
-		if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" || hostname == "0.0.0.0" {
-			return ErrInvalidWebhookURL
-		}
-		return nil
+	if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" || hostname == "0.0.0.0" {
+		return ErrInvalidWebhookURL
 	}
-	// HTTP is only allowed for local development against localhost / 127.0.0.1.
-	// Even then, the safeDialContext will block the connection at dial time if
-	// it resolves to a private IP, but we keep this as a first-pass filter.
-	if u.Scheme == "http" && (hostname == "localhost" || hostname == "127.0.0.1") {
-		return nil
-	}
-	return ErrInvalidWebhookURL
+	return nil
 }
 
 func normalizeWebhookEvents(events []string) ([]string, error) {

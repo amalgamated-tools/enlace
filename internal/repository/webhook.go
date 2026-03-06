@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -179,6 +180,9 @@ func (r *WebhookRepository) CreateDelivery(ctx context.Context, delivery *model.
 		delivery.CreatedAt,
 		delivery.UpdatedAt,
 	)
+	if err != nil && isUniqueConstraintError(err) {
+		return fmt.Errorf("%w: idempotency_key %s", ErrDuplicate, delivery.IdempotencyKey)
+	}
 	return err
 }
 
@@ -401,4 +405,11 @@ func decodeEvents(raw string) []string {
 		out = append(out, trimmed)
 	}
 	return out
+}
+
+// isUniqueConstraintError checks whether err is a SQLite UNIQUE constraint
+// violation. modernc.org/sqlite surfaces these as error strings containing
+// "UNIQUE constraint failed".
+func isUniqueConstraintError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
