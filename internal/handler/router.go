@@ -119,9 +119,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	}
 	var storageConfigHandler *StorageConfigHandler
 	var fileRestrictionsHandler *FileRestrictionsHandler
+	var smtpConfigHandler *SMTPConfigHandler
 	if cfg.SettingsRepo != nil {
 		storageConfigHandler = NewStorageConfigHandler(cfg.SettingsRepo, []byte(cfg.JWTSecret))
 		fileRestrictionsHandler = NewFileRestrictionsHandler(cfg.SettingsRepo)
+		smtpConfigHandler = NewSMTPConfigHandler(cfg.SettingsRepo, []byte(cfg.JWTSecret))
 	}
 	secureCookies := strings.HasPrefix(cfg.BaseURL, "https://")
 	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret), WithPublicSettingsRepo(cfg.SettingsRepo), WithSecureCookies(secureCookies), WithPublicWebhookEmitter(cfg.WebhookService))
@@ -242,6 +244,13 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 					r.Get("/", fileRestrictionsHandler.GetFileRestrictions)
 					r.Put("/", fileRestrictionsHandler.UpdateFileRestrictions)
 					r.Delete("/", fileRestrictionsHandler.DeleteFileRestrictions)
+				})
+			}
+			if smtpConfigHandler != nil {
+				r.Route("/smtp", func(r chi.Router) {
+					r.Get("/", smtpConfigHandler.GetSMTPConfig)
+					r.Put("/", smtpConfigHandler.UpdateSMTPConfig)
+					r.Delete("/", smtpConfigHandler.DeleteSMTPConfig)
 				})
 			}
 			if apiKeyHandler != nil {
