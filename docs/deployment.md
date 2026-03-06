@@ -15,18 +15,7 @@ docker run -d \
 
 Open <http://localhost:8080> and register your first user.
 
-> **First admin bootstrap:** All registered users start without admin privileges. After registering, grant admin access to your account by running the SQL command below against the SQLite database (replace the email address with your own):
->
-> ```bash
-> # Docker volume
-> docker exec -it <container_name> sqlite3 /app/data/enlace.db \
->   "UPDATE users SET is_admin = 1 WHERE email = 'you@example.com';"
->
-> # Local / binary
-> sqlite3 ./enlace.db "UPDATE users SET is_admin = 1 WHERE email = 'you@example.com';"
-> ```
->
-> Once at least one admin account exists, additional admins can be created or promoted via the admin panel or `POST /api/v1/admin/users`.
+> **First admin bootstrap:** The first user to register on a fresh instance is automatically granted admin privileges. This applies to both standard registration and OIDC-based sign-in. Subsequent registrations create regular users. Once an admin account exists, additional admins can be created or promoted via the admin panel or `POST /api/v1/admin/users`.
 
 ## Admin Panel
 
