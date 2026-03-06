@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { push } from "svelte-spa-router";
-  import { Button, Input, Modal } from "../../lib/components";
+  import { Button, Input, Modal, AdminNav } from "../../lib/components";
   import { auth, isAuthenticated, isAdmin, toast } from "../../lib/stores";
   import { api, type User } from "../../lib/api";
 
@@ -143,6 +143,8 @@
     }
   }
 </script>
+
+<AdminNav />
 
 <div class="flex items-center justify-between mb-6">
   <h2 class="text-lg font-semibold text-text">User Management</h2>
