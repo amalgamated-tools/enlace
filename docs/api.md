@@ -1,8 +1,11 @@
 # API
 
-All authenticated endpoints require an `Authorization: Bearer <access_token>` header.
+Authenticated endpoints accept two credential types in the `Authorization: Bearer <token>` header:
 
-> **Token types:** Enlace issues two distinct JWT token types. Access tokens (`token_type: "access"`, 15-minute expiry) are required for all API calls. Refresh tokens (`token_type: "refresh"`, 7-day expiry) are accepted **only** by `POST /api/v1/auth/refresh` — passing a refresh token to any other endpoint returns HTTP 401. Likewise, presenting an access token to the refresh endpoint returns HTTP 401. This prevents token misuse and limits the blast radius of a leaked token.
+- **JWT access tokens** — issued by the login/refresh flow, required for all account-management, admin, and OIDC endpoints.
+- **API keys** — long-lived scoped tokens (prefix `enl_…`) created through the admin API. Accepted on share and file endpoints only; they cannot access admin or `/me` routes.
+
+> **JWT token types:** Enlace issues two distinct JWT token types. Access tokens (`token_type: "access"`, 15-minute expiry) are required for all API calls. Refresh tokens (`token_type: "refresh"`, 7-day expiry) are accepted **only** by `POST /api/v1/auth/refresh` — passing a refresh token to any other endpoint returns HTTP 401. Likewise, presenting an access token to the refresh endpoint returns HTTP 401. This prevents token misuse and limits the blast radius of a leaked token.
 
 ## Rate Limiting
 
@@ -589,6 +592,175 @@ Fields in each recipient object:
 | `id` | string | Recipient UUID |
 | `email` | string | Notified email address |
 | `sent_at` | string (RFC3339) | Timestamp when the notification was sent |
+
+## Admin API key endpoints
+
+All API key endpoints require authentication with an account that has `is_admin: true`.
+
+API keys let you call share and file endpoints from automation scripts without using a personal JWT. Each key carries a fixed set of **scopes**; requests are rejected with HTTP 403 when the key lacks the required scope for the endpoint.
+
+**Supported scopes:**
+
+| Scope | Permitted actions |
+|---|---|
+| `shares:read` | List shares, get share details, list files in a share, list recipients |
+| `shares:write` | Create, update, and delete shares; send share notifications |
+| `files:read` | List files attached to a share |
+| `files:write` | Upload and delete files |
+
+> **Note:** API keys set `is_admin` to `false` and cannot access admin endpoints or `/api/v1/me` routes. Use a JWT access token for those operations.
+
+**`GET /api/v1/admin/api-keys`** — list all API keys created by the currently authenticated admin. Returns an array of API key objects.
+
+**`POST /api/v1/admin/api-keys`** — create a new scoped API key. Returns HTTP 201 on success. The plaintext token is returned **only once** in the `key` field and is not stored — save it immediately.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | ✔ | Human-readable label for the key |
+| `scopes` | array of strings | ✔ | One or more scopes from the table above |
+
+Example request:
+
+```json
+{ "name": "CI upload bot", "scopes": ["files:write", "shares:read"] }
+```
+
+Example response (`201 Created`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "name": "CI upload bot",
+    "key_prefix": "enl_3fa85f64",
+    "scopes": ["files:write", "shares:read"],
+    "created_at": "2026-03-06T11:00:00Z",
+    "key": "enl_3fa85f64-5717-4562-b3fc-2c963f66afa6_<secret>"
+  }
+}
+```
+
+**`DELETE /api/v1/admin/api-keys/{id}`** — revoke a key by its ID. Returns HTTP 200 on success. Only the admin who created the key may revoke it.
+
+**API key object fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Key UUID |
+| `name` | string | Human-readable label |
+| `key_prefix` | string | First 14 characters of the token (for identification) |
+| `scopes` | array of strings | Granted scopes |
+| `revoked_at` | string (RFC3339) | Set when the key has been revoked; omitted otherwise |
+| `last_used_at` | string (RFC3339) | Last successful authentication; omitted if never used |
+| `created_at` | string (RFC3339) | Creation timestamp |
+
+## Admin webhook endpoints
+
+All webhook endpoints require authentication with an account that has `is_admin: true`.
+
+Webhook subscriptions let Enlace push real-time event notifications to an HTTPS endpoint you control. Each subscription targets a single URL and subscribes to one or more event types. A shared secret is generated on creation and used to sign every delivery.
+
+**Supported event types:**
+
+| Event | Triggered when |
+|---|---|
+| `file.upload.completed` | A file upload finishes successfully |
+| `share.created` | A new share is created |
+| `share.viewed` | A public share page is viewed |
+| `share.downloaded` | A file is downloaded from a public share |
+
+**`GET /api/v1/admin/webhooks`** — list all webhook subscriptions created by the currently authenticated admin. Returns an array of webhook objects.
+
+**`POST /api/v1/admin/webhooks`** — create a new webhook subscription. Returns HTTP 201 on success. The plaintext secret is returned **only once** in the `secret` field — save it immediately. The URL must be `https://` and must not point to localhost or loopback addresses.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | ✔ | Human-readable label for this subscription |
+| `url` | string | ✔ | HTTPS endpoint that receives event deliveries |
+| `events` | array of strings | ✔ | One or more event types from the table above |
+
+Example request:
+
+```json
+{
+  "name": "Production notifier",
+  "url": "https://hooks.example.com/enlace",
+  "events": ["file.upload.completed", "share.created"]
+}
+```
+
+Example response (`201 Created`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "name": "Production notifier",
+    "url": "https://hooks.example.com/enlace",
+    "events": ["file.upload.completed", "share.created"],
+    "enabled": true,
+    "created_at": "2026-03-06T11:00:00Z",
+    "updated_at": "2026-03-06T11:00:00Z",
+    "secret": "<base64url-encoded-secret>"
+  }
+}
+```
+
+**`PATCH /api/v1/admin/webhooks/{id}`** — update an existing subscription. All fields are optional; omitted fields are left unchanged. Returns the updated webhook object. Only the admin who created the subscription may update it.
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | New label (must not be empty or whitespace-only) |
+| `url` | string | New HTTPS endpoint URL |
+| `events` | array of strings | Replace the event list |
+| `enabled` | bool | Enable (`true`) or pause (`false`) deliveries |
+
+**`DELETE /api/v1/admin/webhooks/{id}`** — delete a subscription and stop all future deliveries. Returns HTTP 200 on success. Only the admin who created the subscription may delete it.
+
+**`GET /api/v1/admin/webhooks/deliveries`** — list delivery log entries for subscriptions owned by the currently authenticated admin. Returns an array of delivery objects.
+
+Query parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `subscription_id` | string | Filter by subscription ID |
+| `status` | string | Filter by status: `pending`, `delivered`, or `failed` |
+| `event_type` | string | Filter by event type |
+| `limit` | integer | Maximum number of results (default: 100, max: 500) |
+
+**Webhook subscription object fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Subscription UUID |
+| `name` | string | Human-readable label |
+| `url` | string | Delivery target URL |
+| `events` | array of strings | Subscribed event types |
+| `enabled` | bool | Whether deliveries are active |
+| `created_at` | string (RFC3339) | Creation timestamp |
+| `updated_at` | string (RFC3339) | Last modification timestamp |
+
+**Webhook delivery object fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Delivery UUID |
+| `subscription_id` | string | Parent subscription UUID |
+| `event_type` | string | Event that triggered this delivery |
+| `event_id` | string | Stable event UUID (shared across retries) |
+| `idempotency_key` | string | `<event_id>:<subscription_id>` — stable across retries |
+| `attempt` | integer | Delivery attempt number (1-based) |
+| `status` | string | `pending`, `delivered`, or `failed` |
+| `status_code` | integer | HTTP response status code (omitted for pending/failed with no response) |
+| `next_attempt_at` | string (RFC3339) | When the next retry is scheduled (omitted when not retrying) |
+| `delivered_at` | string (RFC3339) | Timestamp of successful delivery (omitted when not delivered) |
+| `error` | string | Error description for failed attempts |
+| `duration_ms` | integer | Round-trip time in milliseconds |
+| `created_at` | string (RFC3339) | When this delivery was created |
+
+**Retry schedule:** Enlace retries failed deliveries up to 5 times with exponential backoff: 1 minute, 5 minutes, 15 minutes, 1 hour, and 6 hours. After all attempts are exhausted the delivery is marked `failed` permanently. Deliveries for disabled subscriptions are immediately marked `failed`.
 
 ## Webhook verification and replay protection
 
