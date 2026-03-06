@@ -46,8 +46,9 @@ var defaultRetryBackoff = []time.Duration{
 	6 * time.Hour,
 }
 
+var webhookMaxAttempts = len(defaultRetryBackoff)
+
 const (
-	webhookMaxAttempts      = 5
 	webhookResponseBodyMax  = 2048
 	webhookDeliveryTimeout  = 10 * time.Second
 	webhookWorkerBatchLimit = 50
