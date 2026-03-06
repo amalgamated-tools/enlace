@@ -28,6 +28,29 @@ Open <http://localhost:8080> and register your first user.
 >
 > Once at least one admin account exists, additional admins can be created or promoted via the admin panel or `POST /api/v1/admin/users`.
 
+## Admin Panel
+
+The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has two tabs:
+
+### Users tab (`/#/admin/users`)
+
+Create, edit, and delete user accounts. From this tab you can:
+
+- Create new users with email, display name, password, and optional admin flag.
+- Edit an existing user's display name, password, and admin status.
+- Delete users.
+
+### Storage tab (`/#/admin/storage`)
+
+View and override the storage configuration without restarting or redeploying. The page shows the current database overrides (if any) alongside the active storage type.
+
+- **No overrides configured** — Enlace is using the environment variable configuration. Saving a new configuration stores it as a DB override that takes precedence on the next restart.
+- **Local storage** — set the upload directory path (`storage_local_path`).
+- **S3 storage** — set the endpoint, bucket, region, access key, secret key, and optional path prefix. The access key and secret key fields are masked; leave them blank to keep the currently stored values unchanged.
+- **Reset to environment defaults** — removes all DB overrides so Enlace reverts to environment variables on the next restart.
+
+> **Note:** Storage configuration changes require a restart to take effect. See [Configuration — Storage](configuration.md#storage) for environment variable reference and encryption details.
+
 ### Available tags
 
 | Tag | Description |
