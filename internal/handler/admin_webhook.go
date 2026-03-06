@@ -129,7 +129,7 @@ func (h *WebhookAdminHandler) CreateSubscription(w http.ResponseWriter, r *http.
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidWebhookURL):
-			ValidationError(w, map[string]string{"url": "url must be https"})
+			ValidationError(w, map[string]string{"url": "url must be a valid https URL and not point to localhost or loopback addresses"})
 		case errors.Is(err, service.ErrInvalidWebhookEvents):
 			ValidationError(w, map[string]string{"events": "contains unsupported event"})
 		default:
