@@ -79,6 +79,17 @@ type webhookDeliveryResponse struct {
 }
 
 // ListSubscriptions handles GET /api/v1/admin/webhooks.
+//
+//	@Summary		List webhook subscriptions
+//	@Description	Returns all webhook subscriptions created by the authenticated admin. Requires admin role.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	APIResponse{data=[]webhookResponse}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		403	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/admin/webhooks [get]
 func (h *WebhookAdminHandler) ListSubscriptions(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -100,6 +111,20 @@ func (h *WebhookAdminHandler) ListSubscriptions(w http.ResponseWriter, r *http.R
 }
 
 // CreateSubscription handles POST /api/v1/admin/webhooks.
+//
+//	@Summary		Create webhook subscription
+//	@Description	Creates a webhook subscription. The secret is returned only once at creation and is used to verify webhook signatures. Requires admin role.
+//	@Tags			admin
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		createWebhookRequest	true	"Webhook subscription details"
+//	@Success		201		{object}	APIResponse{data=createWebhookResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		403		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/admin/webhooks [post]
 func (h *WebhookAdminHandler) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -145,6 +170,22 @@ func (h *WebhookAdminHandler) CreateSubscription(w http.ResponseWriter, r *http.
 }
 
 // UpdateSubscription handles PATCH /api/v1/admin/webhooks/{id}.
+//
+//	@Summary		Update webhook subscription
+//	@Description	Updates an existing webhook subscription. All fields are optional; omitted fields are left unchanged. Requires admin role.
+//	@Tags			admin
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string					true	"Webhook subscription ID"
+//	@Param			body	body		updateWebhookRequest	true	"Fields to update"
+//	@Success		200		{object}	APIResponse{data=webhookResponse}
+//	@Failure		400		{object}	ValidationErrorResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		403		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/admin/webhooks/{id} [patch]
 func (h *WebhookAdminHandler) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -191,6 +232,19 @@ func (h *WebhookAdminHandler) UpdateSubscription(w http.ResponseWriter, r *http.
 }
 
 // DeleteSubscription handles DELETE /api/v1/admin/webhooks/{id}.
+//
+//	@Summary		Delete webhook subscription
+//	@Description	Deletes a webhook subscription. Pending deliveries for this subscription will not be retried. Returns HTTP 404 if the subscription does not exist or belongs to a different admin. Requires admin role.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"Webhook subscription ID"
+//	@Success		200	{object}	APIResponse
+//	@Failure		401	{object}	APIResponse
+//	@Failure		403	{object}	APIResponse
+//	@Failure		404	{object}	APIResponse
+//	@Failure		500	{object}	APIResponse
+//	@Router			/api/v1/admin/webhooks/{id} [delete]
 func (h *WebhookAdminHandler) DeleteSubscription(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -216,6 +270,22 @@ func (h *WebhookAdminHandler) DeleteSubscription(w http.ResponseWriter, r *http.
 }
 
 // ListDeliveries handles GET /api/v1/admin/webhooks/deliveries.
+//
+//	@Summary		List webhook delivery attempts
+//	@Description	Lists recent webhook delivery attempts for the authenticated admin's subscriptions. Accepts optional query parameters: subscription_id, status, event_type, and limit (default 100, max 500). Requires admin role.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			subscription_id	query		string	false	"Filter by subscription ID"
+//	@Param			status			query		string	false	"Filter by status (e.g. delivered, failed, pending)"
+//	@Param			event_type		query		string	false	"Filter by event type (e.g. share.created)"
+//	@Param			limit			query		int		false	"Maximum number of results (1–500, default 100)"
+//	@Success		200				{object}	APIResponse{data=[]webhookDeliveryResponse}
+//	@Failure		400				{object}	ValidationErrorResponse
+//	@Failure		401				{object}	APIResponse
+//	@Failure		403				{object}	APIResponse
+//	@Failure		500				{object}	APIResponse
+//	@Router			/api/v1/admin/webhooks/deliveries [get]
 func (h *WebhookAdminHandler) ListDeliveries(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
