@@ -55,6 +55,7 @@ type Config struct {
 	TrustedProxyCIDRs []string
 }
 
+// Load reads environment-backed settings and returns the application config.
 func Load() *Config {
 	return &Config{
 		Port:              getEnvInt("PORT", 8080),
