@@ -19,7 +19,7 @@ Open <http://localhost:8080> and register your first user.
 
 ## Admin Panel
 
-The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has two tabs:
+The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has three tabs:
 
 ### Users tab (`/#/admin/users`)
 
