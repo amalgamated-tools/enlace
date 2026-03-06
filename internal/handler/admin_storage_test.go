@@ -13,9 +13,22 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/amalgamated-tools/enlace/internal/handler"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 var storageTestJWTSecret = []byte("test-jwt-secret-for-storage-tests")
+
+// mockS3Connector implements handler.S3Connector for testing.
+type mockS3Connector struct {
+	validateConnectionFn func(ctx context.Context) error
+}
+
+func (m *mockS3Connector) ValidateConnection(ctx context.Context) error {
+	if m.validateConnectionFn != nil {
+		return m.validateConnectionFn(ctx)
+	}
+	return nil
+}
 
 // mockSettingsRepository implements handler.SettingsRepositoryInterface for testing.
 type mockSettingsRepository struct {
@@ -747,5 +760,47 @@ func TestStorageConfigHandler_TestStorageConnection_InvalidEndpoint(t *testing.T
 	}
 	if !strings.Contains(response.Error, "S3 connection failed") {
 		t.Errorf("expected error to mention S3 connection failure, got %q", response.Error)
+	}
+}
+
+func TestStorageConfigHandler_TestStorageConnection_Success(t *testing.T) {
+	mock := &mockSettingsRepository{
+		getMultipleFn: func(ctx context.Context, keys []string) (map[string]string, error) {
+			return map[string]string{}, nil
+		},
+	}
+
+	connector := &mockS3Connector{
+		validateConnectionFn: func(ctx context.Context) error {
+			return nil
+		},
+	}
+
+	h := handler.NewStorageConfigHandler(mock, storageTestJWTSecret)
+	h.WithS3StorageFactory(func(ctx context.Context, cfg storage.S3Config) (handler.S3Connector, error) {
+		return connector, nil
+	})
+	router := setupStorageRouter(h)
+
+	body := `{"s3_bucket": "test-bucket", "s3_access_key": "AKIA123", "s3_secret_key": "secret"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/storage/test", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withAdminRequestContext(req)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response struct {
+		Success bool `json:"success"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !response.Success {
+		t.Error("expected success to be true")
 	}
 }

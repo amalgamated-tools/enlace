@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -27,10 +29,20 @@ type SettingsRepositoryInterface interface {
 	DeleteMultiple(ctx context.Context, keys []string) error
 }
 
+// S3Connector can validate connectivity to an S3-compatible service.
+type S3Connector interface {
+	ValidateConnection(ctx context.Context) error
+}
+
+// S3StorageFactory creates an S3Connector for the given configuration.
+// It is called during TestStorageConnection to validate credentials.
+type S3StorageFactory func(ctx context.Context, cfg storage.S3Config) (S3Connector, error)
+
 // StorageConfigHandler handles admin storage configuration HTTP requests.
 type StorageConfigHandler struct {
 	settingsRepo  SettingsRepositoryInterface
 	encryptionKey []byte
+	newS3Storage  S3StorageFactory
 }
 
 // NewStorageConfigHandler creates a new StorageConfigHandler.
@@ -38,7 +50,17 @@ func NewStorageConfigHandler(settingsRepo SettingsRepositoryInterface, jwtSecret
 	return &StorageConfigHandler{
 		settingsRepo:  settingsRepo,
 		encryptionKey: crypto.DeriveKey(jwtSecret, storageEncryptionSalt),
+		newS3Storage: func(ctx context.Context, cfg storage.S3Config) (S3Connector, error) {
+			return storage.NewS3Storage(ctx, cfg)
+		},
 	}
+}
+
+// WithS3StorageFactory replaces the default S3 storage factory used by TestStorageConnection.
+// This must be called before the handler is registered with a router.
+// Intended for testing only.
+func (h *StorageConfigHandler) WithS3StorageFactory(factory S3StorageFactory) {
+	h.newS3Storage = factory
 }
 
 // storageConfigResponse represents the GET response for storage configuration.
@@ -353,7 +375,7 @@ func (h *StorageConfigHandler) TestStorageConnection(w http.ResponseWriter, r *h
 		}
 	}
 
-	s3Store, err := storage.NewS3Storage(r.Context(), storage.S3Config{
+	s3Store, err := h.newS3Storage(r.Context(), storage.S3Config{
 		Endpoint:   effective["s3_endpoint"],
 		Bucket:     effective["s3_bucket"],
 		AccessKey:  effective["s3_access_key"],
@@ -362,14 +384,33 @@ func (h *StorageConfigHandler) TestStorageConnection(w http.ResponseWriter, r *h
 		PathPrefix: effective["s3_path_prefix"],
 	})
 	if err != nil {
-		Error(w, http.StatusUnprocessableEntity, "failed to initialize S3 client: "+err.Error())
+		slog.WarnContext(r.Context(), "failed to initialize S3 client", "error", err)
+		Error(w, http.StatusUnprocessableEntity, "failed to initialize S3 client")
 		return
 	}
 
 	if err := s3Store.ValidateConnection(r.Context()); err != nil {
-		Error(w, http.StatusUnprocessableEntity, "S3 connection failed: "+err.Error())
+		slog.WarnContext(r.Context(), "S3 connection test failed", "error", err)
+		Error(w, http.StatusUnprocessableEntity, s3ConnectionErrorMessage(err))
 		return
 	}
 
 	Success(w, http.StatusOK, nil)
+}
+
+// s3ConnectionErrorMessage maps an S3 error to a user-facing message that does not
+// expose internal endpoint or SDK details.
+func s3ConnectionErrorMessage(err error) string {
+	var apiErr interface {
+		ErrorCode() string
+	}
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		case "NoSuchBucket":
+			return "S3 connection failed: bucket not found"
+		case "AccessDenied", "InvalidAccessKeyId", "SignatureDoesNotMatch":
+			return "S3 connection failed: authentication failed"
+		}
+	}
+	return "S3 connection failed"
 }
