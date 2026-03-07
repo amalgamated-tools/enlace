@@ -100,7 +100,7 @@ You can run Enlace as a plain binary if you prefer not to use containers.
 ### 1. Build the binary
 
 ```bash
-# Requires Go 1.22+ and Node 22 + pnpm
+# Requires Go 1.26+ and Node 22 + pnpm
 make build
 ```
 
