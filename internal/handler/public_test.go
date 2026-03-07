@@ -475,6 +475,9 @@ func TestPublicHandler_GetDownloadURL_Success(t *testing.T) {
 		getBySlugFn:      func(ctx context.Context, slug string) (*model.Share, error) { return share, nil },
 		validateAccessFn: func(ctx context.Context, share *model.Share) error { return nil },
 		incrementDownloadCountFn: func(ctx context.Context, id string) error {
+			if id != share.ID {
+				t.Fatalf("expected download count for share %s, got %s", share.ID, id)
+			}
 			downloadCountCalls++
 			return nil
 		},

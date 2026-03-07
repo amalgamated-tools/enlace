@@ -253,6 +253,22 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 // InitiateUpload handles POST /api/v1/shares/{id}/files/initiate.
+//
+//	@Summary		Initiate direct upload
+//	@Description	Creates a pending upload and returns a short-lived signed upload URL for the share owner.
+//	@Tags			files
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string						true	"Share ID (UUID)"
+//	@Param			body	body		directUploadInitiateRequest	true	"Upload metadata"
+//	@Success		200		{object}	APIResponse{data=directUploadInitiateResponse}
+//	@Failure		400		{object}	APIResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		409		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/shares/{id}/files/initiate [post]
 func (h *FileHandler) InitiateUpload(w http.ResponseWriter, r *http.Request) {
 	if !h.directUpload {
 		Error(w, http.StatusConflict, "direct transfer is not enabled")
@@ -359,6 +375,23 @@ func (h *FileHandler) InitiateUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 // FinalizeUpload handles POST /api/v1/files/uploads/{uploadId}/finalize.
+//
+//	@Summary		Finalize direct upload
+//	@Description	Validates a direct upload and creates the final file metadata record.
+//	@Tags			files
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			uploadId	path		string						true	"Upload ID"
+//	@Param			body		body		directUploadFinalizeRequest	true	"Finalize token"
+//	@Success		201			{object}	APIResponse{data=fileResponse}
+//	@Failure		400			{object}	APIResponse
+//	@Failure		401			{object}	APIResponse
+//	@Failure		404			{object}	APIResponse
+//	@Failure		409			{object}	APIResponse
+//	@Failure		410			{object}	APIResponse
+//	@Failure		500			{object}	APIResponse
+//	@Router			/api/v1/files/uploads/{uploadId}/finalize [post]
 func (h *FileHandler) FinalizeUpload(w http.ResponseWriter, r *http.Request) {
 	if !h.directUpload {
 		Error(w, http.StatusConflict, "direct transfer is not enabled")
@@ -384,7 +417,13 @@ func (h *FileHandler) FinalizeUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims, err := validateDirectUploadFinalizeToken(h.jwtSecret, req.Token)
-	if err != nil || claims.Public || claims.UploadID != uploadID || claims.UploaderID != userID {
+	if err != nil {
+		slog.Warn("failed direct upload finalize token validation", "upload_id", uploadID, "user_id", userID, "reason", "parse")
+		Error(w, http.StatusUnauthorized, "invalid finalize token")
+		return
+	}
+	if claims.Public || claims.UploadID != uploadID || claims.UploaderID != userID {
+		slog.Warn("failed direct upload finalize token validation", "upload_id", uploadID, "user_id", userID, "claims_upload_id", claims.UploadID, "claims_user_id", claims.UploaderID, "claims_public", claims.Public)
 		Error(w, http.StatusUnauthorized, "invalid finalize token")
 		return
 	}
@@ -393,7 +432,7 @@ func (h *FileHandler) FinalizeUpload(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrDirectTransferUnsupported):
-			Error(w, http.StatusConflict, "direct transfer is not available")
+			Error(w, http.StatusConflict, "direct transfer is not supported by the configured storage")
 		case errors.Is(err, service.ErrUploadNotFound):
 			Error(w, http.StatusNotFound, "upload not found")
 		case errors.Is(err, service.ErrUploadExpired):

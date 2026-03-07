@@ -109,7 +109,7 @@ async function uploadDirect(
 export const filesApi = {
   upload: async (shareId: string, files: File[]): Promise<FileInfo[]> => {
     if (files.length === 0) {
-      return uploadMultipart(shareId, files);
+      return [];
     }
 
     try {
