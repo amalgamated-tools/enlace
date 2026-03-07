@@ -377,14 +377,22 @@
 <Modal
   open={revokeModal}
   title="Revoke API Key"
-  on:close={() => (revokeModal = false)}
+  on:close={() => {
+    revokeModal = false;
+    keyToRevoke = null;
+  }}
 >
   <p class="text-sm text-muted mb-5">
     Are you sure you want to revoke "{keyToRevoke?.name}"? This action cannot be
     undone. Any integrations using this key will immediately stop working.
   </p>
   <div class="flex gap-2 justify-end">
-    <Button variant="secondary" on:click={() => (revokeModal = false)}
+    <Button
+      variant="secondary"
+      on:click={() => {
+        revokeModal = false;
+        keyToRevoke = null;
+      }}
       >Cancel</Button
     >
     <Button variant="danger" loading={revoking} on:click={handleRevoke}
