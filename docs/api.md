@@ -907,7 +907,7 @@ Receiver guidance:
 | `POST` | `/api/v1/auth/register` | — | Create account |
 | `POST` | `/api/v1/auth/login` | — | Obtain JWT tokens (may return `pending_token` when 2FA is active) |
 | `POST` | `/api/v1/auth/refresh` | — | Refresh access token |
-| `POST` | `/api/v1/auth/logout` | — | Revoke refresh token |
+| `POST` | `/api/v1/auth/logout` | — | Log out (client-side; discard stored tokens) |
 | `POST` | `/api/v1/auth/2fa/verify` | — | Complete 2FA login with TOTP code (pass `pending_token` in body) |
 | `POST` | `/api/v1/auth/2fa/recovery` | — | Complete 2FA login with recovery code (pass `pending_token` in body) |
 | `GET` | `/api/v1/auth/oidc/config` | — | OIDC feature flag |
