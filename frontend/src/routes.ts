@@ -8,6 +8,7 @@ import Settings from "./routes/Settings.svelte";
 import AdminUsers from "./routes/admin/Users.svelte";
 import AdminStorage from "./routes/admin/Storage.svelte";
 import AdminEmail from "./routes/admin/Email.svelte";
+import AdminWebhooks from "./routes/admin/Webhooks.svelte";
 import PublicShare from "./routes/PublicShare.svelte";
 import AuthCallback from "./routes/AuthCallback.svelte";
 import TwoFactorVerify from "./routes/TwoFactorVerify.svelte";
@@ -25,6 +26,7 @@ export default {
   "/admin/users": AdminUsers,
   "/admin/storage": AdminStorage,
   "/admin/email": AdminEmail,
+  "/admin/webhooks": AdminWebhooks,
   "/s/:slug": PublicShare,
   "*": Dashboard,
 };
