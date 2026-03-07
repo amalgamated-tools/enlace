@@ -6,3 +6,4 @@ export * from "./oidc";
 export * from "./totp";
 export * from "./webhooks";
 export * from "./fileRestrictions";
+export * from "./apiKeys";

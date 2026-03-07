@@ -10,6 +10,7 @@ import AdminStorage from "./routes/admin/Storage.svelte";
 import AdminEmail from "./routes/admin/Email.svelte";
 import AdminWebhooks from "./routes/admin/Webhooks.svelte";
 import AdminFileRestrictions from "./routes/admin/FileRestrictions.svelte";
+import AdminApiKeys from "./routes/admin/ApiKeys.svelte";
 import PublicShare from "./routes/PublicShare.svelte";
 import AuthCallback from "./routes/AuthCallback.svelte";
 import TwoFactorVerify from "./routes/TwoFactorVerify.svelte";
@@ -29,6 +30,7 @@ export default {
   "/admin/email": AdminEmail,
   "/admin/webhooks": AdminWebhooks,
   "/admin/files": AdminFileRestrictions,
+  "/admin/api-keys": AdminApiKeys,
   "/s/:slug": PublicShare,
   "*": Dashboard,
 };
