@@ -898,7 +898,7 @@ Receiver guidance:
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/health` | — | Health check |
-| `GET` | `/swagger/*` | — | Swagger UI (requires `SWAGGER_ENABLED=true`) |
+| `GET` | `/swagger/*` | — | Swagger UI (always available) |
 | `POST` | `/api/v1/auth/register` | — | Create account |
 | `POST` | `/api/v1/auth/login` | — | Obtain JWT tokens (may return `pending_token` when 2FA is active) |
 | `POST` | `/api/v1/auth/refresh` | — | Refresh access token |
