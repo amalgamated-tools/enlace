@@ -26,6 +26,7 @@ export interface WebhookDelivery {
   next_attempt_at?: string;
   delivered_at?: string;
   error?: string;
+  request_body?: string;
   duration_ms: number;
   created_at: string;
 }

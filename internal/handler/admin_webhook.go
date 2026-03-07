@@ -74,6 +74,7 @@ type webhookDeliveryResponse struct {
 	NextAttemptAt  *string `json:"next_attempt_at,omitempty"`
 	DeliveredAt    *string `json:"delivered_at,omitempty"`
 	Error          string  `json:"error,omitempty"`
+	RequestBody    string  `json:"request_body,omitempty"`
 	DurationMS     int64   `json:"duration_ms"`
 	CreatedAt      string  `json:"created_at"`
 }
@@ -348,6 +349,7 @@ func toWebhookDeliveryResponse(item *model.WebhookDelivery) webhookDeliveryRespo
 		Status:         item.Status,
 		StatusCode:     item.StatusCode,
 		Error:          item.Error,
+		RequestBody:    item.RequestBody,
 		DurationMS:     item.DurationMS,
 		CreatedAt:      item.CreatedAt.Format(time.RFC3339),
 	}

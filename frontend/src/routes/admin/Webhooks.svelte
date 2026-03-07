@@ -47,6 +47,10 @@
   let deleting = false;
   let webhookToDelete: Webhook | null = null;
 
+  // Request body modal
+  let requestBodyModal = false;
+  let requestBodyContent = "";
+
   // Deliveries
   let deliveriesWebhook: Webhook | null = null;
   let deliveries: WebhookDelivery[] = [];
@@ -312,6 +316,19 @@
         return "bg-yellow-100 text-yellow-800";
     }
   }
+
+  function viewRequestBody(delivery: WebhookDelivery) {
+    try {
+      requestBodyContent = JSON.stringify(
+        JSON.parse(delivery.request_body || "{}"),
+        null,
+        2,
+      );
+    } catch {
+      requestBodyContent = delivery.request_body || "";
+    }
+    requestBodyModal = true;
+  }
 </script>
 
 <AdminNav />
@@ -480,6 +497,11 @@
               >
                 Error
               </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-subtle uppercase tracking-wider"
+              >
+                Body
+              </th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
@@ -512,11 +534,23 @@
                 <td class="px-6 py-4 text-sm text-red-500">
                   {delivery.error || ""}
                 </td>
+                <td class="px-6 py-4 whitespace-nowrap text-xs">
+                  {#if delivery.request_body}
+                    <button
+                      class="text-muted hover:text-text transition-colors"
+                      on:click={() => viewRequestBody(delivery)}
+                    >
+                      View
+                    </button>
+                  {:else}
+                    <span class="text-subtle">—</span>
+                  {/if}
+                </td>
               </tr>
             {:else}
               <tr>
                 <td
-                  colspan="7"
+                  colspan="8"
                   class="px-6 py-8 text-center text-sm text-subtle"
                 >
                   No deliveries yet
@@ -676,6 +710,21 @@
     >
     <Button variant="danger" loading={deleting} on:click={handleDelete}
       >Delete</Button
+    >
+  </div>
+</Modal>
+
+<!-- Request Body Modal -->
+<Modal
+  open={requestBodyModal}
+  title="Request Body"
+  on:close={() => (requestBodyModal = false)}
+>
+  <pre
+    class="p-4 bg-surface-muted rounded-lg text-sm text-text font-mono overflow-auto max-h-96 whitespace-pre-wrap break-all">{requestBodyContent}</pre>
+  <div class="flex justify-end pt-4">
+    <Button variant="secondary" on:click={() => (requestBodyModal = false)}
+      >Close</Button
     >
   </div>
 </Modal>
