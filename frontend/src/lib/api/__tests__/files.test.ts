@@ -66,6 +66,9 @@ describe("filesApi", () => {
         "/api/v1/files/uploads/upload-1/finalize",
         expect.objectContaining({ method: "POST" }),
       );
+      expect(mockFetch.mock.calls[2][1].body).toBe(
+        JSON.stringify({ token: "token-1" }),
+      );
     });
 
     it("falls back to multipart upload on 409", async () => {
@@ -105,30 +108,47 @@ describe("filesApi", () => {
       );
     });
 
-    it("sends multipart FormData when using the legacy path", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ success: true, data: [] }),
-      });
+    it("returns early when there are no files", async () => {
+      await expect(filesApi.upload("share-1", [])).resolves.toEqual([]);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
 
-      await filesApi.upload("share-1", []);
+    it("sends multipart FormData when falling back to the legacy path", async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 409,
+          json: () => Promise.resolve({ success: false, error: "unsupported" }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: [] }),
+        });
+
+      await filesApi.upload("share-1", [new File(["hello"], "test.txt")]);
 
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/v1/shares/share-1/files",
         expect.objectContaining({ method: "POST" }),
       );
-      const callArgs = mockFetch.mock.calls[0][1];
+      const callArgs = mockFetch.mock.calls[1][1];
       expect(callArgs.body).toBeInstanceOf(FormData);
     });
 
     it("includes auth header when token exists", async () => {
       localStorage.setItem("access_token", "my-token");
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ success: true, data: [] }),
-      });
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 409,
+          json: () => Promise.resolve({ success: false, error: "unsupported" }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: [] }),
+        });
 
-      await filesApi.upload("share-1", []);
+      await filesApi.upload("share-1", [new File(["hello"], "test.txt")]);
       const headers = mockFetch.mock.calls[0][1].headers;
       expect(headers.Authorization).toBe("Bearer my-token");
     });

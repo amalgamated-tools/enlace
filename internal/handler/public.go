@@ -349,6 +349,20 @@ func (h *PublicHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetDownloadURL handles GET /s/{slug}/files/{fileId}/url.
+//
+//	@Summary		Get direct download URL
+//	@Description	Returns a short-lived signed download URL for a public share file after normal access checks succeed.
+//	@Tags			public
+//	@Produce		json
+//	@Param			slug	path		string	true	"Share slug"
+//	@Param			fileId	path		string	true	"File ID (UUID)"
+//	@Success		200		{object}	APIResponse{data=directDownloadURLResponse}
+//	@Failure		401		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		409		{object}	APIResponse
+//	@Failure		410		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/s/{slug}/files/{fileId}/url [get]
 func (h *PublicHandler) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 	if !h.directUpload {
 		Error(w, http.StatusConflict, "direct transfer is not enabled")
@@ -379,7 +393,7 @@ func (h *PublicHandler) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 	result, err := h.fileService.GetPresignedDownloadURL(r.Context(), fileID, h.directExpiry)
 	if err != nil {
 		if errors.Is(err, service.ErrDirectTransferUnsupported) {
-			Error(w, http.StatusConflict, "direct transfer is not available")
+			Error(w, http.StatusConflict, "direct transfer is not supported by the configured storage")
 			return
 		}
 		if errors.Is(err, service.ErrFileNotFound) {
@@ -699,6 +713,22 @@ func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Requ
 }
 
 // InitiateReverseShareUpload handles POST /s/{slug}/upload/initiate.
+//
+//	@Summary		Initiate reverse-share direct upload
+//	@Description	Creates a pending upload and returns a short-lived signed upload URL for a reverse share.
+//	@Tags			public
+//	@Accept			json
+//	@Produce		json
+//	@Param			slug	path		string						true	"Share slug"
+//	@Param			body	body		directUploadInitiateRequest	true	"Upload metadata"
+//	@Success		200		{object}	APIResponse{data=directUploadInitiateResponse}
+//	@Failure		400		{object}	APIResponse
+//	@Failure		403		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		409		{object}	APIResponse
+//	@Failure		410		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/s/{slug}/upload/initiate [post]
 func (h *PublicHandler) InitiateReverseShareUpload(w http.ResponseWriter, r *http.Request) {
 	if !h.directUpload {
 		Error(w, http.StatusConflict, "direct transfer is not enabled")
@@ -765,7 +795,7 @@ func (h *PublicHandler) InitiateReverseShareUpload(w http.ResponseWriter, r *htt
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrDirectTransferUnsupported):
-			Error(w, http.StatusConflict, "direct transfer is not available")
+			Error(w, http.StatusConflict, "direct transfer is not supported by the configured storage")
 		case errors.Is(err, service.ErrInvalidFilename), errors.Is(err, storage.ErrInvalidKey):
 			Error(w, http.StatusBadRequest, "invalid filename")
 		default:
@@ -800,6 +830,24 @@ func (h *PublicHandler) InitiateReverseShareUpload(w http.ResponseWriter, r *htt
 }
 
 // FinalizeReverseShareUpload handles POST /s/{slug}/upload/{uploadId}/finalize.
+//
+//	@Summary		Finalize reverse-share direct upload
+//	@Description	Validates a reverse-share direct upload and creates the final file metadata record.
+//	@Tags			public
+//	@Accept			json
+//	@Produce		json
+//	@Param			slug		path		string						true	"Share slug"
+//	@Param			uploadId	path		string						true	"Upload ID"
+//	@Param			body		body		directUploadFinalizeRequest	true	"Finalize token"
+//	@Success		201			{object}	APIResponse{data=publicFileResponse}
+//	@Failure		400			{object}	APIResponse
+//	@Failure		401			{object}	APIResponse
+//	@Failure		403			{object}	APIResponse
+//	@Failure		404			{object}	APIResponse
+//	@Failure		409			{object}	APIResponse
+//	@Failure		410			{object}	APIResponse
+//	@Failure		500			{object}	APIResponse
+//	@Router			/s/{slug}/upload/{uploadId}/finalize [post]
 func (h *PublicHandler) FinalizeReverseShareUpload(w http.ResponseWriter, r *http.Request) {
 	if !h.directUpload {
 		Error(w, http.StatusConflict, "direct transfer is not enabled")
@@ -851,7 +899,7 @@ func (h *PublicHandler) FinalizeReverseShareUpload(w http.ResponseWriter, r *htt
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrDirectTransferUnsupported):
-			Error(w, http.StatusConflict, "direct transfer is not available")
+			Error(w, http.StatusConflict, "direct transfer is not supported by the configured storage")
 		case errors.Is(err, service.ErrUploadNotFound):
 			Error(w, http.StatusNotFound, "upload not found")
 		case errors.Is(err, service.ErrUploadExpired):

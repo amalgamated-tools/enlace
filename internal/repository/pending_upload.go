@@ -26,6 +26,7 @@ func NewPendingUploadRepository(db *sql.DB) *PendingUploadRepository {
 	return &PendingUploadRepository{db: db}
 }
 
+// Create inserts a new pending upload row for a direct-transfer upload attempt.
 func (r *PendingUploadRepository) Create(ctx context.Context, upload *model.PendingUpload) error {
 	upload.CreatedAt = time.Now()
 	if upload.Status == "" {
@@ -41,6 +42,7 @@ func (r *PendingUploadRepository) Create(ctx context.Context, upload *model.Pend
 	return err
 }
 
+// GetByID retrieves a pending upload by its ID.
 func (r *PendingUploadRepository) GetByID(ctx context.Context, id string) (*model.PendingUpload, error) {
 	upload := &model.PendingUpload{}
 	err := r.db.QueryRowContext(ctx,
@@ -57,6 +59,7 @@ func (r *PendingUploadRepository) GetByID(ctx context.Context, id string) (*mode
 	return upload, err
 }
 
+// Finalize atomically marks a pending upload as finalized and inserts the file row in the same transaction.
 func (r *PendingUploadRepository) Finalize(ctx context.Context, uploadID string, file *model.File) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -103,6 +106,7 @@ func (r *PendingUploadRepository) Finalize(ctx context.Context, uploadID string,
 	return tx.Commit()
 }
 
+// ExpireStale marks expired pending uploads as expired and returns the number of updated rows.
 func (r *PendingUploadRepository) ExpireStale(ctx context.Context, now time.Time) (int64, error) {
 	result, err := r.db.ExecContext(ctx,
 		`UPDATE pending_uploads

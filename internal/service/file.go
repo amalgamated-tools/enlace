@@ -198,6 +198,7 @@ func (s *FileService) IsPreviewable(file *model.File) bool {
 	return isPreviewableMimeType(file.MimeType)
 }
 
+// InitiateDirectUpload creates a pending direct upload and returns a short-lived signed PUT request.
 func (s *FileService) InitiateDirectUpload(ctx context.Context, input DirectUploadInput) (*DirectUploadResponse, error) {
 	presignedStorage, err := s.requireDirectUploadSupport()
 	if err != nil {
@@ -254,6 +255,7 @@ func (s *FileService) InitiateDirectUpload(ctx context.Context, input DirectUplo
 	}, nil
 }
 
+// FinalizeDirectUpload validates an uploaded object and promotes the pending upload into a persisted file row.
 func (s *FileService) FinalizeDirectUpload(ctx context.Context, uploadID string) (*model.File, error) {
 	presignedStorage, err := s.requireDirectUploadSupport()
 	if err != nil {
@@ -319,6 +321,7 @@ func (s *FileService) FinalizeDirectUpload(ctx context.Context, uploadID string)
 	return file, nil
 }
 
+// GetPresignedDownloadURL returns a short-lived signed download URL for an existing file.
 func (s *FileService) GetPresignedDownloadURL(ctx context.Context, fileID string, expiry time.Duration) (*DirectDownloadResponse, error) {
 	presignedStorage, ok := s.storage.(storage.PresignedStorage)
 	if !ok {
@@ -380,8 +383,11 @@ func (s *FileService) requireDirectUploadSupport() (storage.PresignedStorage, er
 }
 
 func contentTypesMatch(expected, actual string) bool {
-	if expected == "" || actual == "" {
+	if expected == "" && actual == "" {
 		return true
+	}
+	if expected == "" || actual == "" {
+		return false
 	}
 
 	expectedType, _, err := mime.ParseMediaType(expected)
