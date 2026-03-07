@@ -93,21 +93,8 @@
 
     uploading = true;
     try {
-      const formData = new FormData();
-      event.detail.forEach((file) => formData.append("files", file));
-
-      const response = await fetch(`/s/${params.slug}/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        toast.error(data.error || "Upload failed");
-        return;
-      }
-
-      files = [...files, ...data.data];
+      const uploadedFiles = await uploadReverseShareFiles(event.detail);
+      files = [...files, ...uploadedFiles];
       toast.success(`${event.detail.length} file(s) uploaded`);
     } catch {
       toast.error("Upload failed");
@@ -120,18 +107,132 @@
     if (!share) return;
 
     for (const file of files) {
-      window.open(`/s/${params.slug}/files/${file.id}`, "_blank");
+      await downloadFile(file.id, true);
     }
   }
 
-  async function downloadFile(fileId: string) {
-    window.location.href = `/s/${params.slug}/files/${fileId}`;
+  async function downloadFile(fileId: string, newTab = false) {
+    const fallbackUrl = `/s/${params.slug}/files/${fileId}`;
+
+    try {
+      const response = await fetch(`/s/${params.slug}/files/${fileId}/url`, {
+        headers: shareToken ? { "X-Share-Token": shareToken } : {},
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error("direct download unavailable");
+      }
+
+      if (newTab) {
+        window.open(data.data.url, "_blank");
+      } else {
+        window.location.href = data.data.url;
+      }
+      return;
+    } catch {
+      if (newTab) {
+        window.open(fallbackUrl, "_blank");
+      } else {
+        window.location.href = fallbackUrl;
+      }
+    }
   }
 
   function formatSize(bytes: number): string {
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  async function uploadReverseShareFiles(selectedFiles: File[]) {
+    try {
+      return await uploadReverseShareFilesDirect(selectedFiles);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "direct-transfer-unsupported"
+      ) {
+        return uploadReverseShareFilesMultipart(selectedFiles);
+      }
+      throw error;
+    }
+  }
+
+  async function uploadReverseShareFilesDirect(selectedFiles: File[]) {
+    const uploadedFiles: FileInfo[] = [];
+
+    for (const file of selectedFiles) {
+      const initiateResponse = await fetch(
+        `/s/${params.slug}/upload/initiate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(shareToken ? { "X-Share-Token": shareToken } : {}),
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            size: file.size,
+          }),
+        },
+      );
+      const initiateData = await initiateResponse.json();
+
+      if (!initiateResponse.ok || !initiateData.success) {
+        if (initiateResponse.status === 409) {
+          throw new Error("direct-transfer-unsupported");
+        }
+        throw new Error(initiateData.error || "Upload failed");
+      }
+
+      const uploadResponse = await fetch(initiateData.data.url, {
+        method: initiateData.data.method,
+        headers: initiateData.data.headers ?? {},
+        body: file,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const finalizeResponse = await fetch(
+        `/s/${params.slug}/upload/${initiateData.data.upload_id}/finalize`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(shareToken ? { "X-Share-Token": shareToken } : {}),
+          },
+          body: JSON.stringify({ token: initiateData.data.finalize_token }),
+        },
+      );
+      const finalizeData = await finalizeResponse.json();
+      if (!finalizeResponse.ok || !finalizeData.success) {
+        throw new Error(finalizeData.error || "Upload failed");
+      }
+
+      uploadedFiles.push(finalizeData.data);
+    }
+
+    return uploadedFiles;
+  }
+
+  async function uploadReverseShareFilesMultipart(selectedFiles: File[]) {
+    const formData = new FormData();
+    selectedFiles.forEach((file) => formData.append("files", file));
+
+    const response = await fetch(`/s/${params.slug}/upload`, {
+      method: "POST",
+      headers: shareToken ? { "X-Share-Token": shareToken } : {},
+      body: formData,
+    });
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Upload failed");
+    }
+
+    return data.data;
   }
 </script>
 
