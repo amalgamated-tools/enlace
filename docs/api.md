@@ -721,6 +721,16 @@ Supported event types:
 | `share.downloaded` | A file is downloaded from a public share |
 | `share.created` | A new share is created |
 
+**`GET /api/v1/admin/webhooks/events`** — list the supported event types that can be subscribed to. No request body required.
+
+Returns an array of event type strings:
+
+```json
+{ "success": true, "data": ["file.upload.completed", "share.created", "share.downloaded", "share.viewed"] }
+```
+
+Use this endpoint to populate event selectors in your integration UI or to programmatically validate event names before creating or updating a subscription.
+
 **`GET /api/v1/admin/webhooks`** — list all webhook subscriptions created by the current admin account.
 
 Returns an array of webhook subscription objects:
@@ -802,6 +812,7 @@ Returns an array of delivery objects:
 | `next_attempt_at` | string (RFC3339) or null | When the next retry will be sent; `null` if delivered or no retry scheduled |
 | `delivered_at` | string (RFC3339) or null | When the delivery succeeded; `null` if not yet delivered |
 | `error` | string | Error message if delivery failed; empty string otherwise |
+| `request_body` | string | The JSON payload sent to the receiver; useful for debugging failed deliveries |
 | `duration_ms` | int | Round-trip time in milliseconds |
 | `created_at` | string (RFC3339) | When this delivery attempt was created |
 
@@ -958,6 +969,7 @@ Receiver guidance:
 | `PATCH` | `/api/v1/admin/webhooks/{id}` | ✔ admin | Update a webhook subscription |
 | `DELETE` | `/api/v1/admin/webhooks/{id}` | ✔ admin | Delete a webhook subscription |
 | `GET` | `/api/v1/admin/webhooks/deliveries` | ✔ admin | View webhook delivery logs |
+| `GET` | `/api/v1/admin/webhooks/events` | ✔ admin | List supported webhook event types |
 | `GET` | `/s/{slug}` | — | View a public share |
 | `POST` | `/s/{slug}/verify` | — | Unlock a password-protected share |
 | `GET` | `/s/{slug}/files/{fileId}` | — | Download a file |

@@ -70,6 +70,20 @@ Storage settings can also be overridden at runtime via the admin API (`GET/PUT/D
 
 SMTP settings follow the same pattern: `GET/PUT/DELETE /api/v1/admin/smtp` persists overrides to the same `settings` table, with `smtp_pass` encrypted at rest. See the [Configuration — SMTP](configuration.md#smtp-email-notifications) for details.
 
+### Webhooks
+
+Enlace includes an outbound webhook system that POSTs event notifications to admin-configured HTTPS URLs when specific activities occur. The webhook system spans three layers:
+
+- **`internal/model/webhook.go`** — `WebhookSubscription` and `WebhookDelivery` domain types.
+- **`internal/repository/webhook.go`** — SQL queries for managing subscriptions and recording delivery attempts.
+- **`internal/service/webhook.go`** — Business logic for creating/updating subscriptions, dispatching events (including retry scheduling), SSRF protection on target URLs, and HMAC-SHA256 request signing.
+- **`internal/handler/admin_webhook.go`** — Admin HTTP handlers for subscription CRUD, delivery log access, and the `GET /api/v1/admin/webhooks/events` endpoint that returns the list of supported event types.
+- **`internal/handler/webhook_emitter.go`** — Thin helpers that wire share, file, and public handlers to the webhook service, so events are emitted without coupling domain handlers to delivery logic.
+
+Supported events: `share.created`, `file.upload.completed`, `share.viewed`, `share.downloaded`.
+
+Every outgoing POST includes `X-Enlace-Signature` (HMAC-SHA256 over `<timestamp>.<body>`) and an `Idempotency-Key` that is stable across retries. See [Webhook verification and replay protection](api.md#webhook-verification-and-replay-protection) for the full receiver guide.
+
 ## Frontend
 
 The frontend is a single-page application built with:
