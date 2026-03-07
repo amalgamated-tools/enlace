@@ -66,7 +66,7 @@
       });
 
       if (pendingFiles.length > 0) {
-        await filesApi.upload(share.id, pendingFiles);
+        await filesApi.uploadWithDirectTransfer(share.id, pendingFiles);
       }
 
       toast.success("Share created successfully");

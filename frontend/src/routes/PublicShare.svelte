@@ -93,27 +93,95 @@
 
     uploading = true;
     try {
-      const formData = new FormData();
-      event.detail.forEach((file) => formData.append("files", file));
-
-      const response = await fetch(`/s/${params.slug}/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        toast.error(data.error || "Upload failed");
-        return;
-      }
-
-      files = [...files, ...data.data];
+      // Try direct upload first
+      const uploadedFiles = await directUploadToReverseShare(
+        params.slug,
+        event.detail,
+      );
+      files = [...files, ...uploadedFiles];
       toast.success(`${event.detail.length} file(s) uploaded`);
     } catch {
       toast.error("Upload failed");
     } finally {
       uploading = false;
     }
+  }
+
+  async function directUploadToReverseShare(
+    slug: string,
+    filesToUpload: File[],
+  ): Promise<any[]> {
+    const results: any[] = [];
+
+    for (const file of filesToUpload) {
+      try {
+        const initResp = await fetch(`/s/${slug}/upload/direct/init`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            size: file.size,
+            content_type: file.type || "application/octet-stream",
+          }),
+        });
+        const initData = await initResp.json();
+
+        if (initResp.status === 409 || !initResp.ok || !initData.success) {
+          // Fallback to proxy upload for all files
+          return proxyUploadToReverseShare(slug, filesToUpload);
+        }
+
+        // Upload directly to storage
+        const uploadResp = await fetch(initData.data.upload_url, {
+          method: initData.data.method,
+          headers: { "Content-Type": file.type || "application/octet-stream" },
+          body: file,
+        });
+
+        if (!uploadResp.ok) {
+          throw new Error("Direct upload to storage failed");
+        }
+
+        // Finalize
+        const finalizeResp = await fetch(`/s/${slug}/upload/direct/finalize`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ upload_id: initData.data.upload_id }),
+        });
+        const finalizeData = await finalizeResp.json();
+
+        if (!finalizeResp.ok || !finalizeData.success) {
+          throw new Error(finalizeData.error || "Finalize failed");
+        }
+
+        results.push(finalizeData.data);
+      } catch {
+        // On any failure, fall back to proxy upload for remaining files
+        return proxyUploadToReverseShare(slug, filesToUpload);
+      }
+    }
+
+    return results;
+  }
+
+  async function proxyUploadToReverseShare(
+    slug: string,
+    filesToUpload: File[],
+  ): Promise<any[]> {
+    const formData = new FormData();
+    filesToUpload.forEach((file) => formData.append("files", file));
+
+    const response = await fetch(`/s/${slug}/upload`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Upload failed");
+    }
+
+    return data.data;
   }
 
   async function downloadAll() {
@@ -125,6 +193,17 @@
   }
 
   async function downloadFile(fileId: string) {
+    // Try direct download first (302 redirect from server), fall back to proxy
+    const directUrl = `/s/${params.slug}/files/${fileId}/direct`;
+    try {
+      const resp = await fetch(directUrl, { method: "HEAD" });
+      if (resp.ok || resp.status === 302) {
+        window.location.href = directUrl;
+        return;
+      }
+    } catch {
+      // ignore and fall back
+    }
     window.location.href = `/s/${params.slug}/files/${fileId}`;
   }
 

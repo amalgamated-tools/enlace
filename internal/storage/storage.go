@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 )
 
 // ErrNotFound is returned when a requested file does not exist in storage.
@@ -36,4 +37,36 @@ type Storage interface {
 	// Exists checks if data exists for the given key.
 	// Returns true if the key exists, false otherwise.
 	Exists(ctx context.Context, key string) (bool, error)
+}
+
+// PresignedURLResult holds a presigned URL and its metadata.
+type PresignedURLResult struct {
+	URL       string
+	Method    string
+	ExpiresAt time.Time
+}
+
+// ObjectInfo holds metadata about a stored object.
+type ObjectInfo struct {
+	Size        int64
+	ContentType string
+}
+
+// DirectTransfer extends Storage with presigned URL capabilities.
+// Backends that support direct client-to-storage transfers (e.g. S3)
+// implement this interface. Backends that do not (e.g. local filesystem)
+// only implement Storage, and callers use a type assertion to detect support.
+type DirectTransfer interface {
+	Storage
+
+	// PresignUpload returns a short-lived presigned PUT URL for direct upload.
+	// The URL enforces the declared size and content type.
+	PresignUpload(ctx context.Context, key string, size int64, contentType string, expiry time.Duration) (*PresignedURLResult, error)
+
+	// PresignDownload returns a short-lived presigned GET URL for direct download.
+	// The disposition parameter sets the Content-Disposition header on the response.
+	PresignDownload(ctx context.Context, key string, disposition string, expiry time.Duration) (*PresignedURLResult, error)
+
+	// StatObject retrieves metadata about an object without downloading it.
+	StatObject(ctx context.Context, key string) (*ObjectInfo, error)
 }

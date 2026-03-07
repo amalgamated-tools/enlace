@@ -36,6 +36,8 @@ type FileHandlerFileService interface {
 	GetByID(ctx context.Context, id string) (*model.File, error)
 	Delete(ctx context.Context, id string) error
 	ListByShare(ctx context.Context, shareID string) ([]*model.File, error)
+	InitiateDirectUpload(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error)
+	FinalizeDirectUpload(ctx context.Context, uploadID string) (*model.File, error)
 }
 
 // FileHandler handles file-related HTTP requests.
@@ -369,4 +371,234 @@ func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	Success(w, http.StatusOK, nil)
+}
+
+// directUploadInitRequest is the JSON body for direct upload initiation.
+type directUploadInitRequest struct {
+	Filename    string `json:"filename"`
+	Size        int64  `json:"size"`
+	ContentType string `json:"content_type"`
+}
+
+// InitiateDirectUpload handles POST /api/v1/shares/{id}/files/direct/init.
+//
+//	@Summary		Initiate a direct file upload
+//	@Description	Returns a presigned URL for direct upload to object storage. Only available when using S3-compatible storage.
+//	@Tags			files
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string					true	"Share ID (UUID)"
+//	@Param			body	body		directUploadInitRequest	true	"File metadata"
+//	@Success		200		{object}	APIResponse
+//	@Failure		400		{object}	APIResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		404		{object}	APIResponse
+//	@Failure		409		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/shares/{id}/files/direct/init [post]
+func (h *FileHandler) InitiateDirectUpload(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	if userID == "" {
+		Error(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	shareID := chi.URLParam(r, "id")
+	if shareID == "" {
+		Error(w, http.StatusBadRequest, "share ID is required")
+		return
+	}
+
+	// Verify share exists and user owns it
+	share, err := h.shareService.GetByID(r.Context(), shareID)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+
+	if share.CreatorID == nil || *share.CreatorID != userID {
+		Error(w, http.StatusNotFound, "share not found")
+		return
+	}
+
+	var req directUploadInitRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Filename == "" {
+		Error(w, http.StatusBadRequest, "filename is required")
+		return
+	}
+	if req.Size <= 0 {
+		Error(w, http.StatusBadRequest, "size must be positive")
+		return
+	}
+
+	// Check file restrictions
+	effectiveMaxSize, blockedExtensions := loadEffectiveRestrictions(r.Context(), h.settingsRepo, h.maxFileSize)
+	if IsExtensionBlocked(req.Filename, blockedExtensions) {
+		Error(w, http.StatusBadRequest, "file extension is not allowed")
+		return
+	}
+	if req.Size > effectiveMaxSize {
+		Error(w, http.StatusBadRequest, "file exceeds maximum size limit")
+		return
+	}
+
+	input := service.DirectUploadInput{
+		ShareID:     shareID,
+		UploaderID:  userID,
+		Filename:    req.Filename,
+		Size:        req.Size,
+		ContentType: req.ContentType,
+	}
+
+	resp, err := h.fileService.InitiateDirectUpload(r.Context(), input)
+	if err != nil {
+		if errors.Is(err, service.ErrDirectTransferUnsupported) {
+			Error(w, http.StatusConflict, "direct transfer not supported, use standard upload")
+			return
+		}
+		if errors.Is(err, service.ErrInvalidFilename) || errors.Is(err, storage.ErrInvalidKey) {
+			Error(w, http.StatusBadRequest, "invalid filename")
+			return
+		}
+		slog.Error("failed to initiate direct upload", "error", err)
+		Error(w, http.StatusInternalServerError, "failed to initiate upload")
+		return
+	}
+
+	Success(w, http.StatusOK, resp)
+}
+
+// directUploadFinalizeRequest is the JSON body for direct upload finalization.
+type directUploadFinalizeRequest struct {
+	UploadID string `json:"upload_id"`
+}
+
+// FinalizeDirectUpload handles POST /api/v1/shares/{id}/files/direct/finalize.
+//
+//	@Summary		Finalize a direct file upload
+//	@Description	Validates the uploaded file and creates the file record. Must be called after uploading to the presigned URL.
+//	@Tags			files
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string						true	"Share ID (UUID)"
+//	@Param			body	body		directUploadFinalizeRequest	true	"Upload ID"
+//	@Success		201		{object}	APIResponse{data=fileResponse}
+//	@Failure		400		{object}	APIResponse
+//	@Failure		401		{object}	APIResponse
+//	@Failure		409		{object}	APIResponse
+//	@Failure		410		{object}	APIResponse
+//	@Failure		422		{object}	APIResponse
+//	@Failure		500		{object}	APIResponse
+//	@Router			/api/v1/shares/{id}/files/direct/finalize [post]
+func (h *FileHandler) FinalizeDirectUpload(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	if userID == "" {
+		Error(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	shareID := chi.URLParam(r, "id")
+	if shareID == "" {
+		Error(w, http.StatusBadRequest, "share ID is required")
+		return
+	}
+
+	// Verify share exists and user owns it
+	share, err := h.shareService.GetByID(r.Context(), shareID)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+
+	if share.CreatorID == nil || *share.CreatorID != userID {
+		Error(w, http.StatusNotFound, "share not found")
+		return
+	}
+
+	var req directUploadFinalizeRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.UploadID == "" {
+		Error(w, http.StatusBadRequest, "upload_id is required")
+		return
+	}
+
+	file, err := h.fileService.FinalizeDirectUpload(r.Context(), req.UploadID)
+	if err != nil {
+		if errors.Is(err, service.ErrUploadNotFound) {
+			Error(w, http.StatusNotFound, "upload not found")
+			return
+		}
+		if errors.Is(err, service.ErrUploadAlreadyFinalized) {
+			Error(w, http.StatusConflict, "upload already finalized")
+			return
+		}
+		if errors.Is(err, service.ErrUploadExpired) {
+			Error(w, http.StatusGone, "upload has expired")
+			return
+		}
+		if errors.Is(err, service.ErrIntegrityCheckFailed) {
+			Error(w, http.StatusUnprocessableEntity, "uploaded file integrity check failed")
+			return
+		}
+		slog.Error("failed to finalize direct upload", "error", err)
+		Error(w, http.StatusInternalServerError, "failed to finalize upload")
+		return
+	}
+
+	resp := fileResponse{
+		ID:       file.ID,
+		Name:     file.Name,
+		Size:     file.Size,
+		MimeType: file.MimeType,
+	}
+
+	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
+		creatorID := *share.CreatorID
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := h.webhooks.Emit(ctx, service.WebhookEvent{
+				Type:      "file.upload.completed",
+				CreatorID: creatorID,
+				ActorID:   userID,
+				Resource:  shareID,
+				Data: map[string]interface{}{
+					"share_id": shareID,
+					"count":    1,
+					"files": []map[string]interface{}{
+						{
+							"id":        file.ID,
+							"name":      file.Name,
+							"size":      file.Size,
+							"mime_type": file.MimeType,
+						},
+					},
+				},
+			}); err != nil {
+				slog.Warn("failed to emit webhook", "event_type", "file.upload.completed", "share_id", shareID, "error", err)
+			}
+		}()
+	}
+
+	Success(w, http.StatusCreated, resp)
 }

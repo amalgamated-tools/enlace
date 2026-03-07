@@ -104,7 +104,9 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	jwtSecret := []byte(cfg.JWTSecret)
 	authService := service.NewAuthService(userRepo, jwtSecret)
 	shareService := service.NewShareService(shareRepo, fileRepo, store)
-	fileService := service.NewFileService(fileRepo, shareRepo, store)
+	pendingUploadRepo := repository.NewPendingUploadRepository(db.DB())
+	presignExpiry := time.Duration(cfg.DirectTransferExpiry) * time.Second
+	fileService := service.NewFileService(fileRepo, shareRepo, store, pendingUploadRepo, presignExpiry)
 
 	// Initialize recipient repository and email service
 	recipientRepo := repository.NewRecipientRepository(db.DB())

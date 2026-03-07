@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"path"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -15,6 +16,9 @@ import (
 
 // Compile-time check that S3Storage implements Storage interface.
 var _ Storage = (*S3Storage)(nil)
+
+// Compile-time check that S3Storage implements DirectTransfer interface.
+var _ DirectTransfer = (*S3Storage)(nil)
 
 // S3Storage implements the Storage interface using S3 or S3-compatible services.
 // It supports custom endpoints for services like MinIO, Backblaze B2, and Cloudflare R2.
@@ -211,4 +215,79 @@ func isNotFoundError(err error) bool {
 	}
 
 	return false
+}
+
+// PresignUpload returns a short-lived presigned PUT URL for direct upload.
+func (s *S3Storage) PresignUpload(ctx context.Context, key string, size int64, contentType string, expiry time.Duration) (*PresignedURLResult, error) {
+	presignClient := s3.NewPresignClient(s.client)
+
+	input := &s3.PutObjectInput{
+		Bucket:        aws.String(s.bucket),
+		Key:           aws.String(s.fullKey(key)),
+		ContentLength: aws.Int64(size),
+	}
+	if contentType != "" {
+		input.ContentType = aws.String(contentType)
+	}
+
+	result, err := presignClient.PresignPutObject(ctx, input, s3.WithPresignExpires(expiry))
+	if err != nil {
+		return nil, err
+	}
+
+	return &PresignedURLResult{
+		URL:       result.URL,
+		Method:    result.Method,
+		ExpiresAt: time.Now().Add(expiry),
+	}, nil
+}
+
+// PresignDownload returns a short-lived presigned GET URL for direct download.
+func (s *S3Storage) PresignDownload(ctx context.Context, key string, disposition string, expiry time.Duration) (*PresignedURLResult, error) {
+	presignClient := s3.NewPresignClient(s.client)
+
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(s.fullKey(key)),
+	}
+	if disposition != "" {
+		input.ResponseContentDisposition = aws.String(disposition)
+	}
+
+	result, err := presignClient.PresignGetObject(ctx, input, s3.WithPresignExpires(expiry))
+	if err != nil {
+		return nil, err
+	}
+
+	return &PresignedURLResult{
+		URL:       result.URL,
+		Method:    result.Method,
+		ExpiresAt: time.Now().Add(expiry),
+	}, nil
+}
+
+// StatObject retrieves metadata about an object without downloading it.
+func (s *S3Storage) StatObject(ctx context.Context, key string) (*ObjectInfo, error) {
+	input := &s3.HeadObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(s.fullKey(key)),
+	}
+
+	output, err := s.client.HeadObject(ctx, input)
+	if err != nil {
+		if isNotFoundError(err) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	info := &ObjectInfo{}
+	if output.ContentLength != nil {
+		info.Size = *output.ContentLength
+	}
+	if output.ContentType != nil {
+		info.ContentType = *output.ContentType
+	}
+
+	return info, nil
 }
