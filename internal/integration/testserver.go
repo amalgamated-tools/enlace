@@ -45,6 +45,7 @@ func NewTestServer(t *testing.T) *TestServer {
 	userRepo := repository.NewUserRepository(sqlDB)
 	shareRepo := repository.NewShareRepository(sqlDB)
 	fileRepo := repository.NewFileRepository(sqlDB)
+	pendingUploadRepo := repository.NewPendingUploadRepository(sqlDB)
 	totpRepo := repository.NewTOTPRepository(sqlDB)
 	settingsRepo := repository.NewSettingsRepository(sqlDB)
 	apiKeyRepo := repository.NewAPIKeyRepository(sqlDB)
@@ -59,29 +60,31 @@ func NewTestServer(t *testing.T) *TestServer {
 	jwtSecret := []byte(testJWTSecret)
 	authService := service.NewAuthService(userRepo, jwtSecret)
 	shareService := service.NewShareService(shareRepo, fileRepo, store)
-	fileService := service.NewFileService(fileRepo, shareRepo, store)
+	fileService := service.NewFileService(fileRepo, shareRepo, store, service.WithPendingUploads(pendingUploadRepo, 15*time.Minute))
 	emailService := service.NewEmailService(service.SMTPConfig{}, recipientRepo, "http://localhost")
 	totpService := service.NewTOTPService(totpRepo, userRepo, jwtSecret)
 	apiKeyService := service.NewAPIKeyService(apiKeyRepo)
 	webhookService := service.NewWebhookService(webhookRepo, jwtSecret, nil)
 
 	router := handler.NewRouter(handler.RouterConfig{
-		AuthService:    authService,
-		ShareService:   shareService,
-		FileService:    fileService,
-		EmailService:   emailService,
-		APIKeyService:  apiKeyService,
-		WebhookService: webhookService,
-		UserRepo:       userRepo,
-		ShareRepo:      shareRepo,
-		FileRepo:       fileRepo,
-		Storage:        store,
-		SettingsRepo:   settingsRepo,
-		JWTSecret:      testJWTSecret,
-		BaseURL:        "http://localhost",
-		FrontendFS:     nil,
-		TOTPService:    totpService,
-		Require2FA:     false,
+		AuthService:           authService,
+		ShareService:          shareService,
+		FileService:           fileService,
+		EmailService:          emailService,
+		APIKeyService:         apiKeyService,
+		WebhookService:        webhookService,
+		UserRepo:              userRepo,
+		ShareRepo:             shareRepo,
+		FileRepo:              fileRepo,
+		Storage:               store,
+		SettingsRepo:          settingsRepo,
+		JWTSecret:             testJWTSecret,
+		BaseURL:               "http://localhost",
+		DirectTransferEnabled: true,
+		DirectTransferExpiry:  15 * time.Minute,
+		FrontendFS:            nil,
+		TOTPService:           totpService,
+		Require2FA:            false,
 	})
 
 	srv := httptest.NewServer(router)

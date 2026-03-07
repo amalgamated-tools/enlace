@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"mime"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -21,11 +23,21 @@ var ErrFileNotFound = errors.New("file not found")
 // ErrInvalidFilename is returned when an uploaded filename is not valid.
 var ErrInvalidFilename = errors.New("invalid filename")
 
+var (
+	ErrDirectTransferUnsupported = errors.New("direct transfer unsupported")
+	ErrUploadNotFound            = errors.New("upload not found")
+	ErrUploadExpired             = errors.New("upload expired")
+	ErrUploadAlreadyFinalized    = errors.New("upload already finalized")
+	ErrIntegrityCheckFailed      = errors.New("integrity check failed")
+)
+
 // FileService handles file-related business logic.
 type FileService struct {
-	fileRepo  *repository.FileRepository
-	shareRepo *repository.ShareRepository
-	storage   storage.Storage
+	fileRepo          *repository.FileRepository
+	shareRepo         *repository.ShareRepository
+	storage           storage.Storage
+	pendingUploadRepo *repository.PendingUploadRepository
+	presignExpiry     time.Duration
 }
 
 // UploadInput contains the data required to upload a file.
@@ -37,17 +49,54 @@ type UploadInput struct {
 	Size       int64
 }
 
+type DirectUploadInput struct {
+	ShareID    string
+	UploaderID string
+	Filename   string
+	Size       int64
+}
+
+type DirectUploadResponse struct {
+	UploadID   string
+	FileID     string
+	ShareID    string
+	Filename   string
+	Size       int64
+	MimeType   string
+	StorageKey string
+	Upload     *storage.PresignedURLResult
+}
+
+type DirectDownloadResponse struct {
+	FileID string
+	URL    *storage.PresignedURLResult
+}
+
+type FileServiceOption func(*FileService)
+
+func WithPendingUploads(repo *repository.PendingUploadRepository, expiry time.Duration) FileServiceOption {
+	return func(s *FileService) {
+		s.pendingUploadRepo = repo
+		s.presignExpiry = expiry
+	}
+}
+
 // NewFileService creates a new FileService instance.
 func NewFileService(
 	fileRepo *repository.FileRepository,
 	shareRepo *repository.ShareRepository,
 	store storage.Storage,
+	opts ...FileServiceOption,
 ) *FileService {
-	return &FileService{
+	svc := &FileService{
 		fileRepo:  fileRepo,
 		shareRepo: shareRepo,
 		storage:   store,
 	}
+	for _, opt := range opts {
+		opt(svc)
+	}
+	return svc
 }
 
 // Upload stores a file and saves its metadata.
@@ -61,47 +110,20 @@ func (s *FileService) Upload(ctx context.Context, input UploadInput) (*model.Fil
 		return nil, err
 	}
 
-	// Generate file ID
-	fileID := uuid.NewString()
-
-	filename, err := sanitizeFilename(input.Filename)
+	file, err := s.newFileRecord(input.ShareID, input.UploaderID, input.Filename, input.Size)
 	if err != nil {
 		return nil, err
 	}
 
-	// Detect MIME type from file extension
-	mimeType := detectMimeType(filename)
-
-	// Create storage key: {shareID}/{fileID}/{filename}
-	// Storage keys are logical paths that use forward slashes across backends;
-	// validation is enforced by the storage implementation.
-	storageKey := input.ShareID + "/" + fileID + "/" + filename
-
 	// Store the file
-	if err := s.storage.Put(ctx, storageKey, input.Content, input.Size, mimeType); err != nil {
+	if err := s.storage.Put(ctx, file.StorageKey, input.Content, input.Size, file.MimeType); err != nil {
 		return nil, err
-	}
-
-	// Create file metadata
-	var uploaderID *string
-	if input.UploaderID != "" {
-		uploaderID = &input.UploaderID
-	}
-
-	file := &model.File{
-		ID:         fileID,
-		ShareID:    input.ShareID,
-		UploaderID: uploaderID,
-		Name:       filename,
-		Size:       input.Size,
-		MimeType:   mimeType,
-		StorageKey: storageKey,
 	}
 
 	// Save metadata to database
 	if err := s.fileRepo.Create(ctx, file); err != nil {
 		// Attempt to clean up stored file on database error
-		_ = s.storage.Delete(ctx, storageKey)
+		_ = s.storage.Delete(ctx, file.StorageKey)
 		return nil, err
 	}
 
@@ -174,6 +196,204 @@ func (s *FileService) GetContent(ctx context.Context, id string) (io.ReadCloser,
 // Returns true for: images (jpeg, png, gif, svg, webp), PDF, and text files.
 func (s *FileService) IsPreviewable(file *model.File) bool {
 	return isPreviewableMimeType(file.MimeType)
+}
+
+func (s *FileService) InitiateDirectUpload(ctx context.Context, input DirectUploadInput) (*DirectUploadResponse, error) {
+	presignedStorage, err := s.requireDirectUploadSupport()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := s.shareRepo.GetByID(ctx, input.ShareID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrShareNotFound
+		}
+		return nil, err
+	}
+
+	if _, err := s.pendingUploadRepo.ExpireStale(ctx, time.Now()); err != nil {
+		return nil, err
+	}
+
+	file, err := s.newFileRecord(input.ShareID, input.UploaderID, input.Filename, input.Size)
+	if err != nil {
+		return nil, err
+	}
+
+	uploadID := uuid.NewString()
+	upload, err := presignedStorage.PresignPut(ctx, file.StorageKey, input.Size, file.MimeType, s.presignExpiry)
+	if err != nil {
+		return nil, err
+	}
+
+	pendingUpload := &model.PendingUpload{
+		ID:         uploadID,
+		FileID:     file.ID,
+		ShareID:    input.ShareID,
+		UploaderID: file.UploaderID,
+		Filename:   file.Name,
+		Size:       input.Size,
+		MimeType:   file.MimeType,
+		StorageKey: file.StorageKey,
+		Status:     repository.PendingUploadStatusPending,
+		ExpiresAt:  upload.ExpiresAt,
+	}
+	if err := s.pendingUploadRepo.Create(ctx, pendingUpload); err != nil {
+		return nil, err
+	}
+
+	return &DirectUploadResponse{
+		UploadID:   uploadID,
+		FileID:     file.ID,
+		ShareID:    input.ShareID,
+		Filename:   file.Name,
+		Size:       input.Size,
+		MimeType:   file.MimeType,
+		StorageKey: file.StorageKey,
+		Upload:     upload,
+	}, nil
+}
+
+func (s *FileService) FinalizeDirectUpload(ctx context.Context, uploadID string) (*model.File, error) {
+	presignedStorage, err := s.requireDirectUploadSupport()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := s.pendingUploadRepo.ExpireStale(ctx, time.Now()); err != nil {
+		return nil, err
+	}
+
+	upload, err := s.pendingUploadRepo.GetByID(ctx, uploadID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrUploadNotFound
+		}
+		return nil, err
+	}
+
+	switch upload.Status {
+	case repository.PendingUploadStatusFinalized:
+		return nil, ErrUploadAlreadyFinalized
+	case repository.PendingUploadStatusExpired:
+		return nil, ErrUploadExpired
+	}
+
+	if time.Now().After(upload.ExpiresAt) {
+		return nil, ErrUploadExpired
+	}
+
+	size, contentType, err := presignedStorage.HeadObject(ctx, upload.StorageKey)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, ErrIntegrityCheckFailed
+		}
+		return nil, err
+	}
+	if size != upload.Size {
+		return nil, ErrIntegrityCheckFailed
+	}
+	if !contentTypesMatch(upload.MimeType, contentType) {
+		return nil, ErrIntegrityCheckFailed
+	}
+
+	file := &model.File{
+		ID:         upload.FileID,
+		ShareID:    upload.ShareID,
+		UploaderID: upload.UploaderID,
+		Name:       upload.Filename,
+		Size:       upload.Size,
+		MimeType:   upload.MimeType,
+		StorageKey: upload.StorageKey,
+	}
+	if err := s.pendingUploadRepo.Finalize(ctx, uploadID, file); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrUploadNotFound
+		}
+		if errors.Is(err, repository.ErrPendingUploadConflict) {
+			return nil, ErrUploadAlreadyFinalized
+		}
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func (s *FileService) GetPresignedDownloadURL(ctx context.Context, fileID string, expiry time.Duration) (*DirectDownloadResponse, error) {
+	presignedStorage, ok := s.storage.(storage.PresignedStorage)
+	if !ok {
+		return nil, ErrDirectTransferUnsupported
+	}
+
+	file, err := s.fileRepo.GetByID(ctx, fileID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrFileNotFound
+		}
+		return nil, err
+	}
+
+	disposition := mime.FormatMediaType("attachment", map[string]string{"filename": file.Name})
+	url, err := presignedStorage.PresignGet(ctx, file.StorageKey, expiry, disposition)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DirectDownloadResponse{
+		FileID: file.ID,
+		URL:    url,
+	}, nil
+}
+
+func (s *FileService) newFileRecord(shareID, uploaderID, filename string, size int64) (*model.File, error) {
+	fileID := uuid.NewString()
+
+	sanitizedFilename, err := sanitizeFilename(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	mimeType := detectMimeType(sanitizedFilename)
+
+	var normalizedUploaderID *string
+	if uploaderID != "" {
+		normalizedUploaderID = &uploaderID
+	}
+
+	return &model.File{
+		ID:         fileID,
+		ShareID:    shareID,
+		UploaderID: normalizedUploaderID,
+		Name:       sanitizedFilename,
+		Size:       size,
+		MimeType:   mimeType,
+		StorageKey: shareID + "/" + fileID + "/" + sanitizedFilename,
+	}, nil
+}
+
+func (s *FileService) requireDirectUploadSupport() (storage.PresignedStorage, error) {
+	presignedStorage, ok := s.storage.(storage.PresignedStorage)
+	if !ok || s.pendingUploadRepo == nil || s.presignExpiry <= 0 {
+		return nil, ErrDirectTransferUnsupported
+	}
+	return presignedStorage, nil
+}
+
+func contentTypesMatch(expected, actual string) bool {
+	if expected == "" || actual == "" {
+		return true
+	}
+
+	expectedType, _, err := mime.ParseMediaType(expected)
+	if err != nil {
+		expectedType = expected
+	}
+	actualType, _, err := mime.ParseMediaType(actual)
+	if err != nil {
+		actualType = actual
+	}
+
+	return strings.EqualFold(expectedType, actualType)
 }
 
 func sanitizeFilename(name string) (string, error) {

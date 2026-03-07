@@ -19,6 +19,7 @@ import (
 	"github.com/amalgamated-tools/enlace/internal/handler"
 	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 // Test JWT secret.
@@ -78,10 +79,13 @@ func (m *mockPublicShareService) IncrementDownloadCount(ctx context.Context, id 
 
 // mockPublicFileService implements PublicFileServiceInterface for testing.
 type mockPublicFileService struct {
-	listByShareFn func(ctx context.Context, shareID string) ([]*model.File, error)
-	getByIDFn     func(ctx context.Context, id string) (*model.File, error)
-	getContentFn  func(ctx context.Context, id string) (io.ReadCloser, *model.File, error)
-	uploadFn      func(ctx context.Context, input service.UploadInput) (*model.File, error)
+	listByShareFn    func(ctx context.Context, shareID string) ([]*model.File, error)
+	getByIDFn        func(ctx context.Context, id string) (*model.File, error)
+	getContentFn     func(ctx context.Context, id string) (io.ReadCloser, *model.File, error)
+	uploadFn         func(ctx context.Context, input service.UploadInput) (*model.File, error)
+	initiateFn       func(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error)
+	finalizeFn       func(ctx context.Context, uploadID string) (*model.File, error)
+	getDownloadURLFn func(ctx context.Context, fileID string, expiry time.Duration) (*service.DirectDownloadResponse, error)
 }
 
 func (m *mockPublicFileService) ListByShare(ctx context.Context, shareID string) ([]*model.File, error) {
@@ -112,6 +116,27 @@ func (m *mockPublicFileService) Upload(ctx context.Context, input service.Upload
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockPublicFileService) InitiateDirectUpload(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error) {
+	if m.initiateFn != nil {
+		return m.initiateFn(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockPublicFileService) FinalizeDirectUpload(ctx context.Context, uploadID string) (*model.File, error) {
+	if m.finalizeFn != nil {
+		return m.finalizeFn(ctx, uploadID)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockPublicFileService) GetPresignedDownloadURL(ctx context.Context, fileID string, expiry time.Duration) (*service.DirectDownloadResponse, error) {
+	if m.getDownloadURLFn != nil {
+		return m.getDownloadURLFn(ctx, fileID, expiry)
+	}
+	return nil, errors.New("not implemented")
+}
+
 // setupPublicRouter creates a router with public routes for testing.
 func setupPublicRouter(h *handler.PublicHandler) *chi.Mux {
 	r := chi.NewRouter()
@@ -119,8 +144,11 @@ func setupPublicRouter(h *handler.PublicHandler) *chi.Mux {
 		r.Get("/", h.ViewShare)
 		r.Post("/verify", h.VerifyPassword)
 		r.Get("/files/{fileId}", h.DownloadFile)
+		r.Get("/files/{fileId}/url", h.GetDownloadURL)
 		r.Get("/files/{fileId}/preview", h.PreviewFile)
 		r.Post("/upload", h.UploadToReverseShare)
+		r.Post("/upload/initiate", h.InitiateReverseShareUpload)
+		r.Post("/upload/{uploadId}/finalize", h.FinalizeReverseShareUpload)
 	})
 	return r
 }
@@ -435,6 +463,75 @@ func TestPublicHandler_ViewShare_PasswordProtected_WithoutToken(t *testing.T) {
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("expected status %d, got %d", http.StatusUnauthorized, w.Code)
+	}
+}
+
+func TestPublicHandler_GetDownloadURL_Success(t *testing.T) {
+	share := newPublicTestShare("share-123", "test-share")
+	file := newPublicTestFile("file-123", share.ID, "test.txt")
+	downloadCountCalls := 0
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn:      func(ctx context.Context, slug string) (*model.Share, error) { return share, nil },
+		validateAccessFn: func(ctx context.Context, share *model.Share) error { return nil },
+		incrementDownloadCountFn: func(ctx context.Context, id string) error {
+			downloadCountCalls++
+			return nil
+		},
+	}
+	mockFile := &mockPublicFileService{
+		getByIDFn: func(ctx context.Context, id string) (*model.File, error) { return file, nil },
+		getDownloadURLFn: func(ctx context.Context, fileID string, expiry time.Duration) (*service.DirectDownloadResponse, error) {
+			return &service.DirectDownloadResponse{
+				FileID: fileID,
+				URL: &storage.PresignedURLResult{
+					URL:       "https://storage.example/download",
+					Method:    "GET",
+					ExpiresAt: time.Now().Add(expiry),
+				},
+			}, nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret, handler.WithPublicDirectTransfer(true, time.Minute))
+	router := setupPublicRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/s/test-share/files/file-123/url", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if downloadCountCalls != 1 {
+		t.Fatalf("expected download count increment, got %d", downloadCountCalls)
+	}
+}
+
+func TestPublicHandler_InitiateReverseShareUpload_Unsupported(t *testing.T) {
+	share := newPublicTestShare("share-123", "reverse-share")
+	share.IsReverseShare = true
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn:      func(ctx context.Context, slug string) (*model.Share, error) { return share, nil },
+		validateAccessFn: func(ctx context.Context, share *model.Share) error { return nil },
+	}
+	mockFile := &mockPublicFileService{
+		initiateFn: func(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error) {
+			return nil, service.ErrDirectTransferUnsupported
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret, handler.WithPublicDirectTransfer(true, time.Minute))
+	router := setupPublicRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/s/reverse-share/upload/initiate", strings.NewReader(`{"filename":"test.txt","size":1}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, w.Code, w.Body.String())
 	}
 }
 

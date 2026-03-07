@@ -8,23 +8,118 @@ export interface FileInfo {
   created_at: string;
 }
 
+interface DirectUploadResponse {
+  upload_id: string;
+  finalize_token: string;
+  url: string;
+  method: string;
+  headers?: Record<string, string>;
+}
+
+async function uploadMultipart(
+  shareId: string,
+  files: File[],
+): Promise<FileInfo[]> {
+  const token = localStorage.getItem("access_token");
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+
+  const response = await fetch(`/api/v1/shares/${shareId}/files`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new ApiError(data.error || "Upload failed", response.status);
+  }
+  return data.data;
+}
+
+async function uploadDirect(
+  shareId: string,
+  files: File[],
+): Promise<FileInfo[]> {
+  const token = localStorage.getItem("access_token");
+  const authHeaders: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+  const uploadedFiles: FileInfo[] = [];
+
+  for (const file of files) {
+    const initiateResponse = await fetch(
+      `/api/v1/shares/${shareId}/files/initiate`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          size: file.size,
+        }),
+      },
+    );
+
+    const initiateData = await initiateResponse.json();
+    if (!initiateResponse.ok || !initiateData.success) {
+      throw new ApiError(
+        initiateData.error || "Upload failed",
+        initiateResponse.status,
+      );
+    }
+
+    const transfer = initiateData.data as DirectUploadResponse;
+    const uploadResponse = await fetch(transfer.url, {
+      method: transfer.method,
+      headers: transfer.headers ?? {},
+      body: file,
+    });
+    if (!uploadResponse.ok) {
+      throw new ApiError("Direct upload failed", uploadResponse.status);
+    }
+
+    const finalizeResponse = await fetch(
+      `/api/v1/files/uploads/${transfer.upload_id}/finalize`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: transfer.finalize_token }),
+      },
+    );
+    const finalizeData = await finalizeResponse.json();
+    if (!finalizeResponse.ok || !finalizeData.success) {
+      throw new ApiError(
+        finalizeData.error || "Upload failed",
+        finalizeResponse.status,
+      );
+    }
+
+    uploadedFiles.push(finalizeData.data);
+  }
+
+  return uploadedFiles;
+}
+
 export const filesApi = {
   upload: async (shareId: string, files: File[]): Promise<FileInfo[]> => {
-    const token = localStorage.getItem("access_token");
-    const formData = new FormData();
-    files.forEach((file) => formData.append("files", file));
-
-    const response = await fetch(`/api/v1/shares/${shareId}/files`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
-
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      throw new ApiError(data.error || "Upload failed", response.status);
+    if (files.length === 0) {
+      return uploadMultipart(shareId, files);
     }
-    return data.data;
+
+    try {
+      return await uploadDirect(shareId, files);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        return uploadMultipart(shareId, files);
+      }
+      throw error;
+    }
   },
 
   delete: async (fileId: string): Promise<void> => {
