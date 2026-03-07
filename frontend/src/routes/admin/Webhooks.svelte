@@ -145,9 +145,15 @@
     }
   }
 
-  function copySecret() {
-    navigator.clipboard.writeText(createdSecret);
-    toast.success("Secret copied to clipboard");
+  async function copySecret() {
+    try {
+      await navigator.clipboard.writeText(createdSecret);
+      toast.success("Secret copied to clipboard");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to copy secret to clipboard";
+      toast.error(message);
+    }
   }
 
   // Edit
