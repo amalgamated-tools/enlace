@@ -328,7 +328,7 @@
       </div>
     </fieldset>
     <div class="flex gap-2 justify-end pt-2">
-      <Button variant="secondary" on:click={() => (createModal = false)}
+      <Button variant="secondary" on:click={() => { if (!creating) createModal = false; }} disabled={creating}>Cancel</Button>
         >Cancel</Button
       >
       <Button type="submit" loading={creating}>Create</Button>
