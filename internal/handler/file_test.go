@@ -22,10 +22,12 @@ import (
 
 // mockFileHandlerFileService implements FileHandlerFileService for testing.
 type mockFileHandlerFileService struct {
-	uploadFn      func(ctx context.Context, input service.UploadInput) (*model.File, error)
-	getByIDFn     func(ctx context.Context, id string) (*model.File, error)
-	deleteFn      func(ctx context.Context, id string) error
-	listByShareFn func(ctx context.Context, shareID string) ([]*model.File, error)
+	uploadFn               func(ctx context.Context, input service.UploadInput) (*model.File, error)
+	getByIDFn              func(ctx context.Context, id string) (*model.File, error)
+	deleteFn               func(ctx context.Context, id string) error
+	listByShareFn          func(ctx context.Context, shareID string) ([]*model.File, error)
+	initiateDirectUploadFn func(ctx context.Context, input service.InitiateDirectUploadInput) (*service.InitiateDirectUploadResult, error)
+	finalizeDirectUploadFn func(ctx context.Context, input service.FinalizeDirectUploadInput) (*model.File, error)
 }
 
 func (m *mockFileHandlerFileService) Upload(ctx context.Context, input service.UploadInput) (*model.File, error) {
@@ -56,6 +58,20 @@ func (m *mockFileHandlerFileService) ListByShare(ctx context.Context, shareID st
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockFileHandlerFileService) InitiateDirectUpload(ctx context.Context, input service.InitiateDirectUploadInput) (*service.InitiateDirectUploadResult, error) {
+	if m.initiateDirectUploadFn != nil {
+		return m.initiateDirectUploadFn(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockFileHandlerFileService) FinalizeDirectUpload(ctx context.Context, input service.FinalizeDirectUploadInput) (*model.File, error) {
+	if m.finalizeDirectUploadFn != nil {
+		return m.finalizeDirectUploadFn(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
 // mockFileHandlerShareService implements FileHandlerShareService for testing.
 type mockFileHandlerShareService struct {
 	getByIDFn func(ctx context.Context, id string) (*model.Share, error)
@@ -79,6 +95,8 @@ func setupFileRouter(h *handler.FileHandler) *chi.Mux {
 	r := chi.NewRouter()
 	r.Get("/api/v1/shares/{id}/files", h.ListByShare)
 	r.Post("/api/v1/shares/{id}/files", h.Upload)
+	r.Post("/api/v1/shares/{id}/files/initiate", h.InitiateUpload)
+	r.Post("/api/v1/shares/{id}/files/finalize", h.FinalizeUpload)
 	r.Delete("/api/v1/files/{id}", h.Delete)
 	return r
 }

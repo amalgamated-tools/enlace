@@ -93,21 +93,12 @@
 
     uploading = true;
     try {
-      const formData = new FormData();
-      event.detail.forEach((file) => formData.append("files", file));
-
-      const response = await fetch(`/s/${params.slug}/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        toast.error(data.error || "Upload failed");
-        return;
+      const uploadedFiles: FileInfo[] = [];
+      for (const file of event.detail) {
+        uploadedFiles.push(await uploadPublicFile(file));
       }
 
-      files = [...files, ...data.data];
+      files = [...files, ...uploadedFiles];
       toast.success(`${event.detail.length} file(s) uploaded`);
     } catch {
       toast.error("Upload failed");
@@ -120,12 +111,86 @@
     if (!share) return;
 
     for (const file of files) {
-      window.open(`/s/${params.slug}/files/${file.id}`, "_blank");
+      await downloadFile(file.id, true);
     }
   }
 
-  async function downloadFile(fileId: string) {
-    window.location.href = `/s/${params.slug}/files/${fileId}`;
+  async function downloadFile(fileId: string, openInNewTab = false) {
+    try {
+      const response = await fetch(`/s/${params.slug}/files/${fileId}/url`, {
+        headers: shareToken ? { "X-Share-Token": shareToken } : {},
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error("fallback");
+      }
+      if (openInNewTab) {
+        window.open(data.data.url, "_blank");
+      } else {
+        window.location.href = data.data.url;
+      }
+      return;
+    } catch {
+      const fallback = `/s/${params.slug}/files/${fileId}`;
+      if (openInNewTab) {
+        window.open(fallback, "_blank");
+      } else {
+        window.location.href = fallback;
+      }
+    }
+  }
+
+  async function uploadPublicFile(file: File): Promise<FileInfo> {
+    const initiate = await fetch(`/s/${params.slug}/upload/initiate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: file.name, size: file.size }),
+    });
+    const initiateData = await initiate.json();
+
+    if (!initiate.ok || !initiateData.success) {
+      if (initiate.status === 409) {
+        return uploadPublicFileMultipart(file);
+      }
+      throw new Error(initiateData.error || "Upload failed");
+    }
+
+    const uploadRes = await fetch(initiateData.data.upload.url, {
+      method: initiateData.data.upload.method || "PUT",
+      headers: initiateData.data.upload.headers || {},
+      body: file,
+    });
+    if (!uploadRes.ok) {
+      throw new Error("Upload failed");
+    }
+
+    const finalize = await fetch(`/s/${params.slug}/upload/finalize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        upload_id: initiateData.data.upload_id,
+        finalize_token: initiateData.data.finalize_token,
+      }),
+    });
+    const finalizeData = await finalize.json();
+    if (!finalize.ok || !finalizeData.success) {
+      throw new Error(finalizeData.error || "Upload failed");
+    }
+    return finalizeData.data;
+  }
+
+  async function uploadPublicFileMultipart(file: File): Promise<FileInfo> {
+    const formData = new FormData();
+    formData.append("files", file);
+    const response = await fetch(`/s/${params.slug}/upload`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success || !Array.isArray(data.data) || data.data.length === 0) {
+      throw new Error(data.error || "Upload failed");
+    }
+    return data.data[0];
   }
 
   function formatSize(bytes: number): string {
