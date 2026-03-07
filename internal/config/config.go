@@ -19,24 +19,26 @@ var (
 )
 
 type Config struct {
-	Port             int
-	DatabasePath     string
-	JWTSecret        string
-	BaseURL          string
-	StorageType      string
-	StorageLocalPath string
-	S3Endpoint       string
-	S3Bucket         string
-	S3AccessKey      string
-	S3SecretKey      string
-	S3Region         string
-	S3PathPrefix     string
-	SMTPHost         string
-	SMTPPort         int
-	SMTPUser         string
-	SMTPPass         string
-	SMTPFrom         string
-	SMTPTLSPolicy    string
+	Port                        int
+	DatabasePath                string
+	JWTSecret                   string
+	BaseURL                     string
+	StorageType                 string
+	StorageLocalPath            string
+	S3Endpoint                  string
+	S3Bucket                    string
+	S3AccessKey                 string
+	S3SecretKey                 string
+	S3Region                    string
+	S3PathPrefix                string
+	DirectTransferEnabled       bool
+	DirectTransferExpirySeconds int
+	SMTPHost                    string
+	SMTPPort                    int
+	SMTPUser                    string
+	SMTPPass                    string
+	SMTPFrom                    string
+	SMTPTLSPolicy               string
 	// OIDC configuration
 	OIDCEnabled      bool
 	OIDCIssuerURL    string
@@ -55,34 +57,44 @@ type Config struct {
 
 // Load reads environment-backed settings and returns the application config.
 func Load() *Config {
+	directTransferExpirySeconds := getEnvInt("DIRECT_TRANSFER_EXPIRY_SECONDS", 900)
+	if directTransferExpirySeconds <= 0 {
+		directTransferExpirySeconds = 900
+	}
+	if directTransferExpirySeconds > 3600 {
+		directTransferExpirySeconds = 3600
+	}
+
 	return &Config{
-		Port:              getEnvInt("PORT", 8080),
-		DatabasePath:      getEnv("DATABASE_PATH", "./enlace.db"),
-		JWTSecret:         loadJWTSecret(),
-		BaseURL:           getEnv("BASE_URL", "http://localhost:8080"),
-		StorageType:       getEnv("STORAGE_TYPE", "local"),
-		StorageLocalPath:  getEnv("STORAGE_LOCAL_PATH", "./uploads"),
-		S3Endpoint:        getEnv("S3_ENDPOINT", ""),
-		S3Bucket:          getEnv("S3_BUCKET", ""),
-		S3AccessKey:       getEnv("S3_ACCESS_KEY", ""),
-		S3SecretKey:       getEnv("S3_SECRET_KEY", ""),
-		S3Region:          getEnv("S3_REGION", ""),
-		S3PathPrefix:      getEnv("S3_PATH_PREFIX", ""),
-		SMTPHost:          getEnv("SMTP_HOST", ""),
-		SMTPPort:          getEnvInt("SMTP_PORT", 587),
-		SMTPUser:          getEnv("SMTP_USER", ""),
-		SMTPPass:          getEnv("SMTP_PASS", ""),
-		SMTPFrom:          getEnv("SMTP_FROM", "noreply@example.com"),
-		SMTPTLSPolicy:     getEnv("SMTP_TLS_POLICY", "opportunistic"),
-		OIDCEnabled:       getEnvBool("OIDC_ENABLED", false),
-		OIDCIssuerURL:     getEnv("OIDC_ISSUER_URL", ""),
-		OIDCClientID:      getEnv("OIDC_CLIENT_ID", ""),
-		OIDCClientSecret:  getEnv("OIDC_CLIENT_SECRET", ""),
-		OIDCRedirectURL:   getEnv("OIDC_REDIRECT_URL", ""),
-		OIDCScopes:        getEnv("OIDC_SCOPES", "openid email profile"),
-		CORSOrigins:       getEnv("CORS_ORIGINS", ""),
-		Require2FA:        getEnvBool("REQUIRE_2FA", false),
-		TrustedProxyCIDRs: getEnvStringSlice("TRUSTED_PROXIES", ","),
+		Port:                        getEnvInt("PORT", 8080),
+		DatabasePath:                getEnv("DATABASE_PATH", "./enlace.db"),
+		JWTSecret:                   loadJWTSecret(),
+		BaseURL:                     getEnv("BASE_URL", "http://localhost:8080"),
+		StorageType:                 getEnv("STORAGE_TYPE", "local"),
+		StorageLocalPath:            getEnv("STORAGE_LOCAL_PATH", "./uploads"),
+		S3Endpoint:                  getEnv("S3_ENDPOINT", ""),
+		S3Bucket:                    getEnv("S3_BUCKET", ""),
+		S3AccessKey:                 getEnv("S3_ACCESS_KEY", ""),
+		S3SecretKey:                 getEnv("S3_SECRET_KEY", ""),
+		S3Region:                    getEnv("S3_REGION", ""),
+		S3PathPrefix:                getEnv("S3_PATH_PREFIX", ""),
+		DirectTransferEnabled:       getEnvBool("DIRECT_TRANSFER_ENABLED", false),
+		DirectTransferExpirySeconds: directTransferExpirySeconds,
+		SMTPHost:                    getEnv("SMTP_HOST", ""),
+		SMTPPort:                    getEnvInt("SMTP_PORT", 587),
+		SMTPUser:                    getEnv("SMTP_USER", ""),
+		SMTPPass:                    getEnv("SMTP_PASS", ""),
+		SMTPFrom:                    getEnv("SMTP_FROM", "noreply@example.com"),
+		SMTPTLSPolicy:               getEnv("SMTP_TLS_POLICY", "opportunistic"),
+		OIDCEnabled:                 getEnvBool("OIDC_ENABLED", false),
+		OIDCIssuerURL:               getEnv("OIDC_ISSUER_URL", ""),
+		OIDCClientID:                getEnv("OIDC_CLIENT_ID", ""),
+		OIDCClientSecret:            getEnv("OIDC_CLIENT_SECRET", ""),
+		OIDCRedirectURL:             getEnv("OIDC_REDIRECT_URL", ""),
+		OIDCScopes:                  getEnv("OIDC_SCOPES", "openid email profile"),
+		CORSOrigins:                 getEnv("CORS_ORIGINS", ""),
+		Require2FA:                  getEnvBool("REQUIRE_2FA", false),
+		TrustedProxyCIDRs:           getEnvStringSlice("TRUSTED_PROXIES", ","),
 	}
 }
 
@@ -102,6 +114,8 @@ func (c *Config) LogValue() slog.Value {
 		slog.String("s3_secret_key", maskSecret(c.S3SecretKey)),
 		slog.String("s3_region", c.S3Region),
 		slog.String("s3_path_prefix", c.S3PathPrefix),
+		slog.Bool("direct_transfer_enabled", c.DirectTransferEnabled),
+		slog.Int("direct_transfer_expiry_seconds", c.DirectTransferExpirySeconds),
 		slog.String("smtp_host", c.SMTPHost),
 		slog.Int("smtp_port", c.SMTPPort),
 		slog.String("smtp_user", maskSecret(c.SMTPUser)),

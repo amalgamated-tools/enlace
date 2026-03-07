@@ -19,6 +19,7 @@ import (
 	"github.com/amalgamated-tools/enlace/internal/handler"
 	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 // Test JWT secret.
@@ -78,10 +79,13 @@ func (m *mockPublicShareService) IncrementDownloadCount(ctx context.Context, id 
 
 // mockPublicFileService implements PublicFileServiceInterface for testing.
 type mockPublicFileService struct {
-	listByShareFn func(ctx context.Context, shareID string) ([]*model.File, error)
-	getByIDFn     func(ctx context.Context, id string) (*model.File, error)
-	getContentFn  func(ctx context.Context, id string) (io.ReadCloser, *model.File, error)
-	uploadFn      func(ctx context.Context, input service.UploadInput) (*model.File, error)
+	listByShareFn             func(ctx context.Context, shareID string) ([]*model.File, error)
+	getByIDFn                 func(ctx context.Context, id string) (*model.File, error)
+	getContentFn              func(ctx context.Context, id string) (io.ReadCloser, *model.File, error)
+	uploadFn                  func(ctx context.Context, input service.UploadInput) (*model.File, error)
+	initiateDirectUploadFn    func(ctx context.Context, input service.InitiateDirectUploadInput) (*service.InitiateDirectUploadResult, error)
+	finalizeDirectUploadFn    func(ctx context.Context, input service.FinalizeDirectUploadInput) (*model.File, error)
+	getPresignedDownloadURLFn func(ctx context.Context, fileID string) (*storage.PresignedURLResult, *model.File, error)
 }
 
 func (m *mockPublicFileService) ListByShare(ctx context.Context, shareID string) ([]*model.File, error) {
@@ -112,6 +116,27 @@ func (m *mockPublicFileService) Upload(ctx context.Context, input service.Upload
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockPublicFileService) InitiateDirectUpload(ctx context.Context, input service.InitiateDirectUploadInput) (*service.InitiateDirectUploadResult, error) {
+	if m.initiateDirectUploadFn != nil {
+		return m.initiateDirectUploadFn(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockPublicFileService) FinalizeDirectUpload(ctx context.Context, input service.FinalizeDirectUploadInput) (*model.File, error) {
+	if m.finalizeDirectUploadFn != nil {
+		return m.finalizeDirectUploadFn(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockPublicFileService) GetPresignedDownloadURL(ctx context.Context, fileID string) (*storage.PresignedURLResult, *model.File, error) {
+	if m.getPresignedDownloadURLFn != nil {
+		return m.getPresignedDownloadURLFn(ctx, fileID)
+	}
+	return nil, nil, errors.New("not implemented")
+}
+
 // setupPublicRouter creates a router with public routes for testing.
 func setupPublicRouter(h *handler.PublicHandler) *chi.Mux {
 	r := chi.NewRouter()
@@ -120,7 +145,10 @@ func setupPublicRouter(h *handler.PublicHandler) *chi.Mux {
 		r.Post("/verify", h.VerifyPassword)
 		r.Get("/files/{fileId}", h.DownloadFile)
 		r.Get("/files/{fileId}/preview", h.PreviewFile)
+		r.Get("/files/{fileId}/url", h.GetDownloadURL)
 		r.Post("/upload", h.UploadToReverseShare)
+		r.Post("/upload/initiate", h.InitiateReverseShareUpload)
+		r.Post("/upload/finalize", h.FinalizeReverseShareUpload)
 	})
 	return r
 }

@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"mime"
 	"path"
+	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -15,6 +18,7 @@ import (
 
 // Compile-time check that S3Storage implements Storage interface.
 var _ Storage = (*S3Storage)(nil)
+var _ PresignedStorage = (*S3Storage)(nil)
 
 // S3Storage implements the Storage interface using S3 or S3-compatible services.
 // It supports custom endpoints for services like MinIO, Backblaze B2, and Cloudflare R2.
@@ -184,6 +188,111 @@ func (s *S3Storage) ValidateConnection(ctx context.Context) error {
 		Bucket: aws.String(s.bucket),
 	})
 	return err
+}
+
+// PresignPut generates a short-lived URL for direct object upload.
+func (s *S3Storage) PresignPut(ctx context.Context, key string, size int64, contentType string, expiry time.Duration) (*PresignedURLResult, error) {
+	presigner := s3.NewPresignClient(s.client)
+
+	input := &s3.PutObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(s.fullKey(key)),
+	}
+	if size > 0 {
+		input.ContentLength = aws.Int64(size)
+	}
+	if contentType != "" {
+		input.ContentType = aws.String(contentType)
+	}
+
+	out, err := presigner.PresignPutObject(ctx, input, func(opts *s3.PresignOptions) {
+		opts.Expires = expiry
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	headers := map[string]string{}
+	for k, vals := range out.SignedHeader {
+		if len(vals) == 0 {
+			continue
+		}
+		headers[k] = vals[0]
+	}
+
+	return &PresignedURLResult{
+		URL:       out.URL,
+		Method:    "PUT",
+		Headers:   headers,
+		ExpiresAt: time.Now().Add(expiry),
+	}, nil
+}
+
+// PresignGet generates a short-lived URL for direct object download.
+func (s *S3Storage) PresignGet(ctx context.Context, key string, expiry time.Duration, disposition string, filename string) (*PresignedURLResult, error) {
+	presigner := s3.NewPresignClient(s.client)
+
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(s.fullKey(key)),
+	}
+	if disposition != "" {
+		params := map[string]string{}
+		if filename != "" {
+			params["filename"] = filename
+		}
+		input.ResponseContentDisposition = aws.String(mime.FormatMediaType(disposition, params))
+	}
+
+	out, err := presigner.PresignGetObject(ctx, input, func(opts *s3.PresignOptions) {
+		opts.Expires = expiry
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &PresignedURLResult{
+		URL:       out.URL,
+		Method:    "GET",
+		ExpiresAt: time.Now().Add(expiry),
+	}, nil
+}
+
+// HeadObject returns object metadata for finalize validation.
+func (s *S3Storage) HeadObject(ctx context.Context, key string) (*ObjectInfo, error) {
+	input := &s3.HeadObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(s.fullKey(key)),
+	}
+
+	out, err := s.client.HeadObject(ctx, input)
+	if err != nil {
+		if isNotFoundError(err) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	etag := ""
+	if out.ETag != nil {
+		etag = strings.Trim(*out.ETag, "\"")
+	}
+
+	contentType := ""
+	if out.ContentType != nil {
+		contentType = *out.ContentType
+	}
+
+	size := int64(0)
+	if out.ContentLength != nil {
+		size = *out.ContentLength
+	}
+
+	return &ObjectInfo{
+		Size:        size,
+		ContentType: contentType,
+		ETag:        etag,
+	}, nil
 }
 
 // isNotFoundError checks if the error indicates a missing object.

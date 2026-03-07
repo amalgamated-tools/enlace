@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -20,12 +21,20 @@ var ErrFileNotFound = errors.New("file not found")
 
 // ErrInvalidFilename is returned when an uploaded filename is not valid.
 var ErrInvalidFilename = errors.New("invalid filename")
+var ErrDirectTransferUnsupported = errors.New("direct transfer unsupported")
+var ErrUploadNotFound = errors.New("upload not found")
+var ErrUploadExpired = errors.New("upload expired")
+var ErrUploadAlreadyFinalized = errors.New("upload already finalized")
+var ErrIntegrityCheckFailed = errors.New("integrity check failed")
 
 // FileService handles file-related business logic.
 type FileService struct {
-	fileRepo  *repository.FileRepository
-	shareRepo *repository.ShareRepository
-	storage   storage.Storage
+	fileRepo              *repository.FileRepository
+	shareRepo             *repository.ShareRepository
+	storage               storage.Storage
+	pendingUploadRepo     *repository.PendingUploadRepository
+	directTransferEnabled bool
+	directTransferExpiry  time.Duration
 }
 
 // UploadInput contains the data required to upload a file.
@@ -37,17 +46,62 @@ type UploadInput struct {
 	Size       int64
 }
 
+type InitiateDirectUploadInput struct {
+	ShareID    string
+	UploaderID string
+	Filename   string
+	Size       int64
+}
+
+type InitiateDirectUploadResult struct {
+	UploadID   string
+	FileID     string
+	StorageKey string
+	Filename   string
+	Size       int64
+	MimeType   string
+	UploadURL  *storage.PresignedURLResult
+}
+
+type FinalizeDirectUploadInput struct {
+	UploadID string
+}
+
+type FileServiceOption func(*FileService)
+
+func WithPendingUploadRepository(repo *repository.PendingUploadRepository) FileServiceOption {
+	return func(s *FileService) {
+		s.pendingUploadRepo = repo
+	}
+}
+
+func WithDirectTransfer(enabled bool, expiry time.Duration) FileServiceOption {
+	return func(s *FileService) {
+		s.directTransferEnabled = enabled
+		if expiry <= 0 {
+			expiry = 15 * time.Minute
+		}
+		s.directTransferExpiry = expiry
+	}
+}
+
 // NewFileService creates a new FileService instance.
 func NewFileService(
 	fileRepo *repository.FileRepository,
 	shareRepo *repository.ShareRepository,
 	store storage.Storage,
+	opts ...FileServiceOption,
 ) *FileService {
-	return &FileService{
-		fileRepo:  fileRepo,
-		shareRepo: shareRepo,
-		storage:   store,
+	svc := &FileService{
+		fileRepo:             fileRepo,
+		shareRepo:            shareRepo,
+		storage:              store,
+		directTransferExpiry: 15 * time.Minute,
 	}
+	for _, opt := range opts {
+		opt(svc)
+	}
+	return svc
 }
 
 // Upload stores a file and saves its metadata.
@@ -174,6 +228,151 @@ func (s *FileService) GetContent(ctx context.Context, id string) (io.ReadCloser,
 // Returns true for: images (jpeg, png, gif, svg, webp), PDF, and text files.
 func (s *FileService) IsPreviewable(file *model.File) bool {
 	return isPreviewableMimeType(file.MimeType)
+}
+
+func (s *FileService) InitiateDirectUpload(ctx context.Context, input InitiateDirectUploadInput) (*InitiateDirectUploadResult, error) {
+	if !s.directTransferEnabled || s.pendingUploadRepo == nil {
+		return nil, ErrDirectTransferUnsupported
+	}
+	presignedStore, ok := s.storage.(storage.PresignedStorage)
+	if !ok {
+		return nil, ErrDirectTransferUnsupported
+	}
+
+	// Verify share exists
+	_, err := s.shareRepo.GetByID(ctx, input.ShareID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrShareNotFound
+		}
+		return nil, err
+	}
+
+	filename, err := sanitizeFilename(input.Filename)
+	if err != nil {
+		return nil, err
+	}
+	fileID := uuid.NewString()
+	uploadID := uuid.NewString()
+	mimeType := detectMimeType(filename)
+	storageKey := input.ShareID + "/" + fileID + "/" + filename
+
+	uploadURL, err := presignedStore.PresignPut(ctx, storageKey, input.Size, mimeType, s.directTransferExpiry)
+	if err != nil {
+		return nil, err
+	}
+
+	var uploaderID *string
+	if input.UploaderID != "" {
+		uploaderID = &input.UploaderID
+	}
+	if err := s.pendingUploadRepo.Create(ctx, &model.PendingUpload{
+		ID:         uploadID,
+		FileID:     fileID,
+		ShareID:    input.ShareID,
+		UploaderID: uploaderID,
+		Filename:   filename,
+		Size:       input.Size,
+		MimeType:   mimeType,
+		StorageKey: storageKey,
+		ExpiresAt:  time.Now().Add(s.directTransferExpiry),
+	}); err != nil {
+		return nil, err
+	}
+
+	return &InitiateDirectUploadResult{
+		UploadID:   uploadID,
+		FileID:     fileID,
+		StorageKey: storageKey,
+		Filename:   filename,
+		Size:       input.Size,
+		MimeType:   mimeType,
+		UploadURL:  uploadURL,
+	}, nil
+}
+
+func (s *FileService) FinalizeDirectUpload(ctx context.Context, input FinalizeDirectUploadInput) (*model.File, error) {
+	if !s.directTransferEnabled || s.pendingUploadRepo == nil {
+		return nil, ErrDirectTransferUnsupported
+	}
+	presignedStore, ok := s.storage.(storage.PresignedStorage)
+	if !ok {
+		return nil, ErrDirectTransferUnsupported
+	}
+
+	pending, err := s.pendingUploadRepo.GetByID(ctx, input.UploadID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrUploadNotFound
+		}
+		return nil, err
+	}
+	if pending.Status != "pending" {
+		return nil, ErrUploadAlreadyFinalized
+	}
+	if time.Now().After(pending.ExpiresAt) {
+		return nil, ErrUploadExpired
+	}
+
+	info, err := presignedStore.HeadObject(ctx, pending.StorageKey)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, ErrIntegrityCheckFailed
+		}
+		return nil, err
+	}
+	if info.Size != pending.Size {
+		return nil, ErrIntegrityCheckFailed
+	}
+	if pending.MimeType != "" && info.ContentType != "" && info.ContentType != pending.MimeType {
+		return nil, ErrIntegrityCheckFailed
+	}
+
+	if err := s.pendingUploadRepo.Finalize(ctx, pending.ID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrUploadAlreadyFinalized
+		}
+		return nil, err
+	}
+
+	file := &model.File{
+		ID:         pending.FileID,
+		ShareID:    pending.ShareID,
+		UploaderID: pending.UploaderID,
+		Name:       pending.Filename,
+		Size:       pending.Size,
+		MimeType:   pending.MimeType,
+		StorageKey: pending.StorageKey,
+	}
+	if err := s.fileRepo.Create(ctx, file); err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+func (s *FileService) GetPresignedDownloadURL(ctx context.Context, fileID string) (*storage.PresignedURLResult, *model.File, error) {
+	if !s.directTransferEnabled {
+		return nil, nil, ErrDirectTransferUnsupported
+	}
+	presignedStore, ok := s.storage.(storage.PresignedStorage)
+	if !ok {
+		return nil, nil, ErrDirectTransferUnsupported
+	}
+
+	file, err := s.fileRepo.GetByID(ctx, fileID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, nil, ErrFileNotFound
+		}
+		return nil, nil, err
+	}
+
+	url, err := presignedStore.PresignGet(ctx, file.StorageKey, s.directTransferExpiry, "attachment", file.Name)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return url, file, nil
 }
 
 func sanitizeFilename(name string) (string, error) {

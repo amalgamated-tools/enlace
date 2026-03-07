@@ -15,6 +15,7 @@ import (
 
 	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 // Share access token expiration (1 hour).
@@ -42,6 +43,9 @@ type PublicFileServiceInterface interface {
 	GetByID(ctx context.Context, id string) (*model.File, error)
 	GetContent(ctx context.Context, id string) (io.ReadCloser, *model.File, error)
 	Upload(ctx context.Context, input service.UploadInput) (*model.File, error)
+	InitiateDirectUpload(ctx context.Context, input service.InitiateDirectUploadInput) (*service.InitiateDirectUploadResult, error)
+	FinalizeDirectUpload(ctx context.Context, input service.FinalizeDirectUploadInput) (*model.File, error)
+	GetPresignedDownloadURL(ctx context.Context, fileID string) (*storage.PresignedURLResult, *model.File, error)
 }
 
 // PublicHandler handles public share-related HTTP requests (no auth required).
@@ -53,6 +57,7 @@ type PublicHandler struct {
 	settingsRepo  SettingsRepositoryInterface
 	secureCookies bool
 	webhooks      WebhookEmitter
+	directExpiry  time.Duration
 }
 
 // PublicHandlerOption configures a PublicHandler.
@@ -86,6 +91,15 @@ func WithPublicWebhookEmitter(emitter WebhookEmitter) PublicHandlerOption {
 	}
 }
 
+// WithPublicDirectTransferExpiry sets presigned URL and finalize token expiry for public direct transfer.
+func WithPublicDirectTransferExpiry(expiry time.Duration) PublicHandlerOption {
+	return func(h *PublicHandler) {
+		if expiry > 0 {
+			h.directExpiry = expiry
+		}
+	}
+}
+
 // NewPublicHandler creates a new PublicHandler instance.
 func NewPublicHandler(
 	shareService PublicShareServiceInterface,
@@ -98,6 +112,7 @@ func NewPublicHandler(
 		fileService:  fileService,
 		jwtSecret:    jwtSecret,
 		maxFileSize:  DefaultMaxFileSize,
+		directExpiry: 15 * time.Minute,
 	}
 	for _, opt := range opts {
 		opt(h)
@@ -335,6 +350,88 @@ func (h *PublicHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	h.serveFile(w, r, "attachment")
 }
 
+// GetDownloadURL handles GET /s/{slug}/files/{fileId}/url - returns a short-lived direct download URL.
+func (h *PublicHandler) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	fileID := chi.URLParam(r, "fileId")
+
+	if slug == "" {
+		Error(w, http.StatusBadRequest, "slug is required")
+		return
+	}
+	if fileID == "" {
+		Error(w, http.StatusBadRequest, "file ID is required")
+		return
+	}
+
+	share, err := h.shareService.GetBySlug(r.Context(), slug)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+	if err := h.shareService.ValidateAccess(r.Context(), share); err != nil {
+		h.handleAccessError(w, err)
+		return
+	}
+	if share.HasPassword() {
+		if err := h.validateShareToken(r, share.ID); err != nil {
+			Error(w, http.StatusUnauthorized, "password verification required")
+			return
+		}
+	}
+
+	url, file, err := h.fileService.GetPresignedDownloadURL(r.Context(), fileID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrFileNotFound):
+			Error(w, http.StatusNotFound, "file not found")
+		case errors.Is(err, service.ErrDirectTransferUnsupported):
+			Error(w, http.StatusConflict, "direct transfer is not available")
+		default:
+			Error(w, http.StatusInternalServerError, "failed to create download URL")
+		}
+		return
+	}
+	if file.ShareID != share.ID {
+		Error(w, http.StatusNotFound, "file not found")
+		return
+	}
+
+	if err := h.shareService.IncrementDownloadCount(r.Context(), share.ID); err != nil {
+		slog.Warn("failed to increment download count", "share_id", share.ID, "error", err)
+	}
+	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
+		creatorID := *share.CreatorID
+		go func(shareID, downloadedFileID, fileName string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := h.webhooks.Emit(ctx, service.WebhookEvent{
+				Type:      "share.downloaded",
+				CreatorID: creatorID,
+				Resource:  shareID,
+				Data: map[string]interface{}{
+					"share_id": shareID,
+					"file_id":  downloadedFileID,
+					"name":     fileName,
+				},
+			}); err != nil {
+				slog.Warn("failed to emit webhook", "event_type", "share.downloaded", "share_id", shareID, "file_id", downloadedFileID, "error", err)
+			}
+		}(share.ID, file.ID, file.Name)
+	}
+
+	Success(w, http.StatusOK, directURLResponse{
+		URL:       url.URL,
+		Method:    url.Method,
+		Headers:   url.Headers,
+		ExpiresAt: url.ExpiresAt.UTC().Format(time.RFC3339),
+	})
+}
+
 // PreviewFile handles GET /s/{slug}/files/{fileId}/preview - previews a file.
 //
 //	@Summary		Preview a file
@@ -479,6 +576,206 @@ func isScriptableMimeType(mimeType string) bool {
 		return true
 	}
 	return false
+}
+
+// InitiateReverseShareUpload handles POST /s/{slug}/upload/initiate - starts a direct upload for reverse shares.
+func (h *PublicHandler) InitiateReverseShareUpload(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	if slug == "" {
+		Error(w, http.StatusBadRequest, "slug is required")
+		return
+	}
+
+	share, err := h.shareService.GetBySlug(r.Context(), slug)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+	if err := h.shareService.ValidateAccess(r.Context(), share); err != nil {
+		h.handleAccessError(w, err)
+		return
+	}
+	if !share.IsReverseShare {
+		Error(w, http.StatusForbidden, "share does not accept uploads")
+		return
+	}
+
+	var req initiateUploadRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Filename == "" || req.Size <= 0 {
+		ValidationError(w, map[string]string{
+			"filename": "filename is required",
+			"size":     "size must be greater than zero",
+		})
+		return
+	}
+
+	effectiveMaxSize, blockedExtensions := loadEffectiveRestrictions(r.Context(), h.settingsRepo, h.maxFileSize)
+	if IsExtensionBlocked(req.Filename, blockedExtensions) {
+		Error(w, http.StatusBadRequest, "file extension is not allowed")
+		return
+	}
+	if req.Size > effectiveMaxSize {
+		Error(w, http.StatusBadRequest, "file exceeds maximum size limit")
+		return
+	}
+
+	result, err := h.fileService.InitiateDirectUpload(r.Context(), service.InitiateDirectUploadInput{
+		ShareID:  share.ID,
+		Filename: req.Filename,
+		Size:     req.Size,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrDirectTransferUnsupported):
+			Error(w, http.StatusConflict, "direct transfer is not available")
+		case errors.Is(err, service.ErrInvalidFilename):
+			Error(w, http.StatusBadRequest, "invalid filename")
+		default:
+			Error(w, http.StatusInternalServerError, "failed to initiate direct upload")
+		}
+		return
+	}
+
+	finalizeToken, err := generateDirectUploadFinalizeToken(h.jwtSecret, result.UploadID, share.ID, "", result.StorageKey, h.directExpiry)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to create finalize token")
+		return
+	}
+
+	Success(w, http.StatusOK, initiateUploadResponse{
+		UploadID:      result.UploadID,
+		FinalizeToken: finalizeToken,
+		File: fileResponse{
+			ID:       result.FileID,
+			Name:     result.Filename,
+			Size:     result.Size,
+			MimeType: result.MimeType,
+		},
+		Upload: directURLResponse{
+			URL:       result.UploadURL.URL,
+			Method:    result.UploadURL.Method,
+			Headers:   result.UploadURL.Headers,
+			ExpiresAt: result.UploadURL.ExpiresAt.UTC().Format(time.RFC3339),
+		},
+	})
+}
+
+// FinalizeReverseShareUpload handles POST /s/{slug}/upload/finalize - finalizes a direct upload for reverse shares.
+func (h *PublicHandler) FinalizeReverseShareUpload(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	if slug == "" {
+		Error(w, http.StatusBadRequest, "slug is required")
+		return
+	}
+
+	share, err := h.shareService.GetBySlug(r.Context(), slug)
+	if err != nil {
+		if errors.Is(err, service.ErrShareNotFound) {
+			Error(w, http.StatusNotFound, "share not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to retrieve share")
+		return
+	}
+	if err := h.shareService.ValidateAccess(r.Context(), share); err != nil {
+		h.handleAccessError(w, err)
+		return
+	}
+	if !share.IsReverseShare {
+		Error(w, http.StatusForbidden, "share does not accept uploads")
+		return
+	}
+
+	var req finalizeUploadRequest
+	if err := DecodeJSON(r, &req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.UploadID == "" || req.FinalizeToken == "" {
+		ValidationError(w, map[string]string{
+			"upload_id":      "upload_id is required",
+			"finalize_token": "finalize_token is required",
+		})
+		return
+	}
+
+	claims, err := parseDirectUploadFinalizeToken(h.jwtSecret, req.FinalizeToken)
+	if err != nil {
+		Error(w, http.StatusUnauthorized, "invalid finalize token")
+		return
+	}
+	if claims.UploadID != req.UploadID || claims.ShareID != share.ID || claims.UploaderID != "" {
+		Error(w, http.StatusForbidden, "finalize token does not match upload scope")
+		return
+	}
+
+	file, err := h.fileService.FinalizeDirectUpload(r.Context(), service.FinalizeDirectUploadInput{
+		UploadID: req.UploadID,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrUploadNotFound):
+			Error(w, http.StatusNotFound, "upload not found")
+		case errors.Is(err, service.ErrUploadExpired):
+			Error(w, http.StatusGone, "upload expired")
+		case errors.Is(err, service.ErrUploadAlreadyFinalized):
+			Error(w, http.StatusConflict, "upload already finalized")
+		case errors.Is(err, service.ErrIntegrityCheckFailed):
+			Error(w, http.StatusBadRequest, "uploaded object failed integrity validation")
+		case errors.Is(err, service.ErrDirectTransferUnsupported):
+			Error(w, http.StatusConflict, "direct transfer is not available")
+		default:
+			Error(w, http.StatusInternalServerError, "failed to finalize upload")
+		}
+		return
+	}
+	if file.ShareID != share.ID || file.StorageKey != claims.StorageKey {
+		Error(w, http.StatusForbidden, "finalized upload does not match token scope")
+		return
+	}
+
+	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
+		creatorID := *share.CreatorID
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := h.webhooks.Emit(ctx, service.WebhookEvent{
+				Type:      "file.upload.completed",
+				CreatorID: creatorID,
+				Resource:  share.ID,
+				Data: map[string]interface{}{
+					"share_id": share.ID,
+					"count":    1,
+					"files": []map[string]interface{}{
+						{
+							"id":        file.ID,
+							"name":      file.Name,
+							"size":      file.Size,
+							"mime_type": file.MimeType,
+						},
+					},
+				},
+			}); err != nil {
+				slog.Warn("failed to emit webhook", "event_type", "file.upload.completed", "share_id", share.ID, "error", err)
+			}
+		}()
+	}
+
+	Success(w, http.StatusCreated, publicFileResponse{
+		ID:       file.ID,
+		Name:     file.Name,
+		Size:     file.Size,
+		MimeType: file.MimeType,
+	})
 }
 
 // UploadToReverseShare handles POST /s/{slug}/upload - uploads files to a reverse share.

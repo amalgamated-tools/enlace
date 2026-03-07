@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 )
 
 // ErrNotFound is returned when a requested file does not exist in storage.
@@ -36,4 +37,27 @@ type Storage interface {
 	// Exists checks if data exists for the given key.
 	// Returns true if the key exists, false otherwise.
 	Exists(ctx context.Context, key string) (bool, error)
+}
+
+// PresignedURLResult contains data needed by a client to perform a direct transfer.
+type PresignedURLResult struct {
+	URL       string            `json:"url"`
+	Method    string            `json:"method"`
+	Headers   map[string]string `json:"headers,omitempty"`
+	ExpiresAt time.Time         `json:"expires_at"`
+}
+
+// ObjectInfo describes an object currently stored in the backend.
+type ObjectInfo struct {
+	Size        int64
+	ContentType string
+	ETag        string
+}
+
+// PresignedStorage is an optional capability for backends that support direct transfer.
+type PresignedStorage interface {
+	Storage
+	PresignPut(ctx context.Context, key string, size int64, contentType string, expiry time.Duration) (*PresignedURLResult, error)
+	PresignGet(ctx context.Context, key string, expiry time.Duration, disposition string, filename string) (*PresignedURLResult, error)
+	HeadObject(ctx context.Context, key string) (*ObjectInfo, error)
 }

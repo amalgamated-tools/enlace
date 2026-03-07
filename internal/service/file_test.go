@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/amalgamated-tools/enlace/internal/database"
 	"github.com/amalgamated-tools/enlace/internal/model"
@@ -17,20 +18,22 @@ import (
 
 // testStorage implements storage.Storage for testing.
 type testStorage struct {
-	files       map[string][]byte
-	putErr      error
-	getErr      error
-	deleteErr   error
-	deletedKeys []string
+	files        map[string][]byte
+	putErr       error
+	getErr       error
+	deleteErr    error
+	deletedKeys  []string
+	contentTypes map[string]string
 }
 
 func newTestStorage() *testStorage {
 	return &testStorage{
-		files: make(map[string][]byte),
+		files:        make(map[string][]byte),
+		contentTypes: make(map[string]string),
 	}
 }
 
-func (s *testStorage) Put(_ context.Context, key string, reader io.Reader, _ int64, _ string) error {
+func (s *testStorage) Put(_ context.Context, key string, reader io.Reader, _ int64, contentType string) error {
 	if s.putErr != nil {
 		return s.putErr
 	}
@@ -39,6 +42,9 @@ func (s *testStorage) Put(_ context.Context, key string, reader io.Reader, _ int
 		return err
 	}
 	s.files[key] = data
+	if contentType != "" {
+		s.contentTypes[key] = contentType
+	}
 	return nil
 }
 
@@ -70,6 +76,33 @@ func (s *testStorage) Exists(_ context.Context, key string) (bool, error) {
 	return ok, nil
 }
 
+func (s *testStorage) PresignPut(_ context.Context, key string, _ int64, _ string, expiry time.Duration) (*storage.PresignedURLResult, error) {
+	return &storage.PresignedURLResult{
+		URL:       "https://example.com/upload/" + key,
+		Method:    "PUT",
+		ExpiresAt: time.Now().Add(expiry),
+	}, nil
+}
+
+func (s *testStorage) PresignGet(_ context.Context, key string, expiry time.Duration, _ string, _ string) (*storage.PresignedURLResult, error) {
+	return &storage.PresignedURLResult{
+		URL:       "https://example.com/download/" + key,
+		Method:    "GET",
+		ExpiresAt: time.Now().Add(expiry),
+	}, nil
+}
+
+func (s *testStorage) HeadObject(_ context.Context, key string) (*storage.ObjectInfo, error) {
+	data, ok := s.files[key]
+	if !ok {
+		return nil, storage.ErrNotFound
+	}
+	return &storage.ObjectInfo{
+		Size:        int64(len(data)),
+		ContentType: s.contentTypes[key],
+	}, nil
+}
+
 func setupFileService(t *testing.T) (*service.FileService, *testStorage, *repository.ShareRepository, func()) {
 	t.Helper()
 	db, err := database.New(":memory:")
@@ -80,7 +113,11 @@ func setupFileService(t *testing.T) (*service.FileService, *testStorage, *reposi
 	shareRepo := repository.NewShareRepository(db.DB())
 	fileRepo := repository.NewFileRepository(db.DB())
 	store := newTestStorage()
-	fileService := service.NewFileService(fileRepo, shareRepo, store)
+	pendingRepo := repository.NewPendingUploadRepository(db.DB())
+	fileService := service.NewFileService(fileRepo, shareRepo, store,
+		service.WithPendingUploadRepository(pendingRepo),
+		service.WithDirectTransfer(true, 5*time.Minute),
+	)
 
 	return fileService, store, shareRepo, func() { db.Close() }
 }
@@ -119,9 +156,69 @@ func setupFileServiceWithUserAndShare(t *testing.T) (*service.FileService, *test
 		t.Fatalf("failed to create test share: %v", err)
 	}
 
-	fileService := service.NewFileService(fileRepo, shareRepo, store)
+	pendingRepo := repository.NewPendingUploadRepository(db.DB())
+	fileService := service.NewFileService(fileRepo, shareRepo, store,
+		service.WithPendingUploadRepository(pendingRepo),
+		service.WithDirectTransfer(true, 5*time.Minute),
+	)
 
 	return fileService, store, share, func() { db.Close() }
+}
+
+func TestFileService_DirectUploadInitiateAndFinalize(t *testing.T) {
+	svc, store, share, cleanup := setupFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	initRes, err := svc.InitiateDirectUpload(context.Background(), service.InitiateDirectUploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "direct.txt",
+		Size:       5,
+	})
+	if err != nil {
+		t.Fatalf("initiate failed: %v", err)
+	}
+	if initRes.UploadID == "" || initRes.FileID == "" {
+		t.Fatal("expected upload and file IDs")
+	}
+
+	store.files[initRes.StorageKey] = []byte("hello")
+	store.contentTypes[initRes.StorageKey] = initRes.MimeType
+
+	file, err := svc.FinalizeDirectUpload(context.Background(), service.FinalizeDirectUploadInput{
+		UploadID: initRes.UploadID,
+	})
+	if err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+	if file.ID != initRes.FileID {
+		t.Fatalf("expected file ID %s, got %s", initRes.FileID, file.ID)
+	}
+}
+
+func TestFileService_DirectUploadReplayBlocked(t *testing.T) {
+	svc, store, share, cleanup := setupFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	initRes, err := svc.InitiateDirectUpload(context.Background(), service.InitiateDirectUploadInput{
+		ShareID:  share.ID,
+		Filename: "replay.txt",
+		Size:     5,
+	})
+	if err != nil {
+		t.Fatalf("initiate failed: %v", err)
+	}
+	store.files[initRes.StorageKey] = []byte("hello")
+	store.contentTypes[initRes.StorageKey] = initRes.MimeType
+
+	_, err = svc.FinalizeDirectUpload(context.Background(), service.FinalizeDirectUploadInput{UploadID: initRes.UploadID})
+	if err != nil {
+		t.Fatalf("first finalize failed: %v", err)
+	}
+	_, err = svc.FinalizeDirectUpload(context.Background(), service.FinalizeDirectUploadInput{UploadID: initRes.UploadID})
+	if !errors.Is(err, service.ErrUploadAlreadyFinalized) {
+		t.Fatalf("expected replay finalize error, got %v", err)
+	}
 }
 
 func TestFileService_Upload(t *testing.T) {
