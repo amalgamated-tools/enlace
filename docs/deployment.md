@@ -59,8 +59,7 @@ The following admin capabilities are available via the REST API but do not have 
 - **API keys** (`GET/POST/DELETE /api/v1/admin/api-keys`) — create scoped, long-lived keys for programmatic access. Each key is limited to a set of permission scopes; the full key value is returned only once at creation.
 - **Webhooks** (`GET/POST/PATCH/DELETE /api/v1/admin/webhooks`, `GET /api/v1/admin/webhooks/deliveries`) — subscribe to server-side events with HMAC-SHA256 signed HTTP deliveries. See [Admin webhook endpoints](api.md#admin-webhook-endpoints) for the event catalogue and signature verification guide.
 
-
-### Available tags
+## Docker Image Tags
 
 | Tag | Description |
 |---|---|
@@ -215,7 +214,7 @@ The `/health` endpoint returns HTTP 200 and requires no authentication. Use it f
 
 ```bash
 curl https://enlace.example.com/health
-# {"success":true,"data":{"status":"ok"}}
+# {"success":true,"data":{"status":"ok","email_configured":false}}
 ```
 
 The included `docker-compose.yml` already configures a `healthcheck` using this endpoint.
