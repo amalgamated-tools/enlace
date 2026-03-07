@@ -1,8 +1,29 @@
 # API
 
-All authenticated endpoints require an `Authorization: Bearer <access_token>` header.
+Authenticated endpoints accept either a JWT access token or a scoped API key via the same header:
+
+```
+Authorization: Bearer <access_token_or_api_key>
+```
+
+**JWT access tokens** are returned by the login and token-refresh endpoints and grant full access to all endpoints available to that user.
+
+**API keys** (`enl_…`) are created via [`POST /api/v1/admin/api-keys`](#admin-api-key-endpoints) and grant access only to the endpoints matching their granted scopes (`shares:read`, `shares:write`, `files:read`, `files:write`). Admin-only and user-profile endpoints always require a JWT access token — API keys cannot be used for them.
 
 > **Token types:** Enlace issues two distinct JWT token types. Access tokens (`token_type: "access"`, 15-minute expiry) are required for all API calls. Refresh tokens (`token_type: "refresh"`, 7-day expiry) are accepted **only** by `POST /api/v1/auth/refresh` — passing a refresh token to any other endpoint returns HTTP 401. Likewise, presenting an access token to the refresh endpoint returns HTTP 401. This prevents token misuse and limits the blast radius of a leaked token.
+
+## Health endpoint
+
+**`GET /health`** — returns the application health status and feature flags. No authentication required. Used by load balancers, container orchestrators, and the frontend to verify the service is running and discover available features.
+
+```json
+{ "success": true, "data": { "status": "ok", "email_configured": false } }
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | string | Always `"ok"` when the server is running |
+| `email_configured` | bool | `true` when SMTP is configured and email notifications are available |
 
 ## Rate Limiting
 
@@ -894,7 +915,7 @@ Receiver guidance:
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/health` | — | Health check |
+| `GET` | `/health` | — | [Health check](#health-endpoint) — status and feature flags |
 | `GET` | `/swagger/*` | — | Swagger UI (always available) |
 | `POST` | `/api/v1/auth/register` | — | Create account |
 | `POST` | `/api/v1/auth/login` | — | Obtain JWT tokens (may return `pending_token` when 2FA is active) |
