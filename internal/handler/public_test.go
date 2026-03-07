@@ -78,10 +78,13 @@ func (m *mockPublicShareService) IncrementDownloadCount(ctx context.Context, id 
 
 // mockPublicFileService implements PublicFileServiceInterface for testing.
 type mockPublicFileService struct {
-	listByShareFn func(ctx context.Context, shareID string) ([]*model.File, error)
-	getByIDFn     func(ctx context.Context, id string) (*model.File, error)
-	getContentFn  func(ctx context.Context, id string) (io.ReadCloser, *model.File, error)
-	uploadFn      func(ctx context.Context, input service.UploadInput) (*model.File, error)
+	listByShareFn             func(ctx context.Context, shareID string) ([]*model.File, error)
+	getByIDFn                 func(ctx context.Context, id string) (*model.File, error)
+	getContentFn              func(ctx context.Context, id string) (io.ReadCloser, *model.File, error)
+	uploadFn                  func(ctx context.Context, input service.UploadInput) (*model.File, error)
+	initiateDirectUploadFn    func(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error)
+	finalizeDirectUploadFn    func(ctx context.Context, uploadID string) (*model.File, error)
+	getPresignedDownloadURLFn func(ctx context.Context, fileID string, disposition string) (*service.DirectDownloadResponse, error)
 }
 
 func (m *mockPublicFileService) ListByShare(ctx context.Context, shareID string) ([]*model.File, error) {
@@ -108,6 +111,27 @@ func (m *mockPublicFileService) GetContent(ctx context.Context, id string) (io.R
 func (m *mockPublicFileService) Upload(ctx context.Context, input service.UploadInput) (*model.File, error) {
 	if m.uploadFn != nil {
 		return m.uploadFn(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockPublicFileService) InitiateDirectUpload(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error) {
+	if m.initiateDirectUploadFn != nil {
+		return m.initiateDirectUploadFn(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockPublicFileService) FinalizeDirectUpload(ctx context.Context, uploadID string) (*model.File, error) {
+	if m.finalizeDirectUploadFn != nil {
+		return m.finalizeDirectUploadFn(ctx, uploadID)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockPublicFileService) GetPresignedDownloadURL(ctx context.Context, fileID string, disposition string) (*service.DirectDownloadResponse, error) {
+	if m.getPresignedDownloadURLFn != nil {
+		return m.getPresignedDownloadURLFn(ctx, fileID, disposition)
 	}
 	return nil, errors.New("not implemented")
 }

@@ -184,6 +184,21 @@ func runMigrations(db *sql.DB) error {
 			value TEXT NOT NULL,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
+		`CREATE TABLE IF NOT EXISTS pending_uploads (
+			id TEXT PRIMARY KEY,
+			file_id TEXT NOT NULL,
+			share_id TEXT NOT NULL,
+			uploader_id TEXT,
+			filename TEXT NOT NULL,
+			size INTEGER NOT NULL,
+			mime_type TEXT NOT NULL,
+			storage_key TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			expires_at DATETIME NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			finalized_at DATETIME
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_pending_uploads_status_expires ON pending_uploads(status, expires_at)`,
 	}
 
 	for _, m := range migrations {

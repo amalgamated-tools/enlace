@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -21,11 +22,28 @@ var ErrFileNotFound = errors.New("file not found")
 // ErrInvalidFilename is returned when an uploaded filename is not valid.
 var ErrInvalidFilename = errors.New("invalid filename")
 
+// ErrDirectTransferUnsupported is returned when the storage backend does not support direct transfer.
+var ErrDirectTransferUnsupported = errors.New("direct transfer not supported by current storage backend")
+
+// ErrUploadNotFound is returned when a pending upload does not exist.
+var ErrUploadNotFound = errors.New("pending upload not found")
+
+// ErrUploadExpired is returned when a pending upload has passed its expiry.
+var ErrUploadExpired = errors.New("pending upload has expired")
+
+// ErrUploadAlreadyFinalized is returned when a pending upload has already been finalized.
+var ErrUploadAlreadyFinalized = errors.New("upload already finalized")
+
+// ErrIntegrityCheckFailed is returned when the uploaded object does not match expected metadata.
+var ErrIntegrityCheckFailed = errors.New("uploaded file integrity check failed")
+
 // FileService handles file-related business logic.
 type FileService struct {
-	fileRepo  *repository.FileRepository
-	shareRepo *repository.ShareRepository
-	storage   storage.Storage
+	fileRepo          *repository.FileRepository
+	shareRepo         *repository.ShareRepository
+	storage           storage.Storage
+	pendingUploadRepo *repository.PendingUploadRepository
+	presignExpiry     time.Duration
 }
 
 // UploadInput contains the data required to upload a file.
@@ -37,16 +55,44 @@ type UploadInput struct {
 	Size       int64
 }
 
+// DirectUploadInput contains the data required to initiate a direct upload.
+type DirectUploadInput struct {
+	ShareID     string
+	UploaderID  string
+	Filename    string
+	Size        int64
+	ContentType string
+}
+
+// DirectUploadResponse is returned when a direct upload is initiated.
+type DirectUploadResponse struct {
+	UploadID  string    `json:"upload_id"`
+	UploadURL string    `json:"upload_url"`
+	FileID    string    `json:"file_id"`
+	Method    string    `json:"method"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// DirectDownloadResponse is returned when a presigned download URL is generated.
+type DirectDownloadResponse struct {
+	DownloadURL string    `json:"download_url"`
+	ExpiresAt   time.Time `json:"expires_at"`
+}
+
 // NewFileService creates a new FileService instance.
 func NewFileService(
 	fileRepo *repository.FileRepository,
 	shareRepo *repository.ShareRepository,
 	store storage.Storage,
+	pendingUploadRepo *repository.PendingUploadRepository,
+	presignExpiry time.Duration,
 ) *FileService {
 	return &FileService{
-		fileRepo:  fileRepo,
-		shareRepo: shareRepo,
-		storage:   store,
+		fileRepo:          fileRepo,
+		shareRepo:         shareRepo,
+		storage:           store,
+		pendingUploadRepo: pendingUploadRepo,
+		presignExpiry:     presignExpiry,
 	}
 }
 
@@ -174,6 +220,179 @@ func (s *FileService) GetContent(ctx context.Context, id string) (io.ReadCloser,
 // Returns true for: images (jpeg, png, gif, svg, webp), PDF, and text files.
 func (s *FileService) IsPreviewable(file *model.File) bool {
 	return isPreviewableMimeType(file.MimeType)
+}
+
+// maxPresignExpiry caps the configurable expiry to prevent excessively long-lived URLs.
+const maxPresignExpiry = 60 * time.Minute
+
+// clampExpiry ensures the expiry does not exceed the maximum.
+func clampExpiry(d time.Duration) time.Duration {
+	if d > maxPresignExpiry {
+		return maxPresignExpiry
+	}
+	return d
+}
+
+// InitiateDirectUpload creates a pending upload and returns a presigned PUT URL.
+func (s *FileService) InitiateDirectUpload(ctx context.Context, input DirectUploadInput) (*DirectUploadResponse, error) {
+	dt, ok := s.storage.(storage.DirectTransfer)
+	if !ok {
+		return nil, ErrDirectTransferUnsupported
+	}
+
+	// Verify share exists
+	_, err := s.shareRepo.GetByID(ctx, input.ShareID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrShareNotFound
+		}
+		return nil, err
+	}
+
+	filename, err := sanitizeFilename(input.Filename)
+	if err != nil {
+		return nil, err
+	}
+
+	fileID := uuid.NewString()
+	uploadID := uuid.NewString()
+
+	mimeType := input.ContentType
+	if mimeType == "" {
+		mimeType = detectMimeType(filename)
+	}
+
+	storageKey := input.ShareID + "/" + fileID + "/" + filename
+
+	expiry := clampExpiry(s.presignExpiry)
+
+	presigned, err := dt.PresignUpload(ctx, storageKey, input.Size, mimeType, expiry)
+	if err != nil {
+		return nil, err
+	}
+
+	var uploaderID *string
+	if input.UploaderID != "" {
+		uploaderID = &input.UploaderID
+	}
+
+	pu := &model.PendingUpload{
+		ID:         uploadID,
+		FileID:     fileID,
+		ShareID:    input.ShareID,
+		UploaderID: uploaderID,
+		Filename:   filename,
+		Size:       input.Size,
+		MimeType:   mimeType,
+		StorageKey: storageKey,
+		Status:     "pending",
+		ExpiresAt:  presigned.ExpiresAt,
+	}
+
+	if err := s.pendingUploadRepo.Create(ctx, pu); err != nil {
+		return nil, err
+	}
+
+	return &DirectUploadResponse{
+		UploadID:  uploadID,
+		UploadURL: presigned.URL,
+		FileID:    fileID,
+		Method:    presigned.Method,
+		ExpiresAt: presigned.ExpiresAt,
+	}, nil
+}
+
+// FinalizeDirectUpload validates a completed direct upload and creates the file record.
+func (s *FileService) FinalizeDirectUpload(ctx context.Context, uploadID string) (*model.File, error) {
+	dt, ok := s.storage.(storage.DirectTransfer)
+	if !ok {
+		return nil, ErrDirectTransferUnsupported
+	}
+
+	pu, err := s.pendingUploadRepo.GetByID(ctx, uploadID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrUploadNotFound
+		}
+		return nil, err
+	}
+
+	if pu.Status == "finalized" {
+		return nil, ErrUploadAlreadyFinalized
+	}
+	if pu.Status != "pending" {
+		return nil, ErrUploadExpired
+	}
+	if time.Now().After(pu.ExpiresAt) {
+		return nil, ErrUploadExpired
+	}
+
+	// Verify the object was actually uploaded and matches expected metadata
+	info, err := dt.StatObject(ctx, pu.StorageKey)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, ErrIntegrityCheckFailed
+		}
+		return nil, err
+	}
+
+	if info.Size != pu.Size {
+		// Orphaned object — attempt cleanup
+		_ = s.storage.Delete(ctx, pu.StorageKey)
+		return nil, ErrIntegrityCheckFailed
+	}
+
+	// Atomically mark as finalized (prevents replay)
+	if err := s.pendingUploadRepo.Finalize(ctx, uploadID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrUploadAlreadyFinalized
+		}
+		return nil, err
+	}
+
+	file := &model.File{
+		ID:         pu.FileID,
+		ShareID:    pu.ShareID,
+		UploaderID: pu.UploaderID,
+		Name:       pu.Filename,
+		Size:       pu.Size,
+		MimeType:   pu.MimeType,
+		StorageKey: pu.StorageKey,
+	}
+
+	if err := s.fileRepo.Create(ctx, file); err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+// GetPresignedDownloadURL returns a presigned download URL for a file.
+func (s *FileService) GetPresignedDownloadURL(ctx context.Context, fileID string, disposition string) (*DirectDownloadResponse, error) {
+	dt, ok := s.storage.(storage.DirectTransfer)
+	if !ok {
+		return nil, ErrDirectTransferUnsupported
+	}
+
+	file, err := s.fileRepo.GetByID(ctx, fileID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrFileNotFound
+		}
+		return nil, err
+	}
+
+	expiry := clampExpiry(s.presignExpiry)
+
+	presigned, err := dt.PresignDownload(ctx, file.StorageKey, disposition, expiry)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DirectDownloadResponse{
+		DownloadURL: presigned.URL,
+		ExpiresAt:   presigned.ExpiresAt,
+	}, nil
 }
 
 func sanitizeFilename(name string) (string, error) {

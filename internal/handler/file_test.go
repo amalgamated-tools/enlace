@@ -22,10 +22,12 @@ import (
 
 // mockFileHandlerFileService implements FileHandlerFileService for testing.
 type mockFileHandlerFileService struct {
-	uploadFn      func(ctx context.Context, input service.UploadInput) (*model.File, error)
-	getByIDFn     func(ctx context.Context, id string) (*model.File, error)
-	deleteFn      func(ctx context.Context, id string) error
-	listByShareFn func(ctx context.Context, shareID string) ([]*model.File, error)
+	uploadFn               func(ctx context.Context, input service.UploadInput) (*model.File, error)
+	getByIDFn              func(ctx context.Context, id string) (*model.File, error)
+	deleteFn               func(ctx context.Context, id string) error
+	listByShareFn          func(ctx context.Context, shareID string) ([]*model.File, error)
+	initiateDirectUploadFn func(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error)
+	finalizeDirectUploadFn func(ctx context.Context, uploadID string) (*model.File, error)
 }
 
 func (m *mockFileHandlerFileService) Upload(ctx context.Context, input service.UploadInput) (*model.File, error) {
@@ -52,6 +54,20 @@ func (m *mockFileHandlerFileService) Delete(ctx context.Context, id string) erro
 func (m *mockFileHandlerFileService) ListByShare(ctx context.Context, shareID string) ([]*model.File, error) {
 	if m.listByShareFn != nil {
 		return m.listByShareFn(ctx, shareID)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockFileHandlerFileService) InitiateDirectUpload(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error) {
+	if m.initiateDirectUploadFn != nil {
+		return m.initiateDirectUploadFn(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockFileHandlerFileService) FinalizeDirectUpload(ctx context.Context, uploadID string) (*model.File, error) {
+	if m.finalizeDirectUploadFn != nil {
+		return m.finalizeDirectUploadFn(ctx, uploadID)
 	}
 	return nil, errors.New("not implemented")
 }

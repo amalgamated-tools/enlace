@@ -178,6 +178,8 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 				// File routes for a specific share
 				r.With(intMiddleware.RequireScope("files:read")).Get("/files", fileHandler.ListByShare)
 				r.With(intMiddleware.RequireScope("files:write")).Post("/files", fileHandler.Upload)
+				r.With(intMiddleware.RequireScope("files:write")).Post("/files/direct/init", fileHandler.InitiateDirectUpload)
+				r.With(intMiddleware.RequireScope("files:write")).Post("/files/direct/finalize", fileHandler.FinalizeDirectUpload)
 			})
 		})
 
@@ -276,7 +278,10 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		r.Post("/verify", publicHandler.VerifyPassword)
 		r.Get("/files/{fileId}", publicHandler.DownloadFile)
 		r.Get("/files/{fileId}/preview", publicHandler.PreviewFile)
+		r.Get("/files/{fileId}/direct", publicHandler.DirectDownload)
 		r.Post("/upload", publicHandler.UploadToReverseShare)
+		r.Post("/upload/direct/init", publicHandler.InitiateReverseShareUpload)
+		r.Post("/upload/direct/finalize", publicHandler.FinalizeReverseShareUpload)
 	})
 
 	// Swagger UI (API documentation)

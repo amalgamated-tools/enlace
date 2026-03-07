@@ -129,7 +129,10 @@
 
     uploading = true;
     try {
-      const newFiles = await filesApi.upload(share.id, event.detail);
+      const newFiles = await filesApi.uploadWithDirectTransfer(
+        share.id,
+        event.detail,
+      );
       files = [...files, ...newFiles];
       toast.success(`${event.detail.length} file(s) uploaded`);
     } catch (err) {

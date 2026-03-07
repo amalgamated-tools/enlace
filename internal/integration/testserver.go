@@ -59,7 +59,7 @@ func NewTestServer(t *testing.T) *TestServer {
 	jwtSecret := []byte(testJWTSecret)
 	authService := service.NewAuthService(userRepo, jwtSecret)
 	shareService := service.NewShareService(shareRepo, fileRepo, store)
-	fileService := service.NewFileService(fileRepo, shareRepo, store)
+	fileService := service.NewFileService(fileRepo, shareRepo, store, nil, 0)
 	emailService := service.NewEmailService(service.SMTPConfig{}, recipientRepo, "http://localhost")
 	totpService := service.NewTOTPService(totpRepo, userRepo, jwtSecret)
 	apiKeyService := service.NewAPIKeyService(apiKeyRepo)

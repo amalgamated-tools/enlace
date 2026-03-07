@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/amalgamated-tools/enlace/internal/database"
 	"github.com/amalgamated-tools/enlace/internal/model"
@@ -80,7 +81,7 @@ func setupFileService(t *testing.T) (*service.FileService, *testStorage, *reposi
 	shareRepo := repository.NewShareRepository(db.DB())
 	fileRepo := repository.NewFileRepository(db.DB())
 	store := newTestStorage()
-	fileService := service.NewFileService(fileRepo, shareRepo, store)
+	fileService := service.NewFileService(fileRepo, shareRepo, store, nil, 0)
 
 	return fileService, store, shareRepo, func() { db.Close() }
 }
@@ -119,7 +120,7 @@ func setupFileServiceWithUserAndShare(t *testing.T) (*service.FileService, *test
 		t.Fatalf("failed to create test share: %v", err)
 	}
 
-	fileService := service.NewFileService(fileRepo, shareRepo, store)
+	fileService := service.NewFileService(fileRepo, shareRepo, store, nil, 0)
 
 	return fileService, store, share, func() { db.Close() }
 }
@@ -685,5 +686,291 @@ func TestFileService_Upload_SpecialCharactersInFilename(t *testing.T) {
 				t.Errorf("expected filename %q, got %q", filename, file.Name)
 			}
 		})
+	}
+}
+
+// testDirectTransferStorage implements both storage.Storage and storage.DirectTransfer for testing.
+type testDirectTransferStorage struct {
+	testStorage
+	presignUploadFn   func(ctx context.Context, key string, size int64, contentType string, expiry time.Duration) (*storage.PresignedURLResult, error)
+	presignDownloadFn func(ctx context.Context, key string, disposition string, expiry time.Duration) (*storage.PresignedURLResult, error)
+	statObjectFn      func(ctx context.Context, key string) (*storage.ObjectInfo, error)
+}
+
+func (s *testDirectTransferStorage) PresignUpload(ctx context.Context, key string, size int64, contentType string, expiry time.Duration) (*storage.PresignedURLResult, error) {
+	if s.presignUploadFn != nil {
+		return s.presignUploadFn(ctx, key, size, contentType, expiry)
+	}
+	return &storage.PresignedURLResult{
+		URL:       "https://s3.example.com/presigned-put?key=" + key,
+		Method:    "PUT",
+		ExpiresAt: time.Now().Add(expiry),
+	}, nil
+}
+
+func (s *testDirectTransferStorage) PresignDownload(ctx context.Context, key string, disposition string, expiry time.Duration) (*storage.PresignedURLResult, error) {
+	if s.presignDownloadFn != nil {
+		return s.presignDownloadFn(ctx, key, disposition, expiry)
+	}
+	return &storage.PresignedURLResult{
+		URL:       "https://s3.example.com/presigned-get?key=" + key,
+		Method:    "GET",
+		ExpiresAt: time.Now().Add(expiry),
+	}, nil
+}
+
+func (s *testDirectTransferStorage) StatObject(ctx context.Context, key string) (*storage.ObjectInfo, error) {
+	if s.statObjectFn != nil {
+		return s.statObjectFn(ctx, key)
+	}
+	data, ok := s.files[key]
+	if !ok {
+		return nil, storage.ErrNotFound
+	}
+	return &storage.ObjectInfo{
+		Size:        int64(len(data)),
+		ContentType: "application/octet-stream",
+	}, nil
+}
+
+func setupDirectTransferService(t *testing.T) (*service.FileService, *testDirectTransferStorage, *model.Share, func()) {
+	t.Helper()
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+
+	userRepo := repository.NewUserRepository(db.DB())
+	shareRepo := repository.NewShareRepository(db.DB())
+	fileRepo := repository.NewFileRepository(db.DB())
+	pendingUploadRepo := repository.NewPendingUploadRepository(db.DB())
+	store := &testDirectTransferStorage{testStorage: testStorage{files: make(map[string][]byte)}}
+
+	user := &model.User{
+		ID:           "user-dt",
+		Email:        "dt@example.com",
+		PasswordHash: "hash",
+		DisplayName:  "DT User",
+	}
+	if err := userRepo.Create(context.Background(), user); err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
+	share := &model.Share{
+		ID:        "share-dt",
+		CreatorID: &user.ID,
+		Slug:      "dt-share",
+		Name:      "DT Share",
+	}
+	if err := shareRepo.Create(context.Background(), share); err != nil {
+		t.Fatalf("failed to create test share: %v", err)
+	}
+
+	fileService := service.NewFileService(fileRepo, shareRepo, store, pendingUploadRepo, 10*time.Minute)
+
+	return fileService, store, share, func() { db.Close() }
+}
+
+func TestFileService_InitiateDirectUpload(t *testing.T) {
+	svc, _, share, cleanup := setupDirectTransferService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	input := service.DirectUploadInput{
+		ShareID:     share.ID,
+		UploaderID:  *share.CreatorID,
+		Filename:    "direct.txt",
+		Size:        2048,
+		ContentType: "text/plain",
+	}
+
+	resp, err := svc.InitiateDirectUpload(ctx, input)
+	if err != nil {
+		t.Fatalf("InitiateDirectUpload failed: %v", err)
+	}
+
+	if resp.UploadID == "" {
+		t.Error("expected upload_id to be set")
+	}
+	if resp.UploadURL == "" {
+		t.Error("expected upload_url to be set")
+	}
+	if resp.FileID == "" {
+		t.Error("expected file_id to be set")
+	}
+	if resp.Method != "PUT" {
+		t.Errorf("expected method PUT, got %s", resp.Method)
+	}
+}
+
+func TestFileService_InitiateDirectUpload_UnsupportedStorage(t *testing.T) {
+	svc, _, _, cleanup := setupFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	input := service.DirectUploadInput{
+		ShareID:  "share-123",
+		Filename: "test.txt",
+		Size:     1024,
+	}
+
+	_, err := svc.InitiateDirectUpload(ctx, input)
+	if !errors.Is(err, service.ErrDirectTransferUnsupported) {
+		t.Errorf("expected ErrDirectTransferUnsupported, got %v", err)
+	}
+}
+
+func TestFileService_FinalizeDirectUpload(t *testing.T) {
+	svc, store, share, cleanup := setupDirectTransferService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	input := service.DirectUploadInput{
+		ShareID:     share.ID,
+		UploaderID:  *share.CreatorID,
+		Filename:    "finalize.txt",
+		Size:        5,
+		ContentType: "text/plain",
+	}
+
+	resp, err := svc.InitiateDirectUpload(ctx, input)
+	if err != nil {
+		t.Fatalf("InitiateDirectUpload failed: %v", err)
+	}
+
+	// Simulate the client uploading to S3 by putting data in our mock store
+	store.files[share.ID+"/"+resp.FileID+"/finalize.txt"] = []byte("hello")
+
+	file, err := svc.FinalizeDirectUpload(ctx, resp.UploadID)
+	if err != nil {
+		t.Fatalf("FinalizeDirectUpload failed: %v", err)
+	}
+
+	if file.ID != resp.FileID {
+		t.Errorf("expected file ID %s, got %s", resp.FileID, file.ID)
+	}
+	if file.Name != "finalize.txt" {
+		t.Errorf("expected name finalize.txt, got %s", file.Name)
+	}
+	if file.Size != 5 {
+		t.Errorf("expected size 5, got %d", file.Size)
+	}
+}
+
+func TestFileService_FinalizeDirectUpload_AlreadyFinalized(t *testing.T) {
+	svc, store, share, cleanup := setupDirectTransferService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	input := service.DirectUploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "double.txt",
+		Size:       3,
+	}
+
+	resp, _ := svc.InitiateDirectUpload(ctx, input)
+	store.files[share.ID+"/"+resp.FileID+"/double.txt"] = []byte("abc")
+
+	_, err := svc.FinalizeDirectUpload(ctx, resp.UploadID)
+	if err != nil {
+		t.Fatalf("first FinalizeDirectUpload failed: %v", err)
+	}
+
+	_, err = svc.FinalizeDirectUpload(ctx, resp.UploadID)
+	if !errors.Is(err, service.ErrUploadAlreadyFinalized) {
+		t.Errorf("expected ErrUploadAlreadyFinalized, got %v", err)
+	}
+}
+
+func TestFileService_FinalizeDirectUpload_IntegrityCheckFailed(t *testing.T) {
+	svc, store, share, cleanup := setupDirectTransferService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	input := service.DirectUploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "mismatch.txt",
+		Size:       100,
+	}
+
+	resp, _ := svc.InitiateDirectUpload(ctx, input)
+	// Put data with wrong size
+	store.files[share.ID+"/"+resp.FileID+"/mismatch.txt"] = []byte("short")
+
+	_, err := svc.FinalizeDirectUpload(ctx, resp.UploadID)
+	if !errors.Is(err, service.ErrIntegrityCheckFailed) {
+		t.Errorf("expected ErrIntegrityCheckFailed, got %v", err)
+	}
+}
+
+func TestFileService_FinalizeDirectUpload_ObjectNotUploaded(t *testing.T) {
+	svc, _, share, cleanup := setupDirectTransferService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	input := service.DirectUploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "missing.txt",
+		Size:       100,
+	}
+
+	resp, _ := svc.InitiateDirectUpload(ctx, input)
+	// Don't put any data in store
+
+	_, err := svc.FinalizeDirectUpload(ctx, resp.UploadID)
+	if !errors.Is(err, service.ErrIntegrityCheckFailed) {
+		t.Errorf("expected ErrIntegrityCheckFailed, got %v", err)
+	}
+}
+
+func TestFileService_GetPresignedDownloadURL(t *testing.T) {
+	svc, _, share, cleanup := setupDirectTransferService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Upload a file via the standard path first
+	input := service.UploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "download-me.txt",
+		Content:    strings.NewReader("content"),
+		Size:       7,
+	}
+	uploaded, err := svc.Upload(ctx, input)
+	if err != nil {
+		t.Fatalf("Upload failed: %v", err)
+	}
+
+	resp, err := svc.GetPresignedDownloadURL(ctx, uploaded.ID, "attachment; filename=\"download-me.txt\"")
+	if err != nil {
+		t.Fatalf("GetPresignedDownloadURL failed: %v", err)
+	}
+
+	if resp.DownloadURL == "" {
+		t.Error("expected download URL to be set")
+	}
+}
+
+func TestFileService_GetPresignedDownloadURL_UnsupportedStorage(t *testing.T) {
+	svc, _, share, cleanup := setupFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	input := service.UploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "no-direct.txt",
+		Content:    strings.NewReader("content"),
+		Size:       7,
+	}
+	uploaded, _ := svc.Upload(ctx, input)
+
+	_, err := svc.GetPresignedDownloadURL(ctx, uploaded.ID, "attachment")
+	if !errors.Is(err, service.ErrDirectTransferUnsupported) {
+		t.Errorf("expected ErrDirectTransferUnsupported, got %v", err)
 	}
 }
