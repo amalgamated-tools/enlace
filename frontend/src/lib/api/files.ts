@@ -48,14 +48,16 @@ export const filesApi = {
 
   uploadDirect: async (shareId: string, file: File): Promise<FileInfo> => {
     const token = localStorage.getItem("access_token");
-    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+    const jsonHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      jsonHeaders.Authorization = `Bearer ${token}`;
+    }
 
     const initiateResponse = await fetch(`/api/v1/shares/${shareId}/files/initiate`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders,
-      },
+      headers: jsonHeaders,
       body: JSON.stringify({
         filename: file.name,
         size: file.size,
@@ -77,10 +79,7 @@ export const filesApi = {
 
     const finalizeResponse = await fetch(`/api/v1/shares/${shareId}/files/finalize`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders,
-      },
+      headers: jsonHeaders,
       body: JSON.stringify({
         upload_id: initiateData.data.upload_id,
         finalize_token: initiateData.data.finalize_token,
