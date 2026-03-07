@@ -84,6 +84,18 @@ Supported events: `share.created`, `file.upload.completed`, `share.viewed`, `sha
 
 Every outgoing POST includes `X-Enlace-Signature` (HMAC-SHA256 over `<timestamp>.<body>`) and an `Idempotency-Key` that is stable across retries. See [Webhook verification and replay protection](api.md#webhook-verification-and-replay-protection) for the full receiver guide.
 
+### API Keys
+
+Enlace supports scoped, long-lived API keys for programmatic access without user credentials. Each key is limited to a declared set of permission scopes (`shares:read`, `shares:write`, `files:read`, `files:write`). Admin-only and user-profile endpoints always require a JWT access token — API keys cannot be used for them.
+
+- **`internal/model/api_key.go`** — `APIKey` domain type.
+- **`internal/repository/api_key.go`** — SQL queries for creating, listing, and revoking keys.
+- **`internal/service/api_key.go`** — Business logic for key generation (token format `enl_<uuid>_<secret>`), scope validation, bcrypt-equivalent SHA-256 hashing, and authentication via `Authenticate`.
+- **`internal/handler/admin_api_key.go`** — Admin HTTP handlers for `GET/POST/DELETE /api/v1/admin/api-keys`.
+- **`internal/middleware/auth.go`** — Detects `enl_` prefixed tokens and routes them through the API key authentication path instead of JWT validation.
+
+The full key value is returned only once at creation. A 14-character prefix (`key_prefix`) is stored in plaintext for display and identification; the remainder is stored as a SHA-256 hash. See [Admin API key endpoints](api.md#admin-api-key-endpoints) for the complete API reference.
+
 ## Frontend
 
 The frontend is a single-page application built with:
