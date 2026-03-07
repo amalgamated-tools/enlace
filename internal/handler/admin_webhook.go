@@ -79,6 +79,21 @@ type webhookDeliveryResponse struct {
 	CreatedAt      string  `json:"created_at"`
 }
 
+// ListEvents handles GET /api/v1/admin/webhooks/events.
+//
+//	@Summary		List allowed webhook event types
+//	@Description	Returns the list of event types that can be subscribed to. Requires admin role.
+//	@Tags			admin
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	APIResponse{data=[]string}
+//	@Failure		401	{object}	APIResponse
+//	@Failure		403	{object}	APIResponse
+//	@Router			/api/v1/admin/webhooks/events [get]
+func (h *WebhookAdminHandler) ListEvents(w http.ResponseWriter, r *http.Request) {
+	Success(w, http.StatusOK, service.AllowedWebhookEvents())
+}
+
 // ListSubscriptions handles GET /api/v1/admin/webhooks.
 //
 //	@Summary		List webhook subscriptions

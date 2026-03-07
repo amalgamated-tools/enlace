@@ -46,23 +46,19 @@ export interface UpdateWebhookInput {
 
 export const webhooksApi = {
   list: () => api.get<Webhook[]>("/admin/webhooks"),
+  listEvents: () => api.get<string[]>("/admin/webhooks/events"),
   create: (input: CreateWebhookInput) =>
     api.post<CreateWebhookResponse>("/admin/webhooks", input),
   update: (id: string, input: UpdateWebhookInput) =>
     api.patch<Webhook>(`/admin/webhooks/${id}`, input),
   delete: (id: string) => api.delete<void>(`/admin/webhooks/${id}`),
-  listDeliveries: (params?: {
-    subscription_id?: string;
-    status?: string;
-    event_type?: string;
-    limit?: number;
-  }) => {
+  listDeliveries: (params?: Record<string, string | number | undefined>) => {
     const query = new URLSearchParams();
-    if (params?.subscription_id)
-      query.set("subscription_id", params.subscription_id);
-    if (params?.status) query.set("status", params.status);
-    if (params?.event_type) query.set("event_type", params.event_type);
-    if (params?.limit) query.set("limit", params.limit.toString());
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined) query.set(key, String(value));
+      }
+    }
     const qs = query.toString();
     return api.get<WebhookDelivery[]>(
       `/admin/webhooks/deliveries${qs ? `?${qs}` : ""}`,

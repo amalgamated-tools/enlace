@@ -58,6 +58,15 @@ describe("webhooksApi", () => {
     expect(mockedApi.delete).toHaveBeenCalledWith("/admin/webhooks/1");
   });
 
+  it("listEvents calls GET /admin/webhooks/events", async () => {
+    const events = ["share.created", "share.viewed"];
+    mockedApi.get.mockResolvedValueOnce(events);
+
+    const result = await webhooksApi.listEvents();
+    expect(result).toEqual(events);
+    expect(mockedApi.get).toHaveBeenCalledWith("/admin/webhooks/events");
+  });
+
   it("listDeliveries calls GET /admin/webhooks/deliveries without params", async () => {
     const deliveries = [{ id: "d1" }];
     mockedApi.get.mockResolvedValueOnce(deliveries);

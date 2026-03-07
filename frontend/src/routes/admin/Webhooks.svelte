@@ -11,13 +11,14 @@
     type WebhookDelivery,
   } from "../../lib/api";
 
-  const ALL_EVENTS = [
+  const allEvents_FALLBACK = [
     "file.upload.completed",
     "share.viewed",
     "share.downloaded",
     "share.created",
   ];
 
+  let allEvents: string[] = allEvents_FALLBACK;
   let webhooks: Webhook[] = [];
   let loading = true;
 
@@ -32,6 +33,7 @@
   // Secret modal (shown once after creation)
   let secretModal = false;
   let createdSecret = "";
+  let secretCopied = false;
 
   // Edit modal
   let editModal = false;
@@ -74,7 +76,12 @@
 
     loading = true;
     try {
-      webhooks = await webhooksApi.list();
+      const [hooks, events] = await Promise.all([
+        webhooksApi.list(),
+        webhooksApi.listEvents(),
+      ]);
+      webhooks = hooks;
+      if (events.length > 0) allEvents = events;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load webhooks";
@@ -132,6 +139,7 @@
       // Separate secret from webhook data
       const { secret, ...webhook } = result;
       createdSecret = secret;
+      secretCopied = false;
       webhooks = [...webhooks, webhook];
       createModal = false;
       secretModal = true;
@@ -152,6 +160,7 @@
   async function copySecret() {
     try {
       await navigator.clipboard.writeText(createdSecret);
+      secretCopied = true;
       toast.success("Secret copied to clipboard");
     } catch (err) {
       const message =
@@ -596,7 +605,7 @@
         <p class="text-sm text-red-500 mb-2">{createErrors.events}</p>
       {/if}
       <div class="space-y-2">
-        {#each ALL_EVENTS as event}
+        {#each allEvents as event}
           <div class="flex items-center gap-2.5">
             <input
               type="checkbox"
@@ -625,7 +634,16 @@
 <Modal
   open={secretModal}
   title="Webhook Secret"
-  on:close={() => (secretModal = false)}
+  on:close={() => {
+    if (
+      secretCopied ||
+      confirm(
+        "Are you sure? The signing secret will not be shown again after closing.",
+      )
+    ) {
+      secretModal = false;
+    }
+  }}
 >
   <div class="space-y-4">
     <div
@@ -639,7 +657,9 @@
       >
         {createdSecret}
       </code>
-      <Button variant="secondary" on:click={copySecret}>Copy</Button>
+      <Button variant="secondary" on:click={copySecret}>
+        {secretCopied ? "Copied" : "Copy"}
+      </Button>
     </div>
     <div class="flex justify-end pt-2">
       <Button on:click={() => (secretModal = false)}>Done</Button>
@@ -677,7 +697,7 @@
         <p class="text-sm text-red-500 mb-2">{editErrors.events}</p>
       {/if}
       <div class="space-y-2">
-        {#each ALL_EVENTS as event}
+        {#each allEvents as event}
           <div class="flex items-center gap-2.5">
             <input
               type="checkbox"
