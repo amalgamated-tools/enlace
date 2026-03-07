@@ -652,7 +652,7 @@ Fields in each recipient object:
 
 ## Admin API key endpoints
 
-All admin API key endpoints require authentication with an account that has `is_admin: true`. API keys allow programmatic access to Enlace without user credentials. Each key is scoped to a fixed set of permissions and is identified by a short prefix (the first 8 characters) for management purposes. The full key value is returned **only once** at creation time.
+All admin API key endpoints require authentication with an account that has `is_admin: true`. API keys allow programmatic access to Enlace without user credentials. Each key is scoped to a fixed set of permissions and is identified by a short prefix (the first 14 characters) for management purposes. The full key value is returned **only once** at creation time.
 
 **`GET /api/v1/admin/api-keys`** — list all API keys created by the current admin account.
 
@@ -662,7 +662,7 @@ Returns an array of API key objects:
 |---|---|---|
 | `id` | string (UUID) | Key identifier |
 | `name` | string | Human-readable label |
-| `key_prefix` | string | First 8 characters of the key (safe to display) |
+| `key_prefix` | string | First 14 characters of the key (safe to display) |
 | `scopes` | array of strings | Granted permission scopes |
 | `revoked_at` | string (RFC3339) or null | When the key was revoked; `null` if still active |
 | `last_used_at` | string (RFC3339) or null | When the key was last used; `null` if never used |
@@ -692,19 +692,19 @@ Returns the created key object plus the full key value (same fields as list, wit
   "data": {
     "id": "uuid",
     "name": "CI uploader",
-    "key_prefix": "enlk_abc",
+    "key_prefix": "enl_550e8400-e2",
     "scopes": ["files:write", "shares:write"],
     "revoked_at": null,
     "last_used_at": null,
     "created_at": "2026-01-01T00:00:00Z",
-    "key": "enlk_abcdef1234567890..."
+    "key": "enl_550e8400-e29b-41d4-a716-446655440000_..."
   }
 }
 ```
 
 > **Important:** The `key` field is returned **only at creation time** and cannot be retrieved later. Store it securely immediately.
 
-Returns HTTP 400 if `name` is empty or `scopes` is empty. Returns HTTP 422 if any scope value is not in the supported set.
+Returns HTTP 400 if `name` is empty, `scopes` is empty, or any scope value is not in the supported set. Invalid scopes produce a validation error: `{"scopes": "contains unsupported scope"}`.
 
 **`DELETE /api/v1/admin/api-keys/{id}`** — revoke an API key. Revoked keys are rejected immediately. Returns HTTP 404 if the key does not exist or belongs to a different admin.
 
