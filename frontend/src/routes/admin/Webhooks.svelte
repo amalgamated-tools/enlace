@@ -126,8 +126,8 @@
         events: newEvents,
       });
       // Separate secret from webhook data
-      createdSecret = result.secret;
-      const { secret: _, ...webhook } = result;
+      const { secret, ...webhook } = result;
+      createdSecret = secret;
       webhooks = [...webhooks, webhook];
       createModal = false;
       secretModal = true;
