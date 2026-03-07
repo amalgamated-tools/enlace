@@ -261,6 +261,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 				r.Route("/webhooks", func(r chi.Router) {
 					r.Get("/", webhookHandler.ListSubscriptions)
 					r.Post("/", webhookHandler.CreateSubscription)
+					r.Get("/events", webhookHandler.ListEvents)
 					r.Get("/deliveries", webhookHandler.ListDeliveries)
 					r.Patch("/{id}", webhookHandler.UpdateSubscription)
 					r.Delete("/{id}", webhookHandler.DeleteSubscription)
