@@ -19,6 +19,13 @@ export interface CreateApiKeyInput {
   scopes: string[];
 }
 
+export const ALL_SCOPES = [
+  "shares:read",
+  "shares:write",
+  "files:read",
+  "files:write",
+] as const;
+
 export const apiKeysApi = {
   list: () => api.get<ApiKey[]>("/admin/api-keys"),
   create: (input: CreateApiKeyInput) =>

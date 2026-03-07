@@ -1,21 +1,16 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { push } from "svelte-spa-router";
   import { Button, Input, Modal, AdminNav } from "../../lib/components";
   import { auth, isAuthenticated, isAdmin, toast } from "../../lib/stores";
   import {
     apiKeysApi,
     ApiError,
+    ALL_SCOPES,
     type ApiKey,
     type CreateApiKeyResponse,
   } from "../../lib/api";
 
-  const allScopes = [
-    "shares:read",
-    "shares:write",
-    "files:read",
-    "files:write",
-  ];
+  const allScopes = ALL_SCOPES;
 
   let apiKeys: ApiKey[] = [];
   let loading = true;
@@ -46,13 +41,15 @@
     push("/");
   }
 
-  onMount(async () => {
-    await loadApiKeys();
-  });
+  $: if ($auth.initialized && $isAdmin) {
+    loadApiKeys();
+  }
+
+  $: if ($auth.initialized && !$isAdmin) {
+    loading = false;
+  }
 
   async function loadApiKeys() {
-    if (!$isAdmin) return;
-
     loading = true;
     try {
       apiKeys = await apiKeysApi.list();
@@ -149,13 +146,12 @@
   async function handleRevoke() {
     if (!keyToRevoke) return;
 
+    const revokeId = keyToRevoke.id;
     revoking = true;
     try {
-      await apiKeysApi.revoke(keyToRevoke.id);
+      await apiKeysApi.revoke(revokeId);
       apiKeys = apiKeys.map((k) =>
-        k.id === keyToRevoke!.id
-          ? { ...k, revoked_at: new Date().toISOString() }
-          : k,
+        k.id === revokeId ? { ...k, revoked_at: new Date().toISOString() } : k,
       );
       revokeModal = false;
       keyToRevoke = null;
@@ -328,8 +324,12 @@
       </div>
     </fieldset>
     <div class="flex gap-2 justify-end pt-2">
-      <Button variant="secondary" on:click={() => { if (!creating) createModal = false; }} disabled={creating}>Cancel</Button>
-        >Cancel</Button
+      <Button
+        variant="secondary"
+        on:click={() => {
+          if (!creating) createModal = false;
+        }}
+        disabled={creating}>Cancel</Button
       >
       <Button type="submit" loading={creating}>Create</Button>
     </div>
@@ -392,8 +392,7 @@
       on:click={() => {
         revokeModal = false;
         keyToRevoke = null;
-      }}
-      >Cancel</Button
+      }}>Cancel</Button
     >
     <Button variant="danger" loading={revoking} on:click={handleRevoke}
       >Revoke</Button
