@@ -6,6 +6,7 @@
     { label: "Storage", href: "#/admin/storage", path: "/admin/storage" },
     { label: "Email", href: "#/admin/email", path: "/admin/email" },
     { label: "Webhooks", href: "#/admin/webhooks", path: "/admin/webhooks" },
+    { label: "Files", href: "#/admin/files", path: "/admin/files" },
   ];
 </script>
 

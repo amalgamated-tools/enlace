@@ -5,3 +5,4 @@ export * from "./files";
 export * from "./oidc";
 export * from "./totp";
 export * from "./webhooks";
+export * from "./fileRestrictions";
