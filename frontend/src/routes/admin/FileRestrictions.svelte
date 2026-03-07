@@ -5,6 +5,8 @@
   import { auth, isAuthenticated, isAdmin, toast } from "../../lib/stores";
   import { fileRestrictionsApi, ApiError } from "../../lib/api";
 
+  const BYTES_PER_MIB = 1048576;
+
   let loading = true;
   let saving = false;
   let errors: Record<string, string> = {};
@@ -38,7 +40,7 @@
       const config = await fileRestrictionsApi.get();
       maxFileSizeMB =
         config.max_file_size != null
-          ? String(config.max_file_size / 1048576)
+          ? String(config.max_file_size / BYTES_PER_MIB)
           : "";
       blockedExtensions =
         config.blocked_extensions && config.blocked_extensions.length > 0
@@ -65,7 +67,7 @@
         errors = { max_file_size: "Must be a positive number" };
         return;
       }
-      payload.max_file_size = Math.round(mb * 1048576);
+      payload.max_file_size = Math.round(mb * BYTES_PER_MIB);
     }
 
     if (blockedExtensions.trim() !== "") {
@@ -84,7 +86,7 @@
       );
       maxFileSizeMB =
         config.max_file_size != null
-          ? String(config.max_file_size / 1048576)
+          ? String(config.max_file_size / BYTES_PER_MIB)
           : "";
       blockedExtensions =
         config.blocked_extensions && config.blocked_extensions.length > 0
