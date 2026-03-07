@@ -59,6 +59,21 @@ Full validation error example:
 }
 ```
 
+## Health endpoint
+
+**`GET /health`** — returns the application health status and feature flags. No authentication required.
+
+```json
+{ "success": true, "data": { "status": "ok", "email_configured": true } }
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | string | Always `"ok"` when the service is running |
+| `email_configured` | bool | `true` when SMTP is fully configured; `false` otherwise |
+
+`email_configured` is `true` only when `SMTP_HOST` (and `SMTP_FROM`) are set — either via environment variables or an admin DB override. The frontend reads this flag at startup to conditionally show email-related UI (the **Send via Email** button and **Notify by Email** field). Load balancers and container orchestrators can also poll this endpoint to confirm the service is live.
+
 ## Auth endpoints
 
 **`POST /api/v1/auth/register`** — create a new user account. All fields are required.
