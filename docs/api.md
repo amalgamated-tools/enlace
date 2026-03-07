@@ -12,19 +12,6 @@ Authorization: Bearer <access_token_or_api_key>
 
 > **Token types:** Enlace issues two distinct JWT token types. Access tokens (`token_type: "access"`, 15-minute expiry) are required for all API calls. Refresh tokens (`token_type: "refresh"`, 7-day expiry) are accepted **only** by `POST /api/v1/auth/refresh` — passing a refresh token to any other endpoint returns HTTP 401. Likewise, presenting an access token to the refresh endpoint returns HTTP 401. This prevents token misuse and limits the blast radius of a leaked token.
 
-## Health endpoint
-
-**`GET /health`** — returns the application health status and feature flags. No authentication required. Used by load balancers, container orchestrators, and the frontend to verify the service is running and discover available features.
-
-```json
-{ "success": true, "data": { "status": "ok", "email_configured": false } }
-```
-
-| Field | Type | Description |
-|---|---|---|
-| `status` | string | Always `"ok"` when the server is running |
-| `email_configured` | bool | `true` when SMTP is configured and email notifications are available |
-
 ## Rate Limiting
 
 Several sensitive endpoints enforce per-IP rate limits to protect against brute-force attacks. Exceeding a limit returns **HTTP 429** with:
@@ -82,7 +69,7 @@ Full validation error example:
 
 ## Health endpoint
 
-**`GET /health`** — returns the application health status and feature flags. No authentication required.
+**`GET /health`** — returns the application health status and feature flags. No authentication required. Used by load balancers, container orchestrators, and the frontend to verify the service is running and discover available features.
 
 ```json
 { "success": true, "data": { "status": "ok", "email_configured": true } }
