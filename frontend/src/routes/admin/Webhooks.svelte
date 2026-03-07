@@ -155,7 +155,9 @@
       toast.success("Secret copied to clipboard");
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to copy secret to clipboard";
+        err instanceof Error
+          ? err.message
+          : "Failed to copy secret to clipboard";
       toast.error(message);
     }
   }
@@ -568,7 +570,9 @@
 <Modal
   open={createModal}
   title="Create Webhook"
-  on:close={() => (createModal = false)}
+  on:close={() => {
+    if (!creating) createModal = false;
+  }}
 >
   <form on:submit={handleCreate} class="space-y-4">
     <Input
@@ -647,7 +651,9 @@
 <Modal
   open={editModal}
   title="Edit Webhook"
-  on:close={() => (editModal = false)}
+  on:close={() => {
+    if (!editing) editModal = false;
+  }}
 >
   <form on:submit={handleEdit} class="space-y-4">
     <Input
