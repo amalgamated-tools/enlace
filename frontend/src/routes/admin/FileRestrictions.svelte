@@ -72,6 +72,11 @@
       payload.blocked_extensions = blockedExtensions.trim();
     }
 
+    // If no fields are set, treat this as a reset rather than sending an empty update
+    if (Object.keys(payload).length === 0) {
+      resetModal = true;
+      return;
+    }
     saving = true;
     try {
       const config = await fileRestrictionsApi.update(
