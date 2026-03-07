@@ -88,6 +88,23 @@ func runMigrations(db *sql.DB) error {
 			FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE SET NULL
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_files_share_id ON files(share_id)`,
+		`CREATE TABLE IF NOT EXISTS pending_uploads (
+			id TEXT PRIMARY KEY,
+			file_id TEXT NOT NULL,
+			share_id TEXT NOT NULL,
+			uploader_id TEXT,
+			filename TEXT NOT NULL,
+			size INTEGER NOT NULL,
+			mime_type TEXT NOT NULL,
+			storage_key TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			expires_at DATETIME NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			finalized_at DATETIME,
+			FOREIGN KEY (share_id) REFERENCES shares(id) ON DELETE CASCADE,
+			FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE SET NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_pending_uploads_status_expires ON pending_uploads(status, expires_at)`,
 		`CREATE TABLE IF NOT EXISTS password_reset_tokens (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,

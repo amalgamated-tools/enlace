@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/amalgamated-tools/enlace/internal/database"
 	"github.com/amalgamated-tools/enlace/internal/model"
@@ -21,6 +22,12 @@ type testStorage struct {
 	putErr      error
 	getErr      error
 	deleteErr   error
+	presignPut  *storage.PresignedURLResult
+	presignGet  *storage.PresignedURLResult
+	presignErr  error
+	headSize    int64
+	headType    string
+	headErr     error
 	deletedKeys []string
 }
 
@@ -68,6 +75,45 @@ func (s *testStorage) Delete(_ context.Context, key string) error {
 func (s *testStorage) Exists(_ context.Context, key string) (bool, error) {
 	_, ok := s.files[key]
 	return ok, nil
+}
+
+func (s *testStorage) PresignPut(_ context.Context, _ string, _ int64, _ string, _ time.Duration) (*storage.PresignedURLResult, error) {
+	if s.presignErr != nil {
+		return nil, s.presignErr
+	}
+	if s.presignPut != nil {
+		return s.presignPut, nil
+	}
+	return &storage.PresignedURLResult{
+		URL:       "https://example.com/upload",
+		Method:    "PUT",
+		Headers:   map[string]string{"Content-Type": "text/plain"},
+		ExpiresAt: time.Now().Add(15 * time.Minute),
+	}, nil
+}
+
+func (s *testStorage) PresignGet(_ context.Context, _ string, _ time.Duration, _ string) (*storage.PresignedURLResult, error) {
+	if s.presignErr != nil {
+		return nil, s.presignErr
+	}
+	if s.presignGet != nil {
+		return s.presignGet, nil
+	}
+	return &storage.PresignedURLResult{
+		URL:       "https://example.com/download",
+		Method:    "GET",
+		ExpiresAt: time.Now().Add(15 * time.Minute),
+	}, nil
+}
+
+func (s *testStorage) HeadObject(_ context.Context, key string) (int64, string, error) {
+	if s.headErr != nil {
+		return 0, "", s.headErr
+	}
+	if data, ok := s.files[key]; ok && s.headSize == 0 {
+		return int64(len(data)), s.headType, nil
+	}
+	return s.headSize, s.headType, nil
 }
 
 func setupFileService(t *testing.T) (*service.FileService, *testStorage, *repository.ShareRepository, func()) {
@@ -122,6 +168,44 @@ func setupFileServiceWithUserAndShare(t *testing.T) (*service.FileService, *test
 	fileService := service.NewFileService(fileRepo, shareRepo, store)
 
 	return fileService, store, share, func() { db.Close() }
+}
+
+func setupDirectFileServiceWithUserAndShare(t *testing.T) (*service.FileService, *testStorage, *repository.PendingUploadRepository, *model.Share, func()) {
+	t.Helper()
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+
+	userRepo := repository.NewUserRepository(db.DB())
+	shareRepo := repository.NewShareRepository(db.DB())
+	fileRepo := repository.NewFileRepository(db.DB())
+	pendingUploadRepo := repository.NewPendingUploadRepository(db.DB())
+	store := newTestStorage()
+
+	user := &model.User{
+		ID:           "user-123",
+		Email:        "test@example.com",
+		PasswordHash: "hash",
+		DisplayName:  "Test User",
+	}
+	if err := userRepo.Create(context.Background(), user); err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
+	share := &model.Share{
+		ID:        "share-123",
+		CreatorID: &user.ID,
+		Slug:      "test-share",
+		Name:      "Test Share",
+	}
+	if err := shareRepo.Create(context.Background(), share); err != nil {
+		t.Fatalf("failed to create test share: %v", err)
+	}
+
+	fileService := service.NewFileService(fileRepo, shareRepo, store, service.WithPendingUploads(pendingUploadRepo, 15*time.Minute))
+
+	return fileService, store, pendingUploadRepo, share, func() { db.Close() }
 }
 
 func TestFileService_Upload(t *testing.T) {
@@ -342,6 +426,95 @@ func TestFileService_GetByID(t *testing.T) {
 	}
 	if file.Name != uploaded.Name {
 		t.Errorf("expected name %s, got %s", uploaded.Name, file.Name)
+	}
+}
+
+func TestFileService_DirectUploadLifecycle(t *testing.T) {
+	svc, store, _, share, cleanup := setupDirectFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	initiated, err := svc.InitiateDirectUpload(ctx, service.DirectUploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "test.txt",
+		Size:       11,
+	})
+	if err != nil {
+		t.Fatalf("InitiateDirectUpload() error = %v", err)
+	}
+	if initiated.UploadID == "" || initiated.FileID == "" {
+		t.Fatal("expected upload and file IDs to be set")
+	}
+
+	store.files[initiated.StorageKey] = []byte("hello world")
+	store.headType = initiated.MimeType
+
+	file, err := svc.FinalizeDirectUpload(ctx, initiated.UploadID)
+	if err != nil {
+		t.Fatalf("FinalizeDirectUpload() error = %v", err)
+	}
+	if file.ID != initiated.FileID {
+		t.Fatalf("expected finalized file %q, got %q", initiated.FileID, file.ID)
+	}
+
+	download, err := svc.GetPresignedDownloadURL(ctx, file.ID, time.Minute)
+	if err != nil {
+		t.Fatalf("GetPresignedDownloadURL() error = %v", err)
+	}
+	if download.URL.URL == "" || download.URL.Method != "GET" {
+		t.Fatalf("expected presigned download url, got %+v", download.URL)
+	}
+}
+
+func TestFileService_FinalizeDirectUpload_Expired(t *testing.T) {
+	svc, _, pendingRepo, share, cleanup := setupDirectFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	uploaderID := *share.CreatorID
+	if err := pendingRepo.Create(context.Background(), &model.PendingUpload{
+		ID:         "upload-expired",
+		FileID:     "file-expired",
+		ShareID:    share.ID,
+		UploaderID: &uploaderID,
+		Filename:   "test.txt",
+		Size:       5,
+		MimeType:   "text/plain",
+		StorageKey: "share-123/file-expired/test.txt",
+		Status:     repository.PendingUploadStatusPending,
+		ExpiresAt:  time.Now().Add(-time.Minute),
+	}); err != nil {
+		t.Fatalf("failed to seed pending upload: %v", err)
+	}
+
+	_, err := svc.FinalizeDirectUpload(context.Background(), "upload-expired")
+	if !errors.Is(err, service.ErrUploadExpired) {
+		t.Fatalf("expected ErrUploadExpired, got %v", err)
+	}
+}
+
+func TestFileService_FinalizeDirectUpload_IntegrityFailure(t *testing.T) {
+	svc, store, _, share, cleanup := setupDirectFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	initiated, err := svc.InitiateDirectUpload(ctx, service.DirectUploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "test.txt",
+		Size:       11,
+	})
+	if err != nil {
+		t.Fatalf("InitiateDirectUpload() error = %v", err)
+	}
+
+	store.files[initiated.StorageKey] = []byte("short")
+	store.headType = initiated.MimeType
+
+	_, err = svc.FinalizeDirectUpload(ctx, initiated.UploadID)
+	if !errors.Is(err, service.ErrIntegrityCheckFailed) {
+		t.Fatalf("expected ErrIntegrityCheckFailed, got %v", err)
 	}
 }
 

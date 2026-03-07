@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -40,8 +41,10 @@ type RouterConfig struct {
 	SettingsRepo SettingsRepositoryInterface
 
 	// Configuration
-	JWTSecret string
-	BaseURL   string
+	JWTSecret             string
+	BaseURL               string
+	DirectTransferEnabled bool
+	DirectTransferExpiry  time.Duration
 
 	// OIDC Service (optional)
 	OIDCService *service.OIDCService
@@ -103,7 +106,13 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		totpHandler = NewTOTPHandler(totpServiceAdapter, newAuthTokenAdapter(cfg.AuthService), newPasswordVerifierAdapter(cfg.AuthService), cfg.Require2FA, cfg.AuthService)
 	}
 	shareHandler := NewShareHandler(cfg.ShareService, cfg.FileService, cfg.EmailService, WithShareWebhookEmitter(cfg.WebhookService))
-	fileHandler := NewFileHandler(cfg.FileService, cfg.ShareService, WithSettingsRepo(cfg.SettingsRepo), WithFileWebhookEmitter(cfg.WebhookService))
+	fileHandler := NewFileHandler(
+		cfg.FileService,
+		cfg.ShareService,
+		WithSettingsRepo(cfg.SettingsRepo),
+		WithFileWebhookEmitter(cfg.WebhookService),
+		WithDirectTransfer(cfg.DirectTransferEnabled, []byte(cfg.JWTSecret)),
+	)
 	userHandler := NewUserHandler(cfg.AuthService)
 	adminHandler := NewAdminHandler(cfg.UserRepo)
 	var apiKeyHandler *APIKeyHandler
@@ -123,7 +132,15 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		smtpConfigHandler = NewSMTPConfigHandler(cfg.SettingsRepo, []byte(cfg.JWTSecret))
 	}
 	secureCookies := strings.HasPrefix(cfg.BaseURL, "https://")
-	publicHandler := NewPublicHandler(cfg.ShareService, cfg.FileService, []byte(cfg.JWTSecret), WithPublicSettingsRepo(cfg.SettingsRepo), WithSecureCookies(secureCookies), WithPublicWebhookEmitter(cfg.WebhookService))
+	publicHandler := NewPublicHandler(
+		cfg.ShareService,
+		cfg.FileService,
+		[]byte(cfg.JWTSecret),
+		WithPublicSettingsRepo(cfg.SettingsRepo),
+		WithSecureCookies(secureCookies),
+		WithPublicWebhookEmitter(cfg.WebhookService),
+		WithPublicDirectTransfer(cfg.DirectTransferEnabled, cfg.DirectTransferExpiry),
+	)
 	oidcHandler := NewOIDCHandler(newOIDCServiceAdapter(cfg.OIDCService), newAuthTokenAdapter(cfg.AuthService), cfg.BaseURL, []byte(cfg.JWTSecret))
 
 	// Rate limiters
@@ -178,6 +195,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 				// File routes for a specific share
 				r.With(intMiddleware.RequireScope("files:read")).Get("/files", fileHandler.ListByShare)
 				r.With(intMiddleware.RequireScope("files:write")).Post("/files", fileHandler.Upload)
+				r.With(intMiddleware.RequireScope("files:write")).Post("/files/initiate", fileHandler.InitiateUpload)
 			})
 		})
 
@@ -189,6 +207,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 			}
 			r.Use(intMiddleware.RequireAuth(cfg.AuthService, authOpts...))
 			r.With(intMiddleware.RequireScope("files:write")).Delete("/{id}", fileHandler.Delete)
+			r.With(intMiddleware.RequireScope("files:write")).Post("/uploads/{uploadId}/finalize", fileHandler.FinalizeUpload)
 		})
 
 		// User profile routes - require authentication
@@ -275,8 +294,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		r.Get("/", publicHandler.ViewShare)
 		r.Post("/verify", publicHandler.VerifyPassword)
 		r.Get("/files/{fileId}", publicHandler.DownloadFile)
+		r.Get("/files/{fileId}/url", publicHandler.GetDownloadURL)
 		r.Get("/files/{fileId}/preview", publicHandler.PreviewFile)
 		r.Post("/upload", publicHandler.UploadToReverseShare)
+		r.Post("/upload/initiate", publicHandler.InitiateReverseShareUpload)
+		r.Post("/upload/{uploadId}/finalize", publicHandler.FinalizeReverseShareUpload)
 	})
 
 	// Swagger UI (API documentation)

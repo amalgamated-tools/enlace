@@ -13,16 +13,20 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/amalgamated-tools/enlace/internal/handler"
 	"github.com/amalgamated-tools/enlace/internal/middleware"
 	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/service"
+	"github.com/amalgamated-tools/enlace/internal/storage"
 )
 
 // mockFileHandlerFileService implements FileHandlerFileService for testing.
 type mockFileHandlerFileService struct {
 	uploadFn      func(ctx context.Context, input service.UploadInput) (*model.File, error)
+	initiateFn    func(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error)
+	finalizeFn    func(ctx context.Context, uploadID string) (*model.File, error)
 	getByIDFn     func(ctx context.Context, id string) (*model.File, error)
 	deleteFn      func(ctx context.Context, id string) error
 	listByShareFn func(ctx context.Context, shareID string) ([]*model.File, error)
@@ -31,6 +35,20 @@ type mockFileHandlerFileService struct {
 func (m *mockFileHandlerFileService) Upload(ctx context.Context, input service.UploadInput) (*model.File, error) {
 	if m.uploadFn != nil {
 		return m.uploadFn(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockFileHandlerFileService) InitiateDirectUpload(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error) {
+	if m.initiateFn != nil {
+		return m.initiateFn(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockFileHandlerFileService) FinalizeDirectUpload(ctx context.Context, uploadID string) (*model.File, error) {
+	if m.finalizeFn != nil {
+		return m.finalizeFn(ctx, uploadID)
 	}
 	return nil, errors.New("not implemented")
 }
@@ -79,6 +97,8 @@ func setupFileRouter(h *handler.FileHandler) *chi.Mux {
 	r := chi.NewRouter()
 	r.Get("/api/v1/shares/{id}/files", h.ListByShare)
 	r.Post("/api/v1/shares/{id}/files", h.Upload)
+	r.Post("/api/v1/shares/{id}/files/initiate", h.InitiateUpload)
+	r.Post("/api/v1/files/uploads/{uploadId}/finalize", h.FinalizeUpload)
 	r.Delete("/api/v1/files/{id}", h.Delete)
 	return r
 }
@@ -394,6 +414,94 @@ func TestFileHandler_Upload_NoFiles(t *testing.T) {
 	}
 	if response.Error != "no files provided" {
 		t.Errorf("expected error 'no files provided', got %s", response.Error)
+	}
+}
+
+func TestFileHandler_InitiateUpload_Success(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+	share := newTestShare(shareID, userID)
+
+	mockShareSvc := &mockFileHandlerShareService{
+		getByIDFn: func(ctx context.Context, id string) (*model.Share, error) {
+			return share, nil
+		},
+	}
+	mockFileSvc := &mockFileHandlerFileService{
+		initiateFn: func(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error) {
+			if input.Filename != "test.txt" || input.Size != 11 {
+				t.Fatalf("unexpected initiate input: %+v", input)
+			}
+			return &service.DirectUploadResponse{
+				UploadID:   "upload-123",
+				FileID:     "file-123",
+				ShareID:    shareID,
+				Filename:   "test.txt",
+				Size:       11,
+				MimeType:   "text/plain",
+				StorageKey: "share-123/file-123/test.txt",
+				Upload: &storage.PresignedURLResult{
+					URL:       "https://storage.example/upload",
+					Method:    "PUT",
+					Headers:   map[string]string{"Content-Type": "text/plain"},
+					ExpiresAt: time.Now().Add(time.Minute),
+				},
+			}, nil
+		},
+	}
+
+	h := handler.NewFileHandler(mockFileSvc, mockShareSvc, handler.WithDirectTransfer(true, []byte("secret")))
+	router := setupFileRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares/"+shareID+"/files/initiate", bytes.NewBufferString(`{"filename":"test.txt","size":11}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = withFileUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+}
+
+func TestFileHandler_FinalizeUpload_ReplayBlocked(t *testing.T) {
+	userID := "user-123"
+	shareID := "share-123"
+
+	mockShareSvc := &mockFileHandlerShareService{}
+	mockFileSvc := &mockFileHandlerFileService{
+		finalizeFn: func(ctx context.Context, uploadID string) (*model.File, error) {
+			return nil, service.ErrUploadAlreadyFinalized
+		},
+	}
+
+	h := handler.NewFileHandler(mockFileSvc, mockShareSvc, handler.WithDirectTransfer(true, []byte("secret")))
+	router := setupFileRouter(h)
+
+	claimsToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"upload_id":   "upload-123",
+		"share_id":    shareID,
+		"uploader_id": userID,
+		"public":      false,
+		"storage_key": "share-123/file-123/test.txt",
+		"exp":         time.Now().Add(time.Minute).Unix(),
+		"iat":         time.Now().Unix(),
+		"nbf":         time.Now().Unix(),
+	}).SignedString([]byte("secret"))
+	if err != nil {
+		t.Fatalf("failed to sign token: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/files/uploads/upload-123/finalize", bytes.NewBufferString(`{"token":"`+claimsToken+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = withFileUserContext(req, userID)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, w.Code, w.Body.String())
 	}
 }
 
