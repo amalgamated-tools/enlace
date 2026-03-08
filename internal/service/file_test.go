@@ -77,6 +77,24 @@ func (s *testStorage) Exists(_ context.Context, key string) (bool, error) {
 	return ok, nil
 }
 
+// basicTestStorage implements only storage.Storage (not PresignedStorage).
+type basicTestStorage struct {
+	inner *testStorage
+}
+
+func (b *basicTestStorage) Put(ctx context.Context, key string, reader io.Reader, size int64, contentType string) error {
+	return b.inner.Put(ctx, key, reader, size, contentType)
+}
+func (b *basicTestStorage) Get(ctx context.Context, key string) (io.ReadCloser, error) {
+	return b.inner.Get(ctx, key)
+}
+func (b *basicTestStorage) Delete(ctx context.Context, key string) error {
+	return b.inner.Delete(ctx, key)
+}
+func (b *basicTestStorage) Exists(ctx context.Context, key string) (bool, error) {
+	return b.inner.Exists(ctx, key)
+}
+
 func (s *testStorage) PresignPut(_ context.Context, _ string, _ int64, _ string, _ time.Duration) (*storage.PresignedURLResult, error) {
 	if s.presignErr != nil {
 		return nil, s.presignErr
@@ -515,6 +533,180 @@ func TestFileService_FinalizeDirectUpload_IntegrityFailure(t *testing.T) {
 	_, err = svc.FinalizeDirectUpload(ctx, initiated.UploadID)
 	if !errors.Is(err, service.ErrIntegrityCheckFailed) {
 		t.Fatalf("expected ErrIntegrityCheckFailed, got %v", err)
+	}
+
+	// Verify orphaned object was cleaned up from storage
+	if _, ok := store.files[initiated.StorageKey]; ok {
+		t.Error("expected orphaned object to be deleted from storage on integrity failure")
+	}
+}
+
+func TestFileService_InitiateDirectUpload_UnsupportedStorage(t *testing.T) {
+	t.Helper()
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	shareRepo := repository.NewShareRepository(db.DB())
+	fileRepo := repository.NewFileRepository(db.DB())
+	store := &basicTestStorage{inner: newTestStorage()}
+
+	user := &model.User{ID: "user-123", Email: "test@example.com", PasswordHash: "hash", DisplayName: "Test User"}
+	if err := userRepo.Create(context.Background(), user); err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+	share := &model.Share{ID: "share-123", CreatorID: &user.ID, Slug: "test-share", Name: "Test Share"}
+	if err := shareRepo.Create(context.Background(), share); err != nil {
+		t.Fatalf("failed to create test share: %v", err)
+	}
+
+	svc := service.NewFileService(fileRepo, shareRepo, store)
+
+	ctx := context.Background()
+	_, err = svc.InitiateDirectUpload(ctx, service.DirectUploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "test.txt",
+		Size:       11,
+	})
+	if !errors.Is(err, service.ErrDirectTransferUnsupported) {
+		t.Fatalf("expected ErrDirectTransferUnsupported, got %v", err)
+	}
+}
+
+func TestFileService_FinalizeDirectUpload_AlreadyFinalized(t *testing.T) {
+	svc, store, _, share, cleanup := setupDirectFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	initiated, err := svc.InitiateDirectUpload(ctx, service.DirectUploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "test.txt",
+		Size:       5,
+	})
+	if err != nil {
+		t.Fatalf("InitiateDirectUpload() error = %v", err)
+	}
+
+	store.files[initiated.StorageKey] = []byte("hello")
+	store.headType = initiated.MimeType
+
+	// First finalize should succeed
+	_, err = svc.FinalizeDirectUpload(ctx, initiated.UploadID)
+	if err != nil {
+		t.Fatalf("first FinalizeDirectUpload() error = %v", err)
+	}
+
+	// Second finalize should fail with already-finalized
+	_, err = svc.FinalizeDirectUpload(ctx, initiated.UploadID)
+	if !errors.Is(err, service.ErrUploadAlreadyFinalized) {
+		t.Fatalf("expected ErrUploadAlreadyFinalized on replay, got %v", err)
+	}
+}
+
+func TestFileService_FinalizeDirectUpload_ObjectNotUploaded(t *testing.T) {
+	svc, store, _, share, cleanup := setupDirectFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	initiated, err := svc.InitiateDirectUpload(ctx, service.DirectUploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "test.txt",
+		Size:       11,
+	})
+	if err != nil {
+		t.Fatalf("InitiateDirectUpload() error = %v", err)
+	}
+
+	// Don't put anything in storage — HeadObject should return ErrNotFound
+	store.headErr = storage.ErrNotFound
+
+	_, err = svc.FinalizeDirectUpload(ctx, initiated.UploadID)
+	if !errors.Is(err, service.ErrIntegrityCheckFailed) {
+		t.Fatalf("expected ErrIntegrityCheckFailed for missing object, got %v", err)
+	}
+}
+
+func TestFileService_GetPresignedDownloadURL(t *testing.T) {
+	svc, _, _, share, cleanup := setupDirectFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Upload a file via the standard path first
+	uploaded, err := svc.Upload(ctx, service.UploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "download.txt",
+		Content:    strings.NewReader("content"),
+		Size:       7,
+	})
+	if err != nil {
+		t.Fatalf("failed to upload file: %v", err)
+	}
+
+	resp, err := svc.GetPresignedDownloadURL(ctx, uploaded.ID, 5*time.Minute)
+	if err != nil {
+		t.Fatalf("GetPresignedDownloadURL() error = %v", err)
+	}
+	if resp.URL.URL == "" {
+		t.Error("expected presigned download URL to be set")
+	}
+	if resp.URL.Method != "GET" {
+		t.Errorf("expected method GET, got %s", resp.URL.Method)
+	}
+	if resp.FileID != uploaded.ID {
+		t.Errorf("expected file ID %s, got %s", uploaded.ID, resp.FileID)
+	}
+}
+
+func TestFileService_GetPresignedDownloadURL_UnsupportedStorage(t *testing.T) {
+	t.Helper()
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	shareRepo := repository.NewShareRepository(db.DB())
+	fileRepo := repository.NewFileRepository(db.DB())
+	innerStore := newTestStorage()
+	store := &basicTestStorage{inner: innerStore}
+
+	user := &model.User{ID: "user-123", Email: "test@example.com", PasswordHash: "hash", DisplayName: "Test User"}
+	if err := userRepo.Create(context.Background(), user); err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+	share := &model.Share{ID: "share-123", CreatorID: &user.ID, Slug: "test-share", Name: "Test Share"}
+	if err := shareRepo.Create(context.Background(), share); err != nil {
+		t.Fatalf("failed to create test share: %v", err)
+	}
+
+	svc := service.NewFileService(fileRepo, shareRepo, store)
+
+	ctx := context.Background()
+
+	// Upload a file first (using the basic storage path)
+	uploaded, err := svc.Upload(ctx, service.UploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "test.txt",
+		Content:    strings.NewReader("content"),
+		Size:       7,
+	})
+	if err != nil {
+		t.Fatalf("failed to upload file: %v", err)
+	}
+
+	_, err = svc.GetPresignedDownloadURL(ctx, uploaded.ID, 5*time.Minute)
+	if !errors.Is(err, service.ErrDirectTransferUnsupported) {
+		t.Fatalf("expected ErrDirectTransferUnsupported, got %v", err)
 	}
 }
 

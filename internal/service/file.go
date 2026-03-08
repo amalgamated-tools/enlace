@@ -293,9 +293,11 @@ func (s *FileService) FinalizeDirectUpload(ctx context.Context, uploadID string)
 		return nil, err
 	}
 	if size != upload.Size {
+		_ = s.storage.Delete(ctx, upload.StorageKey)
 		return nil, ErrIntegrityCheckFailed
 	}
 	if !contentTypesMatch(upload.MimeType, contentType) {
+		_ = s.storage.Delete(ctx, upload.StorageKey)
 		return nil, ErrIntegrityCheckFailed
 	}
 
