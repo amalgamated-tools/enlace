@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"path"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -15,6 +16,7 @@ import (
 
 // Compile-time check that S3Storage implements Storage interface.
 var _ Storage = (*S3Storage)(nil)
+var _ PresignedStorage = (*S3Storage)(nil)
 
 // S3Storage implements the Storage interface using S3 or S3-compatible services.
 // It supports custom endpoints for services like MinIO, Backblaze B2, and Cloudflare R2.
@@ -118,6 +120,42 @@ func (s *S3Storage) Put(ctx context.Context, key string, reader io.Reader, size 
 	return err
 }
 
+// PresignPut creates a short-lived signed PUT request for direct uploads.
+func (s *S3Storage) PresignPut(ctx context.Context, key string, size int64, contentType string, expiry time.Duration) (*PresignedURLResult, error) {
+	input := &s3.PutObjectInput{
+		Bucket:        aws.String(s.bucket),
+		Key:           aws.String(s.fullKey(key)),
+		ContentLength: aws.Int64(size),
+	}
+	if contentType != "" {
+		input.ContentType = aws.String(contentType)
+	}
+
+	out, err := s3.NewPresignClient(s.client).PresignPutObject(ctx, input, func(opts *s3.PresignOptions) {
+		opts.Expires = expiry
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	headers := map[string]string{}
+	for k, vs := range out.SignedHeader {
+		if len(vs) > 0 {
+			headers[k] = vs[0]
+		}
+	}
+	if contentType != "" {
+		headers["Content-Type"] = contentType
+	}
+
+	return &PresignedURLResult{
+		URL:       out.URL,
+		Method:    "PUT",
+		Headers:   headers,
+		ExpiresAt: time.Now().Add(expiry),
+	}, nil
+}
+
 // Get retrieves the object at the given key from S3.
 // Returns ErrNotFound if the object does not exist.
 // The caller is responsible for closing the returned ReadCloser.
@@ -136,6 +174,38 @@ func (s *S3Storage) Get(ctx context.Context, key string) (io.ReadCloser, error) 
 	}
 
 	return output.Body, nil
+}
+
+// PresignGet creates a short-lived signed GET request for direct downloads.
+func (s *S3Storage) PresignGet(ctx context.Context, key string, expiry time.Duration, disposition string) (*PresignedURLResult, error) {
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(s.fullKey(key)),
+	}
+	if disposition != "" {
+		input.ResponseContentDisposition = aws.String(disposition)
+	}
+
+	out, err := s3.NewPresignClient(s.client).PresignGetObject(ctx, input, func(opts *s3.PresignOptions) {
+		opts.Expires = expiry
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	getHeaders := map[string]string{}
+	for k, vs := range out.SignedHeader {
+		if len(vs) > 0 {
+			getHeaders[k] = vs[0]
+		}
+	}
+
+	return &PresignedURLResult{
+		URL:       out.URL,
+		Method:    "GET",
+		Headers:   getHeaders,
+		ExpiresAt: time.Now().Add(expiry),
+	}, nil
 }
 
 // Delete removes the object at the given key from S3.
@@ -175,6 +245,29 @@ func (s *S3Storage) Exists(ctx context.Context, key string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// HeadObject returns object metadata for finalize-time validation.
+func (s *S3Storage) HeadObject(ctx context.Context, key string) (int64, string, error) {
+	input := &s3.HeadObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(s.fullKey(key)),
+	}
+
+	output, err := s.client.HeadObject(ctx, input)
+	if err != nil {
+		if isNotFoundError(err) {
+			return 0, "", ErrNotFound
+		}
+		return 0, "", err
+	}
+
+	contentType := ""
+	if output.ContentType != nil {
+		contentType = *output.ContentType
+	}
+
+	return aws.ToInt64(output.ContentLength), contentType, nil
 }
 
 // ValidateConnection checks that the S3 credentials and bucket are valid
