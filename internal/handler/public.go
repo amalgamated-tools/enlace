@@ -118,15 +118,18 @@ type publicShareResponse struct {
 	MaxViews       *int    `json:"max_views,omitempty"`
 	ViewCount      int     `json:"view_count"`
 	IsReverseShare bool    `json:"is_reverse_share"`
+	IsE2EEncrypted bool    `json:"is_e2e_encrypted"`
 	CreatedAt      string  `json:"created_at"`
 }
 
 // publicFileResponse represents a file in public API responses.
 type publicFileResponse struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Size     int64  `json:"size"`
-	MimeType string `json:"mime_type"`
+	ID                string `json:"id"`
+	Name              string `json:"name"`
+	Size              int64  `json:"size"`
+	MimeType          string `json:"mime_type"`
+	EncryptionIV      string `json:"encryption_iv,omitempty"`
+	EncryptedMetadata string `json:"encrypted_metadata,omitempty"`
 }
 
 // shareDetailsResponse combines share info with files.
@@ -540,6 +543,18 @@ func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Read E2E encryption metadata from form fields (optional)
+	encryptionIV := ""
+	encryptedMetadata := ""
+	if r.MultipartForm.Value != nil {
+		if ivs := r.MultipartForm.Value["encryption_iv"]; len(ivs) > 0 {
+			encryptionIV = ivs[0]
+		}
+		if metas := r.MultipartForm.Value["encrypted_metadata"]; len(metas) > 0 {
+			encryptedMetadata = metas[0]
+		}
+	}
+
 	// Upload each file
 	uploadedFiles := make([]publicFileResponse, 0, len(files))
 
@@ -568,11 +583,13 @@ func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Requ
 
 		// Upload file (no uploader ID for public uploads)
 		input := service.UploadInput{
-			ShareID:    share.ID,
-			UploaderID: "", // Anonymous upload
-			Filename:   fileHeader.Filename,
-			Content:    file,
-			Size:       fileHeader.Size,
+			ShareID:           share.ID,
+			UploaderID:        "", // Anonymous upload
+			Filename:          fileHeader.Filename,
+			Content:           file,
+			Size:              fileHeader.Size,
+			EncryptionIV:      encryptionIV,
+			EncryptedMetadata: encryptedMetadata,
 		}
 
 		uploadedFile, err := h.fileService.Upload(r.Context(), input)
@@ -585,10 +602,12 @@ func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Requ
 		}
 
 		uploadedFiles = append(uploadedFiles, publicFileResponse{
-			ID:       uploadedFile.ID,
-			Name:     uploadedFile.Name,
-			Size:     uploadedFile.Size,
-			MimeType: uploadedFile.MimeType,
+			ID:                uploadedFile.ID,
+			Name:              uploadedFile.Name,
+			Size:              uploadedFile.Size,
+			MimeType:          uploadedFile.MimeType,
+			EncryptionIV:      uploadedFile.EncryptionIV,
+			EncryptedMetadata: uploadedFile.EncryptedMetadata,
 		})
 	}
 
@@ -707,6 +726,7 @@ func (h *PublicHandler) toPublicShareResponse(share *model.Share) publicShareRes
 		DownloadCount:  share.DownloadCount,
 		ViewCount:      share.ViewCount,
 		IsReverseShare: share.IsReverseShare,
+		IsE2EEncrypted: share.IsE2EEncrypted,
 		CreatedAt:      share.CreatedAt.Format(time.RFC3339),
 	}
 
@@ -731,10 +751,12 @@ func (h *PublicHandler) toPublicFileResponseList(files []*model.File) []publicFi
 	result := make([]publicFileResponse, len(files))
 	for i, file := range files {
 		result[i] = publicFileResponse{
-			ID:       file.ID,
-			Name:     file.Name,
-			Size:     file.Size,
-			MimeType: file.MimeType,
+			ID:                file.ID,
+			Name:              file.Name,
+			Size:              file.Size,
+			MimeType:          file.MimeType,
+			EncryptionIV:      file.EncryptionIV,
+			EncryptedMetadata: file.EncryptedMetadata,
 		}
 	}
 	return result

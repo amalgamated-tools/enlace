@@ -26,11 +26,11 @@ func (r *ShareRepository) Create(ctx context.Context, share *model.Share) error 
 	share.UpdatedAt = now
 
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO shares (id, creator_id, slug, name, description, password_hash, expires_at, max_downloads, download_count, max_views, view_count, is_reverse_share, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO shares (id, creator_id, slug, name, description, password_hash, expires_at, max_downloads, download_count, max_views, view_count, is_reverse_share, is_e2e_encrypted, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		share.ID, share.CreatorID, share.Slug, share.Name, share.Description, share.PasswordHash,
 		share.ExpiresAt, share.MaxDownloads, share.DownloadCount, share.MaxViews, share.ViewCount,
-		share.IsReverseShare, share.CreatedAt, share.UpdatedAt,
+		share.IsReverseShare, share.IsE2EEncrypted, share.CreatedAt, share.UpdatedAt,
 	)
 	return err
 }
@@ -39,12 +39,12 @@ func (r *ShareRepository) Create(ctx context.Context, share *model.Share) error 
 func (r *ShareRepository) GetByID(ctx context.Context, id string) (*model.Share, error) {
 	share := &model.Share{}
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, creator_id, slug, name, description, password_hash, expires_at, max_downloads, download_count, max_views, view_count, is_reverse_share, created_at, updated_at
+		`SELECT id, creator_id, slug, name, description, password_hash, expires_at, max_downloads, download_count, max_views, view_count, is_reverse_share, is_e2e_encrypted, created_at, updated_at
 		 FROM shares WHERE id = ?`, id,
 	).Scan(
 		&share.ID, &share.CreatorID, &share.Slug, &share.Name, &share.Description,
 		&share.PasswordHash, &share.ExpiresAt, &share.MaxDownloads, &share.DownloadCount,
-		&share.MaxViews, &share.ViewCount, &share.IsReverseShare, &share.CreatedAt, &share.UpdatedAt,
+		&share.MaxViews, &share.ViewCount, &share.IsReverseShare, &share.IsE2EEncrypted, &share.CreatedAt, &share.UpdatedAt,
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -57,12 +57,12 @@ func (r *ShareRepository) GetByID(ctx context.Context, id string) (*model.Share,
 func (r *ShareRepository) GetBySlug(ctx context.Context, slug string) (*model.Share, error) {
 	share := &model.Share{}
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, creator_id, slug, name, description, password_hash, expires_at, max_downloads, download_count, max_views, view_count, is_reverse_share, created_at, updated_at
+		`SELECT id, creator_id, slug, name, description, password_hash, expires_at, max_downloads, download_count, max_views, view_count, is_reverse_share, is_e2e_encrypted, created_at, updated_at
 		 FROM shares WHERE slug = ?`, slug,
 	).Scan(
 		&share.ID, &share.CreatorID, &share.Slug, &share.Name, &share.Description,
 		&share.PasswordHash, &share.ExpiresAt, &share.MaxDownloads, &share.DownloadCount,
-		&share.MaxViews, &share.ViewCount, &share.IsReverseShare, &share.CreatedAt, &share.UpdatedAt,
+		&share.MaxViews, &share.ViewCount, &share.IsReverseShare, &share.IsE2EEncrypted, &share.CreatedAt, &share.UpdatedAt,
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -75,11 +75,11 @@ func (r *ShareRepository) GetBySlug(ctx context.Context, slug string) (*model.Sh
 func (r *ShareRepository) Update(ctx context.Context, share *model.Share) error {
 	share.UpdatedAt = time.Now()
 	result, err := r.db.ExecContext(ctx,
-		`UPDATE shares SET creator_id = ?, slug = ?, name = ?, description = ?, password_hash = ?, expires_at = ?, max_downloads = ?, download_count = ?, max_views = ?, view_count = ?, is_reverse_share = ?, updated_at = ?
+		`UPDATE shares SET creator_id = ?, slug = ?, name = ?, description = ?, password_hash = ?, expires_at = ?, max_downloads = ?, download_count = ?, max_views = ?, view_count = ?, is_reverse_share = ?, is_e2e_encrypted = ?, updated_at = ?
 		 WHERE id = ?`,
 		share.CreatorID, share.Slug, share.Name, share.Description, share.PasswordHash,
 		share.ExpiresAt, share.MaxDownloads, share.DownloadCount, share.MaxViews, share.ViewCount,
-		share.IsReverseShare, share.UpdatedAt, share.ID,
+		share.IsReverseShare, share.IsE2EEncrypted, share.UpdatedAt, share.ID,
 	)
 	if err != nil {
 		return err
@@ -107,7 +107,7 @@ func (r *ShareRepository) Delete(ctx context.Context, id string) error {
 // ListByCreator retrieves all shares created by a specific user, ordered by creation date descending.
 func (r *ShareRepository) ListByCreator(ctx context.Context, creatorID string) ([]*model.Share, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, creator_id, slug, name, description, password_hash, expires_at, max_downloads, download_count, max_views, view_count, is_reverse_share, created_at, updated_at
+		`SELECT id, creator_id, slug, name, description, password_hash, expires_at, max_downloads, download_count, max_views, view_count, is_reverse_share, is_e2e_encrypted, created_at, updated_at
 		 FROM shares WHERE creator_id = ? ORDER BY created_at DESC`, creatorID,
 	)
 	if err != nil {
@@ -121,7 +121,7 @@ func (r *ShareRepository) ListByCreator(ctx context.Context, creatorID string) (
 		if err := rows.Scan(
 			&share.ID, &share.CreatorID, &share.Slug, &share.Name, &share.Description,
 			&share.PasswordHash, &share.ExpiresAt, &share.MaxDownloads, &share.DownloadCount,
-			&share.MaxViews, &share.ViewCount, &share.IsReverseShare, &share.CreatedAt, &share.UpdatedAt,
+			&share.MaxViews, &share.ViewCount, &share.IsReverseShare, &share.IsE2EEncrypted, &share.CreatedAt, &share.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

@@ -48,6 +48,8 @@ type Config struct {
 	CORSOrigins string
 	// 2FA enforcement
 	Require2FA bool
+	// End-to-end encryption
+	E2EEncryptionEnabled bool
 	// Trusted reverse-proxy CIDRs whose X-Forwarded-For / X-Real-IP headers
 	// are trusted for client-IP extraction (e.g. rate limiting).
 	TrustedProxyCIDRs []string
@@ -81,8 +83,9 @@ func Load() *Config {
 		OIDCRedirectURL:   getEnv("OIDC_REDIRECT_URL", ""),
 		OIDCScopes:        getEnv("OIDC_SCOPES", "openid email profile"),
 		CORSOrigins:       getEnv("CORS_ORIGINS", ""),
-		Require2FA:        getEnvBool("REQUIRE_2FA", false),
-		TrustedProxyCIDRs: getEnvStringSlice("TRUSTED_PROXIES", ","),
+		Require2FA:           getEnvBool("REQUIRE_2FA", false),
+		E2EEncryptionEnabled: getEnvBool("E2E_ENCRYPTION_ENABLED", false),
+		TrustedProxyCIDRs:    getEnvStringSlice("TRUSTED_PROXIES", ","),
 	}
 }
 
@@ -116,6 +119,7 @@ func (c *Config) LogValue() slog.Value {
 		slog.String("oidc_scopes", c.OIDCScopes),
 		slog.String("cors_origins", c.CORSOrigins),
 		slog.Bool("require_2fa", c.Require2FA),
+		slog.Bool("e2e_encryption_enabled", c.E2EEncryptionEnabled),
 	)
 }
 

@@ -207,6 +207,23 @@ func runMigrations(db *sql.DB) error {
 		return err
 	}
 
+	// E2E encryption columns (idempotent: only add if missing)
+	if !columnExists(db, "shares", "is_e2e_encrypted") {
+		if _, err := db.Exec(`ALTER TABLE shares ADD COLUMN is_e2e_encrypted INTEGER NOT NULL DEFAULT 0`); err != nil {
+			return err
+		}
+	}
+	if !columnExists(db, "files", "encryption_iv") {
+		if _, err := db.Exec(`ALTER TABLE files ADD COLUMN encryption_iv TEXT DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if !columnExists(db, "files", "encrypted_metadata") {
+		if _, err := db.Exec(`ALTER TABLE files ADD COLUMN encrypted_metadata TEXT DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

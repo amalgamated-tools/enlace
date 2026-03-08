@@ -9,6 +9,8 @@ type File struct {
 	Name       string
 	Size       int64
 	MimeType   string
-	StorageKey string
-	CreatedAt  time.Time
+	StorageKey        string
+	EncryptionIV      string
+	EncryptedMetadata string
+	CreatedAt         time.Time
 }

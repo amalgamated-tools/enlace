@@ -30,11 +30,13 @@ type FileService struct {
 
 // UploadInput contains the data required to upload a file.
 type UploadInput struct {
-	ShareID    string
-	UploaderID string
-	Filename   string
-	Content    io.Reader
-	Size       int64
+	ShareID           string
+	UploaderID        string
+	Filename          string
+	Content           io.Reader
+	Size              int64
+	EncryptionIV      string
+	EncryptedMetadata string
 }
 
 // NewFileService creates a new FileService instance.
@@ -89,13 +91,15 @@ func (s *FileService) Upload(ctx context.Context, input UploadInput) (*model.Fil
 	}
 
 	file := &model.File{
-		ID:         fileID,
-		ShareID:    input.ShareID,
-		UploaderID: uploaderID,
-		Name:       filename,
-		Size:       input.Size,
-		MimeType:   mimeType,
-		StorageKey: storageKey,
+		ID:                fileID,
+		ShareID:           input.ShareID,
+		UploaderID:        uploaderID,
+		Name:              filename,
+		Size:              input.Size,
+		MimeType:          mimeType,
+		StorageKey:        storageKey,
+		EncryptionIV:      input.EncryptionIV,
+		EncryptedMetadata: input.EncryptedMetadata,
 	}
 
 	// Save metadata to database

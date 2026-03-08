@@ -15,6 +15,7 @@ type Share struct {
 	MaxViews       *int
 	ViewCount      int
 	IsReverseShare bool
+	IsE2EEncrypted bool
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }

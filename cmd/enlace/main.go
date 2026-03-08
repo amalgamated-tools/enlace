@@ -161,8 +161,9 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		FrontendFS:        frontendFS,
 		CORSOrigins:       corsOrigins,
 		TOTPService:       totpService,
-		Require2FA:        cfg.Require2FA,
-		TrustedProxyCIDRs: cfg.TrustedProxyCIDRs,
+		Require2FA:           cfg.Require2FA,
+		E2EEncryptionEnabled: cfg.E2EEncryptionEnabled,
+		TrustedProxyCIDRs:    cfg.TrustedProxyCIDRs,
 	})
 
 	workerCtx, stopWorker := context.WithCancel(cancelCtx)

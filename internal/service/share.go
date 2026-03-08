@@ -48,6 +48,7 @@ type CreateShareInput struct {
 	MaxDownloads   *int
 	MaxViews       *int
 	IsReverseShare bool
+	IsE2EEncrypted bool
 }
 
 // UpdateShareInput contains the data for updating an existing share.
@@ -123,6 +124,7 @@ func (s *ShareService) Create(ctx context.Context, input CreateShareInput) (*mod
 		MaxViews:       input.MaxViews,
 		ViewCount:      0,
 		IsReverseShare: input.IsReverseShare,
+		IsE2EEncrypted: input.IsE2EEncrypted,
 	}
 
 	if err := s.shareRepo.Create(ctx, share); err != nil {
@@ -180,6 +182,7 @@ func (s *ShareService) Update(ctx context.Context, id string, input UpdateShareI
 		MaxViews:       share.MaxViews,
 		ViewCount:      share.ViewCount,
 		IsReverseShare: share.IsReverseShare,
+		IsE2EEncrypted: share.IsE2EEncrypted,
 		CreatedAt:      share.CreatedAt,
 		UpdatedAt:      share.UpdatedAt,
 	}

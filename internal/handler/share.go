@@ -78,6 +78,7 @@ type createShareRequest struct {
 	MaxDownloads   *int     `json:"max_downloads"`
 	MaxViews       *int     `json:"max_views"`
 	IsReverseShare bool     `json:"is_reverse_share"`
+	IsE2EEncrypted bool     `json:"is_e2e_encrypted"`
 	Recipients     []string `json:"recipients"`
 }
 
@@ -107,6 +108,7 @@ type shareResponse struct {
 	MaxViews       *int    `json:"max_views,omitempty"`
 	ViewCount      int     `json:"view_count"`
 	IsReverseShare bool    `json:"is_reverse_share"`
+	IsE2EEncrypted bool    `json:"is_e2e_encrypted"`
 	CreatedAt      string  `json:"created_at"`
 	UpdatedAt      string  `json:"updated_at"`
 }
@@ -215,6 +217,7 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 		MaxDownloads:   req.MaxDownloads,
 		MaxViews:       req.MaxViews,
 		IsReverseShare: req.IsReverseShare,
+		IsE2EEncrypted: req.IsE2EEncrypted,
 	}
 
 	share, err := h.shareService.Create(r.Context(), input)
@@ -540,6 +543,7 @@ func (h *ShareHandler) toShareResponse(share *model.Share) shareResponse {
 		DownloadCount:  share.DownloadCount,
 		ViewCount:      share.ViewCount,
 		IsReverseShare: share.IsReverseShare,
+		IsE2EEncrypted: share.IsE2EEncrypted,
 		CreatedAt:      share.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:      share.UpdatedAt.Format(time.RFC3339),
 	}

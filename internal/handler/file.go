@@ -86,10 +86,12 @@ func NewFileHandler(fileService FileHandlerFileService, shareService FileHandler
 
 // fileResponse represents a file in API responses.
 type fileResponse struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Size     int64  `json:"size"`
-	MimeType string `json:"mime_type"`
+	ID                string `json:"id"`
+	Name              string `json:"name"`
+	Size              int64  `json:"size"`
+	MimeType          string `json:"mime_type"`
+	EncryptionIV      string `json:"encryption_iv,omitempty"`
+	EncryptedMetadata string `json:"encrypted_metadata,omitempty"`
 }
 
 // Upload handles POST /api/v1/shares/{id}/files - uploads files to a share.
@@ -151,6 +153,18 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Read E2E encryption metadata from form fields (optional)
+	encryptionIV := ""
+	encryptedMetadata := ""
+	if r.MultipartForm.Value != nil {
+		if ivs := r.MultipartForm.Value["encryption_iv"]; len(ivs) > 0 {
+			encryptionIV = ivs[0]
+		}
+		if metas := r.MultipartForm.Value["encrypted_metadata"]; len(metas) > 0 {
+			encryptedMetadata = metas[0]
+		}
+	}
+
 	// Upload each file
 	uploadedFiles := make([]fileResponse, 0, len(files))
 
@@ -179,11 +193,13 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 		// Upload file
 		input := service.UploadInput{
-			ShareID:    shareID,
-			UploaderID: userID,
-			Filename:   fileHeader.Filename,
-			Content:    file,
-			Size:       fileHeader.Size,
+			ShareID:           shareID,
+			UploaderID:        userID,
+			Filename:          fileHeader.Filename,
+			Content:           file,
+			Size:              fileHeader.Size,
+			EncryptionIV:      encryptionIV,
+			EncryptedMetadata: encryptedMetadata,
 		}
 
 		uploadedFile, err := h.fileService.Upload(r.Context(), input)
@@ -200,10 +216,12 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		}
 
 		uploadedFiles = append(uploadedFiles, fileResponse{
-			ID:       uploadedFile.ID,
-			Name:     uploadedFile.Name,
-			Size:     uploadedFile.Size,
-			MimeType: uploadedFile.MimeType,
+			ID:                uploadedFile.ID,
+			Name:              uploadedFile.Name,
+			Size:              uploadedFile.Size,
+			MimeType:          uploadedFile.MimeType,
+			EncryptionIV:      uploadedFile.EncryptionIV,
+			EncryptedMetadata: uploadedFile.EncryptedMetadata,
 		})
 	}
 
@@ -293,10 +311,12 @@ func (h *FileHandler) ListByShare(w http.ResponseWriter, r *http.Request) {
 	response := make([]fileResponse, len(files))
 	for i, f := range files {
 		response[i] = fileResponse{
-			ID:       f.ID,
-			Name:     f.Name,
-			Size:     f.Size,
-			MimeType: f.MimeType,
+			ID:                f.ID,
+			Name:              f.Name,
+			Size:              f.Size,
+			MimeType:          f.MimeType,
+			EncryptionIV:      f.EncryptionIV,
+			EncryptedMetadata: f.EncryptedMetadata,
 		}
 	}
 

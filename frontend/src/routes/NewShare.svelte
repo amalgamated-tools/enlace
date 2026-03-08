@@ -1,8 +1,20 @@
 <script lang="ts">
   import { push } from "svelte-spa-router";
   import { Button, Input, FileUploader } from "../lib/components";
-  import { auth, isAuthenticated, toast, emailConfigured } from "../lib/stores";
+  import {
+    auth,
+    isAuthenticated,
+    toast,
+    emailConfigured,
+    e2eEncryptionEnabled,
+  } from "../lib/stores";
   import { sharesApi, filesApi } from "../lib/api";
+  import {
+    generateShareKey,
+    exportKey,
+    encryptFile,
+  } from "../lib/crypto/e2e";
+  import type { EncryptedFile } from "../lib/crypto/e2e";
 
   let name = "";
   let description = "";
@@ -12,11 +24,16 @@
   let maxViews: string = "";
   let expiresAt = "";
   let isReverseShare = false;
+  let isE2EEncrypted = false;
 
   let recipients = "";
   let pendingFiles: File[] = [];
   let creating = false;
   let errors: Record<string, string> = {};
+
+  // E2E key dialog state
+  let showKeyDialog = false;
+  let shareUrl = "";
 
   $: if ($auth.initialized && !$isAuthenticated) {
     push("/login");
@@ -62,11 +79,41 @@
         max_views: maxViews ? parseInt(maxViews, 10) : undefined,
         expires_at: expiresAt || undefined,
         is_reverse_share: isReverseShare,
+        is_e2e_encrypted: isE2EEncrypted,
         recipients: recipientList.length > 0 ? recipientList : undefined,
       });
 
       if (pendingFiles.length > 0) {
-        await filesApi.upload(share.id, pendingFiles);
+        if (isE2EEncrypted) {
+          // Generate encryption key and encrypt files client-side
+          const key = await generateShareKey();
+          const encryptedFiles: EncryptedFile[] = [];
+          for (const file of pendingFiles) {
+            encryptedFiles.push(await encryptFile(key, file));
+          }
+          await filesApi.upload(share.id, pendingFiles, encryptedFiles);
+
+          // Build share URL with key in fragment
+          const keyStr = await exportKey(key);
+          const base = window.location.origin;
+          shareUrl = `${base}/#/s/${share.slug}#key=${keyStr}`;
+
+          showKeyDialog = true;
+          toast.success("Share created with E2E encryption");
+          return; // Don't navigate yet — show key dialog first
+        } else {
+          await filesApi.upload(share.id, pendingFiles);
+        }
+      } else if (isE2EEncrypted && isReverseShare) {
+        // Reverse share with E2E: generate key for the URL even without files
+        const key = await generateShareKey();
+        const keyStr = await exportKey(key);
+        const base = window.location.origin;
+        shareUrl = `${base}/#/s/${share.slug}#key=${keyStr}`;
+
+        showKeyDialog = true;
+        toast.success("Share created with E2E encryption");
+        return;
       }
 
       toast.success("Share created successfully");
@@ -78,6 +125,16 @@
     } finally {
       creating = false;
     }
+  }
+
+  function copyShareUrl() {
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("Share URL copied to clipboard");
+  }
+
+  function dismissKeyDialog() {
+    showKeyDialog = false;
+    push("/shares");
   }
 </script>
 
@@ -179,6 +236,32 @@
         </label>
       </div>
 
+      {#if $e2eEncryptionEnabled}
+        <div class="flex items-center gap-2.5">
+          <input
+            type="checkbox"
+            id="isE2EEncrypted"
+            bind:checked={isE2EEncrypted}
+            class="w-4 h-4 text-text border-border rounded focus:ring-accent/20"
+          />
+          <label for="isE2EEncrypted" class="text-sm text-muted">
+            End-to-end encryption (files encrypted in your browser)
+          </label>
+        </div>
+        {#if isE2EEncrypted}
+          <div
+            class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3"
+          >
+            <p class="text-xs text-amber-800 dark:text-amber-200">
+              <strong>⚠ Important:</strong> Files will be encrypted in your browser
+              before upload. The encryption key will be embedded in the share URL. If
+              you lose this URL, the files cannot be recovered. The server cannot
+              decrypt your files.
+            </p>
+          </div>
+        {/if}
+      {/if}
+
       {#if !isReverseShare}
         <div>
           <p class="text-sm font-medium text-text mb-2">
@@ -237,4 +320,62 @@
       </div>
     </form>
   </div>
+
+  {#if showKeyDialog}
+    <div
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    >
+      <div
+        class="bg-surface rounded-xl border border-border p-6 max-w-lg w-full shadow-xl"
+      >
+        <div class="text-center mb-4">
+          <div
+            class="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-3"
+          >
+            <svg
+              class="w-6 h-6 text-green-600 dark:text-green-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+              />
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-text">
+            Share Created with E2E Encryption
+          </h3>
+          <p class="text-sm text-muted mt-1">
+            Save this URL — it contains the encryption key. If lost, your files
+            cannot be recovered.
+          </p>
+        </div>
+
+        <div
+          class="bg-surface-subtle border border-border rounded-lg p-3 mb-4 break-all"
+        >
+          <p class="text-xs font-mono text-text">{shareUrl}</p>
+        </div>
+
+        <div
+          class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4"
+        >
+          <p class="text-xs text-amber-800 dark:text-amber-200">
+            <strong>⚠ Warning:</strong> This URL contains the only copy of the
+            encryption key. Store it in a password manager or other secure location.
+            The server cannot recover your files without this key.
+          </p>
+        </div>
+
+        <div class="flex gap-2">
+          <Button on:click={copyShareUrl}>Copy URL</Button>
+          <Button variant="secondary" on:click={dismissKeyDialog}>Done</Button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>

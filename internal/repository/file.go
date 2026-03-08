@@ -24,9 +24,9 @@ func (r *FileRepository) Create(ctx context.Context, file *model.File) error {
 	file.CreatedAt = time.Now()
 
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO files (id, share_id, uploader_id, name, size, mime_type, storage_key, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		file.ID, file.ShareID, file.UploaderID, file.Name, file.Size, file.MimeType, file.StorageKey, file.CreatedAt,
+		`INSERT INTO files (id, share_id, uploader_id, name, size, mime_type, storage_key, encryption_iv, encrypted_metadata, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		file.ID, file.ShareID, file.UploaderID, file.Name, file.Size, file.MimeType, file.StorageKey, file.EncryptionIV, file.EncryptedMetadata, file.CreatedAt,
 	)
 	return err
 }
@@ -35,9 +35,9 @@ func (r *FileRepository) Create(ctx context.Context, file *model.File) error {
 func (r *FileRepository) GetByID(ctx context.Context, id string) (*model.File, error) {
 	file := &model.File{}
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, share_id, uploader_id, name, size, mime_type, storage_key, created_at
+		`SELECT id, share_id, uploader_id, name, size, mime_type, storage_key, encryption_iv, encrypted_metadata, created_at
 		 FROM files WHERE id = ?`, id,
-	).Scan(&file.ID, &file.ShareID, &file.UploaderID, &file.Name, &file.Size, &file.MimeType, &file.StorageKey, &file.CreatedAt)
+	).Scan(&file.ID, &file.ShareID, &file.UploaderID, &file.Name, &file.Size, &file.MimeType, &file.StorageKey, &file.EncryptionIV, &file.EncryptedMetadata, &file.CreatedAt)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -61,7 +61,7 @@ func (r *FileRepository) Delete(ctx context.Context, id string) error {
 // ListByShare retrieves all files for a specific share, ordered by creation date ascending.
 func (r *FileRepository) ListByShare(ctx context.Context, shareID string) ([]*model.File, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, share_id, uploader_id, name, size, mime_type, storage_key, created_at
+		`SELECT id, share_id, uploader_id, name, size, mime_type, storage_key, encryption_iv, encrypted_metadata, created_at
 		 FROM files WHERE share_id = ? ORDER BY created_at ASC`, shareID,
 	)
 	if err != nil {
@@ -72,7 +72,7 @@ func (r *FileRepository) ListByShare(ctx context.Context, shareID string) ([]*mo
 	var files []*model.File
 	for rows.Next() {
 		file := &model.File{}
-		if err := rows.Scan(&file.ID, &file.ShareID, &file.UploaderID, &file.Name, &file.Size, &file.MimeType, &file.StorageKey, &file.CreatedAt); err != nil {
+		if err := rows.Scan(&file.ID, &file.ShareID, &file.UploaderID, &file.Name, &file.Size, &file.MimeType, &file.StorageKey, &file.EncryptionIV, &file.EncryptedMetadata, &file.CreatedAt); err != nil {
 			return nil, err
 		}
 		files = append(files, file)

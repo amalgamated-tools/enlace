@@ -12,6 +12,7 @@ export interface Share {
   max_views: number | null;
   view_count: number;
   is_reverse_share: boolean;
+  is_e2e_encrypted: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +26,7 @@ export interface CreateShareInput {
   max_downloads?: number;
   max_views?: number;
   is_reverse_share?: boolean;
+  is_e2e_encrypted?: boolean;
   recipients?: string[];
 }
 

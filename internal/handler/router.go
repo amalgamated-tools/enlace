@@ -58,6 +58,9 @@ type RouterConfig struct {
 	// 2FA enforcement
 	Require2FA bool
 
+	// E2E encryption feature flag
+	E2EEncryptionEnabled bool
+
 	// TrustedProxyCIDRs is the list of trusted reverse-proxy CIDRs whose
 	// X-Forwarded-For / X-Real-IP headers are trusted for client-IP extraction.
 	TrustedProxyCIDRs []string
@@ -90,7 +93,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	}))
 
 	// Health check endpoint (always accessible)
-	r.Get("/health", healthHandler(cfg.EmailService))
+	r.Get("/health", healthHandler(cfg.EmailService, cfg.E2EEncryptionEnabled))
 
 	// Create handlers
 	var totpServiceAdapter TOTPServiceInterface
@@ -303,12 +306,13 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 //	@Produce	json
 //	@Success	200	{object}	APIResponse
 //	@Router		/health [get]
-func healthHandler(emailService *service.EmailService) http.HandlerFunc {
+func healthHandler(emailService *service.EmailService, e2eEnabled bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		emailConfigured := emailService != nil && emailService.IsConfigured()
 		Success(w, http.StatusOK, map[string]interface{}{
-			"status":           "ok",
-			"email_configured": emailConfigured,
+			"status":                 "ok",
+			"email_configured":       emailConfigured,
+			"e2e_encryption_enabled": e2eEnabled,
 		})
 	}
 }
