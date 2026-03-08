@@ -237,9 +237,7 @@ describe("filesApi", () => {
       // 6 fetches total: 2x (initiate + PUT + finalize), no multipart fallback
       expect(mockFetch).toHaveBeenCalledTimes(6);
       // No call to the multipart endpoint
-      const urls = mockFetch.mock.calls.map(
-        (c: [string, ...unknown[]]) => c[0],
-      );
+      const urls = mockFetch.mock.calls.map((c: unknown[]) => c[0]);
       expect(urls).not.toContain("/api/v1/shares/share-1/files");
     });
   });
