@@ -103,12 +103,39 @@
     }
   }
 
-  async function downloadAll() {
-    if (!share) return;
+  function downloadAll() {
+    if (!share || files.length === 0) return;
 
-    for (const file of files) {
-      await downloadFile(file.id, true);
-    }
+    // Open windows synchronously during the click handler to avoid popup blockers
+    const windows = files.map(() =>
+      window.open("about:blank", "_blank", "noopener,noreferrer"),
+    );
+
+    files.forEach((file, index) => {
+      const win = windows[index];
+      if (!win) return;
+
+      const fallbackUrl = `/s/${params.slug}/files/${file.id}`;
+
+      fetch(`/s/${params.slug}/files/${file.id}/url`, {
+        headers: shareToken ? { "X-Share-Token": shareToken } : {},
+      })
+        .then(async (response) => {
+          let url = fallbackUrl;
+          try {
+            const data = await response.json();
+            if (response.ok && data.success && data.data?.url) {
+              url = data.data.url;
+            }
+          } catch {
+            // Fall back to proxy URL on JSON parse failure
+          }
+          win.location.href = url;
+        })
+        .catch(() => {
+          win.location.href = fallbackUrl;
+        });
+    });
   }
 
   async function downloadFile(fileId: string, newTab = false) {
