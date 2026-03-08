@@ -19,7 +19,7 @@ Open <http://localhost:8080> and register your first user.
 
 ## Admin Panel
 
-The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has three tabs:
+The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has six tabs:
 
 ### Users tab (`/#/admin/users`)
 
@@ -42,7 +42,6 @@ View and override the storage configuration without restarting or redeploying. T
 
 ### Email tab (`/#/admin/email`)
 
-
 View and override the SMTP configuration. Changes take effect on the next restart. The page shows the current database overrides (if any).
 
 - **No overrides configured** — Enlace is using the environment variable SMTP configuration (or email is disabled if `SMTP_HOST` is not set).
@@ -51,13 +50,26 @@ View and override the SMTP configuration. Changes take effect on the next restar
 
 > **Note:** SMTP configuration changes require a restart to take effect. See [Configuration — SMTP](configuration.md#smtp-email-notifications) for environment variable reference and encryption details.
 
-### Admin API features (API-only, no UI tab)
+### Webhooks tab (`/#/admin/webhooks`)
 
-The following admin capabilities are available via the REST API but do not have a dedicated panel tab:
+Create and manage webhook subscriptions. From this tab you can:
 
-- **File restrictions** (`GET/PUT/DELETE /api/v1/admin/files`) — set a maximum upload size and a list of blocked file extensions. Changes take effect immediately without a restart.
-- **API keys** (`GET/POST/DELETE /api/v1/admin/api-keys`) — create scoped, long-lived keys for programmatic access. Each key is limited to a set of permission scopes; the full key value is returned only once at creation.
-- **Webhooks** (`GET/POST/PATCH/DELETE /api/v1/admin/webhooks`, `GET /api/v1/admin/webhooks/deliveries`) — subscribe to server-side events with HMAC-SHA256 signed HTTP deliveries. See [Admin webhook endpoints](api.md#admin-webhook-endpoints) for the event catalogue and signature verification guide.
+- Create subscriptions that POST to a destination HTTPS URL when selected events occur (`share.created`, `file.upload.completed`, `share.viewed`, `share.downloaded`).
+- Enable or disable individual subscriptions.
+- View the delivery log to inspect recent attempts, status codes, payloads, and retry state.
+
+The signing secret is displayed only at creation time — store it immediately. See [Admin webhook endpoints](api.md#admin-webhook-endpoints) for signature verification details.
+
+### Files tab (`/#/admin/files`)
+
+Set global upload restrictions that apply to all users and reverse shares:
+
+- **Maximum file size** — override the default 100 MB limit. Leave blank to use the default.
+- **Blocked extensions** — comma-separated list of extensions to reject on upload (e.g. `.exe,.sh,.bat`). Changes take effect immediately without a restart.
+
+### API Keys tab (`/#/admin/api-keys`)
+
+Create scoped, long-lived API keys for programmatic access without user credentials. Each key is limited to a set of permission scopes (`shares:read`, `shares:write`, `files:read`, `files:write`). The full key value is returned only once at creation — store it securely. Revoked keys are rejected immediately.
 
 ## Docker Image Tags
 
