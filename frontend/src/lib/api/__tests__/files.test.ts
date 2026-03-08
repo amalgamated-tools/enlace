@@ -164,6 +164,84 @@ describe("filesApi", () => {
         filesApi.upload("share-1", [new File(["x"], "big.bin")]),
       ).rejects.toThrow(ApiError);
     });
+
+    it("uploads multiple files via direct transfer without duplicates", async () => {
+      // File A: initiate → PUT → finalize
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                upload_id: "upload-a",
+                finalize_token: "token-a",
+                url: "https://storage.example/a",
+                method: "PUT",
+              },
+            }),
+        })
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                id: "fa",
+                name: "a.txt",
+                size: 1,
+                mime_type: "text/plain",
+                created_at: "2024-01-01",
+              },
+            }),
+        })
+        // File B: initiate → PUT → finalize
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                upload_id: "upload-b",
+                finalize_token: "token-b",
+                url: "https://storage.example/b",
+                method: "PUT",
+              },
+            }),
+        })
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                id: "fb",
+                name: "b.txt",
+                size: 1,
+                mime_type: "text/plain",
+                created_at: "2024-01-01",
+              },
+            }),
+        });
+
+      const result = await filesApi.upload("share-1", [
+        new File(["a"], "a.txt"),
+        new File(["b"], "b.txt"),
+      ]);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe("fa");
+      expect(result[1].id).toBe("fb");
+      // 6 fetches total: 2x (initiate + PUT + finalize), no multipart fallback
+      expect(mockFetch).toHaveBeenCalledTimes(6);
+      // No call to the multipart endpoint
+      const urls = mockFetch.mock.calls.map(
+        (c: [string, ...unknown[]]) => c[0],
+      );
+      expect(urls).not.toContain("/api/v1/shares/share-1/files");
+    });
   });
 
   describe("delete", () => {
