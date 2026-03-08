@@ -125,14 +125,14 @@
       }
 
       if (newTab) {
-        window.open(data.data.url, "_blank");
+        window.open(data.data.url, "_blank", "noopener,noreferrer");
       } else {
         window.location.href = data.data.url;
       }
       return;
     } catch {
       if (newTab) {
-        window.open(fallbackUrl, "_blank");
+        window.open(fallbackUrl, "_blank", "noopener,noreferrer");
       } else {
         window.location.href = fallbackUrl;
       }

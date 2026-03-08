@@ -262,7 +262,9 @@ func (s *FileService) FinalizeDirectUpload(ctx context.Context, uploadID string)
 		return nil, err
 	}
 
-	if _, err := s.pendingUploadRepo.ExpireStale(ctx, time.Now()); err != nil {
+	now := time.Now()
+
+	if _, err := s.pendingUploadRepo.ExpireStale(ctx, now); err != nil {
 		return nil, err
 	}
 
@@ -281,7 +283,7 @@ func (s *FileService) FinalizeDirectUpload(ctx context.Context, uploadID string)
 		return nil, ErrUploadExpired
 	}
 
-	if time.Now().After(upload.ExpiresAt) {
+	if now.After(upload.ExpiresAt) {
 		return nil, ErrUploadExpired
 	}
 

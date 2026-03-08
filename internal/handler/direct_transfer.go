@@ -63,8 +63,8 @@ func validateDirectUploadFinalizeToken(secret []byte, tokenStr string) (*directU
 		return nil, ErrInvalidDirectTransferToken
 	}
 
-	token, err := jwt.ParseWithClaims(tokenStr, &directUploadFinalizeClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if token.Method != jwt.SigningMethodHS256 {
+	token, err := jwt.ParseWithClaims(tokenStr, &directUploadFinalizeClaims{}, func(token *jwt.Token) (any, error) {
+		if token.Method == nil || token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 			return nil, ErrInvalidDirectTransferToken
 		}
 		return secret, nil

@@ -139,6 +139,11 @@ func (s *S3Storage) PresignPut(ctx context.Context, key string, size int64, cont
 	}
 
 	headers := map[string]string{}
+	for k, vs := range out.SignedHeader {
+		if len(vs) > 0 {
+			headers[k] = vs[0]
+		}
+	}
 	if contentType != "" {
 		headers["Content-Type"] = contentType
 	}
@@ -188,9 +193,17 @@ func (s *S3Storage) PresignGet(ctx context.Context, key string, expiry time.Dura
 		return nil, err
 	}
 
+	getHeaders := map[string]string{}
+	for k, vs := range out.SignedHeader {
+		if len(vs) > 0 {
+			getHeaders[k] = vs[0]
+		}
+	}
+
 	return &PresignedURLResult{
 		URL:       out.URL,
 		Method:    "GET",
+		Headers:   getHeaders,
 		ExpiresAt: time.Now().Add(expiry),
 	}, nil
 }
