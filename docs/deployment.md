@@ -19,7 +19,7 @@ Open <http://localhost:8080> and register your first user.
 
 ## Admin Panel
 
-The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has three tabs:
+The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has six tabs:
 
 ### Users tab (`/#/admin/users`)
 
@@ -51,13 +51,37 @@ View and override the SMTP configuration. Changes take effect on the next restar
 
 > **Note:** SMTP configuration changes require a restart to take effect. See [Configuration — SMTP](configuration.md#smtp-email-notifications) for environment variable reference and encryption details.
 
-### Admin API features (API-only, no UI tab)
+### Webhooks tab (`/#/admin/webhooks`)
 
-The following admin capabilities are available via the REST API but do not have a dedicated panel tab:
+Create and manage outbound webhook subscriptions. Enlace POSTs a signed JSON payload to your configured URLs whenever selected events occur.
 
-- **File restrictions** (`GET/PUT/DELETE /api/v1/admin/files`) — set a maximum upload size and a list of blocked file extensions. Changes take effect immediately without a restart.
-- **API keys** (`GET/POST/DELETE /api/v1/admin/api-keys`) — create scoped, long-lived keys for programmatic access. Each key is limited to a set of permission scopes; the full key value is returned only once at creation.
-- **Webhooks** (`GET/POST/PATCH/DELETE /api/v1/admin/webhooks`, `GET /api/v1/admin/webhooks/deliveries`) — subscribe to server-side events with HMAC-SHA256 signed HTTP deliveries. See [Admin webhook endpoints](api.md#admin-webhook-endpoints) for the event catalogue and signature verification guide.
+- **Create a webhook** — provide a name, HTTPS target URL, and one or more event types to subscribe to (`share.created`, `file.upload.completed`, `share.viewed`, `share.downloaded`). The shared secret is displayed once at creation time; store it securely.
+- **Enable / disable** — toggle a subscription on or off without deleting it by clicking its status badge.
+- **Edit** — update the name, URL, or subscribed events for an existing subscription.
+- **Delete** — permanently removes the subscription; pending deliveries will not be retried.
+- **Delivery log** — view recent delivery attempts below the subscription list, including status, timestamp, and the outgoing request body for debugging failed deliveries.
+
+> **Signature verification:** every delivery includes an `X-Enlace-Signature` header (HMAC-SHA256 over `<timestamp>.<body>`). See [Webhook verification and replay protection](api.md#webhook-verification-and-replay-protection) for the full receiver guide.
+
+### Files tab (`/#/admin/files`)
+
+Configure file upload restrictions that apply to all uploads (authenticated and public reverse shares). Changes take effect immediately — no restart required.
+
+- **Max File Size (MB)** — sets the maximum allowed upload size. Leave empty to use the server default (100 MB).
+- **Blocked Extensions** — comma-separated list of file extensions to reject (e.g. `.exe, .bat, .sh`). Leading dots and case are normalised automatically.
+- **Reset to Defaults** — removes all overrides and reverts to the server defaults (100 MB limit, no blocked extensions).
+
+> **Note:** The nginx `client_max_body_size` directive must be at least as large as the configured max file size. See [Reverse Proxy](#reverse-proxy) for an example.
+
+### API Keys tab (`/#/admin/api-keys`)
+
+Create and revoke long-lived API keys for programmatic access without user credentials.
+
+- **Create API Key** — provide a name and select one or more permission scopes (`shares:read`, `shares:write`, `files:read`, `files:write`). The full key value (prefixed `enl_…`) is shown once at creation; copy it immediately.
+- **Key list** — displays each key's name, prefix (first 14 characters), granted scopes, last-used timestamp, and creation date. Revoked keys are shown with a strikethrough.
+- **Revoke** — permanently invalidates the key. Revoked keys remain visible for audit purposes but cannot be reinstated.
+
+> API keys cannot be used for admin-only or user-profile endpoints — those always require a JWT access token. See [Admin API key endpoints](api.md#admin-api-key-endpoints) for the full API reference.
 
 ## Docker Image Tags
 
