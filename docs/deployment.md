@@ -52,24 +52,35 @@ View and override the SMTP configuration. Changes take effect on the next restar
 
 ### Webhooks tab (`/#/admin/webhooks`)
 
-Create and manage webhook subscriptions. From this tab you can:
+Create and manage outbound webhook subscriptions. Enlace POSTs a signed JSON payload to your configured URLs whenever selected events occur.
 
-- Create subscriptions that POST to a destination HTTPS URL when selected events occur (`share.created`, `file.upload.completed`, `share.viewed`, `share.downloaded`).
-- Enable or disable individual subscriptions.
-- View the delivery log to inspect recent attempts, status codes, payloads, and retry state.
+- **Create a webhook** — provide a name, HTTPS target URL, and one or more event types to subscribe to (`share.created`, `file.upload.completed`, `share.viewed`, `share.downloaded`). The shared secret is displayed once at creation time; store it securely.
+- **Enable / disable** — toggle a subscription on or off without deleting it by clicking its status badge.
+- **Edit** — update the name, URL, or subscribed events for an existing subscription.
+- **Delete** — permanently removes the subscription; pending deliveries will not be retried.
+- **Delivery log** — view recent delivery attempts below the subscription list, including status, timestamp, and the outgoing request body for debugging failed deliveries.
 
-The signing secret is displayed only at creation time — store it immediately. See [Admin webhook endpoints](api.md#admin-webhook-endpoints) for signature verification details.
+> **Signature verification:** every delivery includes an `X-Enlace-Signature` header (HMAC-SHA256 over `<timestamp>.<body>`). See [Webhook verification and replay protection](api.md#webhook-verification-and-replay-protection) for the full receiver guide.
 
 ### Files tab (`/#/admin/files`)
 
-Set global upload restrictions that apply to all users and reverse shares:
+Configure file upload restrictions that apply to all uploads (authenticated and public reverse shares). Changes take effect immediately — no restart required.
 
-- **Maximum file size** — override the default 100 MB limit. Leave blank to use the default.
-- **Blocked extensions** — comma-separated list of extensions to reject on upload (e.g. `.exe,.sh,.bat`). Changes take effect immediately without a restart.
+- **Max File Size (MB)** — sets the maximum allowed upload size. Leave empty to use the server default (100 MB).
+- **Blocked Extensions** — comma-separated list of file extensions to reject (e.g. `.exe, .bat, .sh`). Leading dots and case are normalised automatically.
+- **Reset to Defaults** — removes all overrides and reverts to the server defaults (100 MB limit, no blocked extensions).
+
+> **Note:** The nginx `client_max_body_size` directive must be at least as large as the configured max file size. See [Reverse Proxy](#reverse-proxy) for an example.
 
 ### API Keys tab (`/#/admin/api-keys`)
 
-Create scoped, long-lived API keys for programmatic access without user credentials. Each key is limited to a set of permission scopes (`shares:read`, `shares:write`, `files:read`, `files:write`). The full key value is returned only once at creation — store it securely. Revoked keys are rejected immediately.
+Create and revoke long-lived API keys for programmatic access without user credentials.
+
+- **Create API Key** — provide a name and select one or more permission scopes (`shares:read`, `shares:write`, `files:read`, `files:write`). The full key value (prefixed `enl_…`) is shown once at creation; copy it immediately.
+- **Key list** — displays each key's name, prefix (first 14 characters), granted scopes, last-used timestamp, and creation date. Revoked keys are shown with a strikethrough.
+- **Revoke** — permanently invalidates the key. Revoked keys remain visible for audit purposes but cannot be reinstated.
+
+> API keys cannot be used for admin-only or user-profile endpoints — those always require a JWT access token. See [Admin API key endpoints](api.md#admin-api-key-endpoints) for the full API reference.
 
 ## Docker Image Tags
 
