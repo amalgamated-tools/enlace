@@ -179,6 +179,30 @@ async function main() {
     await page.waitForTimeout(500);
     await page.screenshot({ path: path.join(screenshotsDir, 'settings-2fa-verify.png') });
 
+    // ── Admin panel screenshots ─────────────────────
+    const adminPages = [
+        { route: 'admin/users', name: 'admin-users' },
+        { route: 'admin/storage', name: 'admin-storage' },
+        { route: 'admin/email', name: 'admin-email' },
+        { route: 'admin/webhooks', name: 'admin-webhooks' },
+        { route: 'admin/files', name: 'admin-files' },
+        { route: 'admin/api-keys', name: 'admin-api-keys' },
+    ];
+
+    for (const { route, name } of adminPages) {
+        console.log(`📸 ${name} (light)...`);
+        await page.goto(`${BASE_URL}/#/${route}`, { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1500);
+        await setTheme(page, 'light');
+        await page.waitForTimeout(500);
+        await page.screenshot({ path: path.join(screenshotsDir, `${name}-light.png`) });
+
+        console.log(`📸 ${name} (dark)...`);
+        await setTheme(page, 'dark');
+        await page.waitForTimeout(500);
+        await page.screenshot({ path: path.join(screenshotsDir, `${name}-dark.png`) });
+    }
+
     // ── 22. Mobile — login light ───────────────────
     console.log('📸 Login mobile (light)...');
     await page.setViewportSize({ width: 375, height: 812 });
