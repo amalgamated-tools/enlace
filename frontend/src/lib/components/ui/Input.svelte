@@ -27,7 +27,7 @@
     {required}
     autocomplete={autocomplete || undefined}
     bind:value
-    class="w-full px-3 py-2 text-sm bg-surface border rounded-lg transition-colors duration-150 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-border disabled:bg-surface-subtle disabled:text-subtle {error
+    class="w-full px-3 py-2 text-sm bg-surface border rounded-lg transition-colors duration-150 placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-border-strong disabled:bg-surface-subtle disabled:text-subtle {error
       ? 'border-red-400 focus:ring-red-500/10 focus:border-red-400'
       : 'border-border'}"
     on:input

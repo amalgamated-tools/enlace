@@ -1,4 +1,4 @@
-.PHONY: all build run test test-integration test-e2e e2e-install clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs swagger swagger-fmt help ensure-embed-dir
+.PHONY: all build run test test-integration test-e2e e2e-install clean docker-build docker-run frontend-dev frontend-build dev rustfs rustfs-stop rustfs-logs swagger swagger-fmt screenshots help ensure-embed-dir
 
 # Default target
 all: build
@@ -27,6 +27,7 @@ dev: frontend-install ensure-embed-dir
 
 # Ensure frontend/dist exists for Go embed (placeholder for dev/test)
 ensure-embed-dir:
+	@echo "Ensuring frontend/dist exists for Go embed..."
 	@mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 
 # Run all tests
@@ -124,6 +125,12 @@ rustfs-stop:
 rustfs-logs:
 	docker-compose -f docker-compose-dev.yml logs -f rustfs
 
+# Take UI screenshots (requires frontend dev server running)
+screenshots: e2e-install
+	@mkdir -p screenshots
+	cd e2e && npx playwright install chromium --with-deps 2>/dev/null || true
+	node scripts/take-screenshots.mjs
+
 # Help
 help:
 	@echo "Available targets:"
@@ -151,4 +158,5 @@ help:
 	@echo "  fmt            - Format Go code"
 	@echo "  swagger        - Generate OpenAPI/Swagger docs"
 	@echo "  swagger-fmt    - Format swagger annotations"
+	@echo "  screenshots    - Take UI screenshots (start dev server first)"
 	@echo "  dev-setup      - Install development dependencies"

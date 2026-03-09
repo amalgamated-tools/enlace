@@ -46,14 +46,14 @@
 
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --color-surface: #0f172a;
-    --color-surface-subtle: #0b1120;
-    --color-surface-muted: #1e293b;
+    --color-surface: #1e293b;
+    --color-surface-subtle: #0f172a;
+    --color-surface-muted: #334155;
     --color-border: #334155;
     --color-border-strong: #475569;
     --color-text: #f8fafc;
     --color-muted: #94a3b8;
-    --color-subtle: #64748b;
+    --color-subtle: #94a3b8;
     --color-accent: #f8fafc;
     --color-accent-hover: #e2e8f0;
     --color-accent-contrast: #0f172a;
