@@ -4,61 +4,63 @@ This document explains specific fix techniques for each framework and styling me
 
 ---
 
-## Tailwind CSS (used in this project)
+## Svelte + Tailwind CSS v4 (used in this project)
 
 ### Layout Fixes
 
-```jsx
-{/* Before: Overflow */}
-<div className="w-full">
+```svelte
+<!-- Before: Overflow -->
+<div class="w-full">
   <img src="..." />
 </div>
 
-{/* After: Overflow control */}
-<div className="w-full max-w-full overflow-hidden">
-  <img src="..." className="w-full h-auto object-contain" />
+<!-- After: Overflow control -->
+<div class="w-full max-w-full overflow-hidden">
+  <img src="..." class="w-full h-auto object-contain" alt="" />
 </div>
 ```
 
 ### Text Clipping Prevention
 
-```jsx
-{/* Single line truncation */}
-<p className="truncate">Long text...</p>
+```svelte
+<!-- Single line truncation -->
+<p class="truncate">Long text...</p>
 
-{/* Multi-line truncation */}
-<p className="line-clamp-3">Long text...</p>
+<!-- Multi-line truncation -->
+<p class="line-clamp-3">Long text...</p>
 
-{/* Allow wrapping */}
-<p className="break-words">Long text...</p>
+<!-- Allow wrapping -->
+<p class="break-words">Long text...</p>
 ```
 
 ### Responsive Support
 
-```jsx
-{/* Mobile-first responsive */}
-<div className="flex flex-col gap-4 md:flex-row md:gap-6 lg:gap-8">
-  <div className="w-full md:w-1/2 lg:w-1/3">Content</div>
+```svelte
+<!-- Mobile-first responsive -->
+<div class="flex flex-col gap-4 md:flex-row md:gap-6 lg:gap-8">
+  <div class="w-full md:w-1/2 lg:w-1/3">Content</div>
 </div>
 ```
 
 ### Accessibility Improvements
 
-```jsx
-{/* Add focus state */}
-<button className="bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+```svelte
+<!-- Add focus state -->
+<button
+  class="bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+>
   Button
 </button>
 ```
 
 ---
 
-## Next.js / App Router (Reference Only)
+## Svelte App Structure (this project)
 
 ### Global Style Fixes
 
 ```css
-/* app/globals.css */
+/* frontend/src/app.css */
 html, body {
   max-width: 100vw;
   overflow-x: hidden;
@@ -70,21 +72,34 @@ img {
 }
 ```
 
-### Fixes in Layout Components
+### Fixes in Layout Components (`frontend/src/App.svelte`)
 
-```tsx
-// app/layout.tsx
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body className="min-h-screen flex flex-col">
-        <header className="sticky top-0 z-50">{/* Header */}</header>
-        <main className="flex-1 container mx-auto px-4 py-8">{children}</main>
-        <footer>{/* Footer */}</footer>
-      </body>
-    </html>
-  );
-}
+```svelte
+<div class="min-h-screen bg-surface-subtle">
+  <header class="bg-surface border-b border-border sticky top-0 z-50">
+    <!-- Header -->
+  </header>
+
+  <main class="max-w-6xl mx-auto px-6 py-8">
+    <Router {routes} />
+  </main>
+</div>
+```
+
+### Svelte-specific Notes
+
+```svelte
+<!-- Use class, not className -->
+<button class="px-3 py-2">Save</button>
+
+<!-- Use Svelte event syntax -->
+<button on:click={handleSubmit}>Submit</button>
+
+<!-- Reactive declarations for route-aware UI -->
+<script lang="ts">
+  import { location } from "svelte-spa-router";
+  $: isSettings = $location.startsWith("/settings");
+</script>
 ```
 
 ---
