@@ -636,6 +636,7 @@ The download count is incremented and the `share.downloaded` webhook is emitted 
 | `404 Not Found` | Share or file not found |
 | `409 Conflict` | Direct transfer is disabled (`DIRECT_TRANSFER_ENABLED=false`) or the configured storage backend does not support presigned URLs |
 | `410 Gone` | Share has expired, exceeded its download limit, or exceeded its view limit |
+| `500 Internal Server Error` | Failed to retrieve the share or file, or failed to generate the presigned URL |
 
 ## Public share endpoints
 
