@@ -128,7 +128,6 @@ export async function decryptFile(
   data: ArrayBuffer,
 ): Promise<DecryptedFile> {
   // Decode IV
-  const ivBytes = Uint8Array.from(atob(iv), (c) => c.charCodeAt(0));
 
   // Decrypt file content (IV was prepended during encryption, but we also
   // store it separately; the data blob has IV + ciphertext)
