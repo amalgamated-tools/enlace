@@ -57,8 +57,7 @@ async function main() {
     await page.goto(`${BASE_URL}/#/register`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
     await page.fill('input[autocomplete="name"]', 'Demo User');
-    const randomSuffix = Math.random().toString(36).slice(2, 8);
-    await page.fill('input[autocomplete="email"]', `demo-${randomSuffix}@example.com`);
+    await page.fill('input[autocomplete="email"]', 'demo@veverka.net');
     await page.fill('input[autocomplete="new-password"]', 'password123');
     // confirmPassword is the second new-password field
     const passwordFields = await page.locator('input[autocomplete="new-password"]').all();

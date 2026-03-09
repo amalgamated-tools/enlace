@@ -129,6 +129,9 @@ rustfs-logs:
 screenshots: clean e2e-install frontend-install ensure-embed-dir
 	@mkdir -p screenshots
 	cd e2e && npx playwright install chromium --with-deps 2>/dev/null || true
+	@echo "Killing any existing servers on ports 5173 and 8080..."
+	@-lsof -ti :5173 | xargs kill -9 2>/dev/null || true
+	@-lsof -ti :8080 | xargs kill -9 2>/dev/null || true
 	@echo "Starting dev server in background..."
 	@goreman -f Procfile.dev start & DEV_PID=$$!; \
 	echo "Waiting for frontend (localhost:5173) and backend (localhost:8080)..."; \
