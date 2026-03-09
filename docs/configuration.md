@@ -24,6 +24,25 @@ All settings are read from environment variables (or a `.env` file when running 
 | `S3_REGION` | — | AWS/compatible region |
 | `S3_PATH_PREFIX` | — | Optional key prefix inside the bucket |
 
+### Direct object-storage transfer (optional)
+
+When `STORAGE_TYPE=s3`, Enlace can bypass its own network path and redirect uploads and downloads directly between the client and the S3-compatible bucket via **short-lived presigned URLs**. This reduces server load and bandwidth costs for large files.
+
+| Variable | Default | Description |
+|---|---|---|
+| `DIRECT_TRANSFER_ENABLED` | `false` | Set to `true` to enable presigned-URL direct transfer. Requires `STORAGE_TYPE=s3`. Has no effect for local storage. |
+| `DIRECT_TRANSFER_EXPIRY_SECONDS` | `900` | Lifetime (in seconds) of generated presigned URLs. Valid range is **1–3600**; values outside that range are clamped automatically. |
+
+When enabled, the upload flow changes:
+
+1. The client calls `POST /api/v1/shares/{id}/files/initiate` to receive a short-lived signed PUT URL and a `finalize_token`.
+2. The client uploads the file **directly** to the object-storage bucket using the returned URL and `method` (typically `PUT`).
+3. The client calls `POST /api/v1/files/uploads/{uploadId}/finalize` with the `finalize_token`. The server verifies the object's size and MIME type match expectations, then commits the file record.
+
+Similarly, downloads bypass the server: `GET /s/{slug}/files/{fileId}/url` returns a signed GET URL the client can use to stream the file directly from storage.
+
+> **Note:** If a finalize call fails (size or content-type mismatch), the orphaned object is removed from the bucket automatically.
+
 ### Admin storage API override
 
 Storage settings can be overridden via the admin API without changing environment variables or redeploying. When a DB override is present, it takes precedence over the corresponding environment variable on startup. Clearing an override via the API (including to an empty string) removes the env-var value for that key as well.
