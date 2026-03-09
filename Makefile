@@ -125,11 +125,29 @@ rustfs-stop:
 rustfs-logs:
 	docker-compose -f docker-compose-dev.yml logs -f rustfs
 
-# Take UI screenshots (requires frontend dev server running)
-screenshots: e2e-install
+# Take UI screenshots (clean environment, starts dev server automatically)
+screenshots: clean e2e-install frontend-install ensure-embed-dir
 	@mkdir -p screenshots
 	cd e2e && npx playwright install chromium --with-deps 2>/dev/null || true
-	node scripts/take-screenshots.mjs
+	@echo "Starting dev server in background..."
+	@goreman -f Procfile.dev start & DEV_PID=$$!; \
+	echo "Waiting for frontend (localhost:5173) and backend (localhost:8080)..."; \
+	for i in $$(seq 1 60); do \
+		if curl -s -o /dev/null http://localhost:5173 && curl -s -o /dev/null http://localhost:8080/api/health; then \
+			echo "Servers ready."; \
+			break; \
+		fi; \
+		if [ $$i -eq 60 ]; then \
+			echo "Timeout waiting for servers"; \
+			kill $$DEV_PID 2>/dev/null; \
+			exit 1; \
+		fi; \
+		sleep 1; \
+	done; \
+	node scripts/take-screenshots.mjs; \
+	RESULT=$$?; \
+	kill $$DEV_PID 2>/dev/null; \
+	exit $$RESULT
 
 # Help
 help:
@@ -158,5 +176,5 @@ help:
 	@echo "  fmt            - Format Go code"
 	@echo "  swagger        - Generate OpenAPI/Swagger docs"
 	@echo "  swagger-fmt    - Format swagger annotations"
-	@echo "  screenshots    - Take UI screenshots (start dev server first)"
+	@echo "  screenshots    - Take UI screenshots (clean build, auto-starts dev server)"
 	@echo "  dev-setup      - Install development dependencies"
