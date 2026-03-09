@@ -1,25 +1,21 @@
-import { chromium } from 'playwright';
+import { chromium } from 'playwright-core';
 import { fileURLToPath } from 'url';
+import { mkdir } from 'fs/promises';
 import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const screenshotsDir = path.join(__dirname, '..', 'screenshots');
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-
-async function waitForApp(page) {
-    await page.waitForSelector('header', { timeout: 15000 });
-    await page.waitForTimeout(2000);
-}
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 function setTheme(page, theme) {
     return page.evaluate((t) => {
-        document.documentElement.classList.remove('light', 'dark');
-        document.documentElement.classList.add(t);
-        document.documentElement.style.colorScheme = t;
+        document.documentElement.dataset.theme = t;
     }, theme);
 }
 
 async function main() {
+    await mkdir(screenshotsDir, { recursive: true });
+
     const browser = await chromium.launch();
     const context = await browser.newContext({
         viewport: { width: 1440, height: 900 },
@@ -28,95 +24,48 @@ async function main() {
 
     const page = await context.newPage();
 
-    // ── 1. Light mode — full dashboard ────────────
-    console.log('📸 Light mode dashboard...');
-    await page.goto(`${BASE_URL}?demo=true`);
-    await waitForApp(page);
+    // ── 1. Login — light mode ─────────────────────
+    console.log('📸 Login (light)...');
+    await page.goto(`${BASE_URL}/#/login`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
     await setTheme(page, 'light');
     await page.waitForTimeout(500);
-    await page.screenshot({ path: path.join(screenshotsDir, 'lightmode.png') });
+    await page.screenshot({ path: path.join(screenshotsDir, 'login-light.png') });
 
-    // ── 2. Dark mode — full dashboard ─────────────
-    console.log('📸 Dark mode dashboard...');
+    // ── 2. Login — dark mode ──────────────────────
+    console.log('📸 Login (dark)...');
     await setTheme(page, 'dark');
     await page.waitForTimeout(500);
-    await page.screenshot({ path: path.join(screenshotsDir, 'darkmode.png') });
+    await page.screenshot({ path: path.join(screenshotsDir, 'login-dark.png') });
 
-    // Switch back to light for feature screenshots
+    // ── 3. Register — light mode ──────────────────
+    console.log('📸 Register (light)...');
+    await page.goto(`${BASE_URL}/#/register`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
     await setTheme(page, 'light');
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: path.join(screenshotsDir, 'register-light.png') });
 
-    // ── 3. TODO list panel (with inline editing) ──
-    console.log('📸 TODO list (inline edit)...');
-    const todoPanel = page.locator('.group\\/card').nth(1);
-    // Double-click the first unchecked todo to trigger inline edit
-    const firstTodo = todoPanel.locator('li').first().locator('span[title="Double-click to edit"]');
-    if (await firstTodo.count() > 0) {
-        await firstTodo.dblclick();
-        await page.waitForTimeout(300);
-    }
-    await todoPanel.screenshot({ path: path.join(screenshotsDir, 'todos.png') });
+    // ── 4. Register — dark mode ───────────────────
+    console.log('📸 Register (dark)...');
+    await setTheme(page, 'dark');
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: path.join(screenshotsDir, 'register-dark.png') });
 
-    // ── 4. AI-suggested TODOs ─────────────────────
-    console.log('📸 AI-suggested TODOs...');
-    const suggestBtn = page.locator('button:has-text("Suggest")');
-    if (await suggestBtn.count() > 0) {
-        await suggestBtn.first().click();
-        await page.waitForTimeout(2000);
-    }
-    await todoPanel.screenshot({ path: path.join(screenshotsDir, 'ai-todos.png') });
+    // ── 5. Mobile — login light ───────────────────
+    console.log('📸 Login mobile (light)...');
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(`${BASE_URL}/#/login`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    await setTheme(page, 'light');
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: path.join(screenshotsDir, 'login-mobile-light.png') });
 
-    // ── 5. Summary modal ─────────────────────────
-    console.log('📸 Summary modal...');
-    const summaryBtn = page.locator('button[aria-label="Summarize"]');
-    if (await summaryBtn.count() > 0) {
-        await summaryBtn.first().click();
-        await page.waitForTimeout(500);
-    }
-    const summaryModal = page.locator('.fixed.inset-0');
-    if (await summaryModal.count() > 0) {
-        await summaryModal.first().screenshot({ path: path.join(screenshotsDir, 'summary.png') });
-    }
-
-    // ── 6. Summary with generated result ──────────
-    console.log('📸 Summary with result...');
-    const generateBtn = page.locator('button:has-text("Generate")');
-    if (await generateBtn.count() > 0) {
-        await generateBtn.first().click();
-        await page.waitForTimeout(2500);
-    }
-    if (await summaryModal.count() > 0) {
-        await summaryModal.first().screenshot({ path: path.join(screenshotsDir, 'summary-result.png') });
-    }
-
-    // Close modal
-    const closeBtn = page.locator('button[aria-label="Close"]');
-    if (await closeBtn.count() > 0) {
-        await closeBtn.first().click();
-        await page.waitForTimeout(300);
-    }
-
-    // ── 7. Calendar picker ────────────────────────
-    console.log('📸 Calendar picker...');
-    const dateBtn = page.locator('header button').filter({ hasText: /\d{4}/ });
-    if (await dateBtn.count() > 0) {
-        await dateBtn.first().click();
-        await page.waitForTimeout(500);
-    }
-    await page.screenshot({ path: path.join(screenshotsDir, 'calendar.png') });
-
-    // Close calendar
-    await page.locator('header').click({ position: { x: 10, y: 10 } });
-    await page.waitForTimeout(300);
-
-    // ── 8. Column layout ─────────────────────────
-    console.log('📸 Column layout...');
-    const layoutBtn = page.locator('button[aria-label="Toggle layout"]');
-    if (await layoutBtn.count() > 0) {
-        await layoutBtn.first().click();
-        await page.waitForTimeout(500);
-    }
-    await page.screenshot({ path: path.join(screenshotsDir, 'column-layout.png') });
+    // ── 6. Mobile — login dark ────────────────────
+    console.log('📸 Login mobile (dark)...');
+    await setTheme(page, 'dark');
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: path.join(screenshotsDir, 'login-mobile-dark.png') });
 
     await browser.close();
     console.log('✅ All screenshots saved to screenshots/');
