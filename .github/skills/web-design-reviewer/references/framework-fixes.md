@@ -53,7 +53,7 @@ This document explains specific fix techniques for each framework and styling me
 
 ---
 
-## Next.js / App Router (used in this project)
+## Next.js / App Router (Reference Only)
 
 ### Global Style Fixes
 
