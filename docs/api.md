@@ -696,6 +696,73 @@ For password-protected shares, include the access token as `X-Share-Token: <toke
 
 Uses the same `multipart/form-data` format as the authenticated upload endpoint — attach files under the `files` field. Returns HTTP 201 on success with an array of uploaded file objects.
 
+---
+
+**`POST /s/{slug}/upload/initiate`** — initiate a direct upload to a reverse share without authentication. Only available when `DIRECT_TRANSFER_ENABLED=true` and `STORAGE_TYPE=s3`.
+
+> **Prerequisite:** `DIRECT_TRANSFER_ENABLED=true` must be set. Returns HTTP 409 when direct transfer is disabled or the configured storage backend does not support presigned URLs.
+
+Request body:
+
+```json
+{ "filename": "photo.jpg", "size": 1048576 }
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `filename` | string | ✔ | Original file name |
+| `size` | int | ✔ | File size in bytes (0 or greater) |
+
+The same file restrictions apply as for `POST /s/{slug}/upload` — blocked extensions and maximum size limits are enforced at this step.
+
+Response `data` fields are identical to the authenticated initiate endpoint (see [Direct transfer endpoints](#direct-transfer-endpoints)):
+
+| Field | Type | Description |
+|---|---|---|
+| `upload_id` | string | Pending upload UUID (used to finalize) |
+| `file_id` | string | File UUID that will be committed on finalize |
+| `filename` | string | Sanitized filename |
+| `size` | int | Declared file size in bytes |
+| `mime_type` | string | Detected MIME type |
+| `url` | string | Presigned PUT URL to upload the file to directly |
+| `method` | string | HTTP method to use for the PUT (typically `"PUT"`) |
+| `headers` | object | Required headers to include in the PUT request (e.g., `Content-Type`) |
+| `expires_at` | string (RFC3339) | Expiry time of the presigned URL |
+| `finalize_token` | string | Short-lived JWT to pass to the finalize endpoint |
+
+| Status | Meaning |
+|---|---|
+| `200 OK` | Pending upload created; presigned URL returned |
+| `400 Bad Request` | Missing or invalid fields, blocked extension, or file too large |
+| `403 Forbidden` | Share does not accept uploads (not a reverse share) |
+| `404 Not Found` | Share not found |
+| `409 Conflict` | Direct transfer disabled, or storage does not support presigned URLs |
+| `410 Gone` | Share has expired, download limit reached, or view limit reached |
+
+---
+
+**`POST /s/{slug}/upload/{uploadId}/finalize`** — finalize a direct upload to a reverse share. No authentication required; the `finalize_token` from the initiate step acts as the bearer of trust.
+
+Path parameter: `uploadId` — the `upload_id` returned by the initiate endpoint.
+
+Request body:
+
+```json
+{ "token": "<finalize_token>" }
+```
+
+The server verifies the `finalize_token` signature, confirms the object exists in storage with the expected size and MIME type, then commits the file record. Returns HTTP 201 with the uploaded file object on success.
+
+| Status | Meaning |
+|---|---|
+| `201 Created` | Upload finalized; file record created |
+| `400 Bad Request` | Missing or malformed token, or object failed integrity check |
+| `401 Unauthorized` | Invalid or expired `finalize_token`, or token does not match `uploadId` / share |
+| `403 Forbidden` | Share does not accept uploads (not a reverse share) |
+| `404 Not Found` | Share or pending upload not found |
+| `409 Conflict` | Direct transfer disabled, upload already finalized, or storage does not support presigned URLs |
+| `410 Gone` | Share or presigned URL has expired |
+
 ## Notification endpoints
 
 **`GET /api/v1/shares/{id}/recipients`** — list all previously notified recipients for a share. Returns an array of recipient objects (see [Recipient object](#recipient-object) below). Returns an empty array if no notifications have been sent.
@@ -1050,3 +1117,5 @@ Receiver guidance:
 | `GET` | `/s/{slug}/files/{fileId}/url` | — | Get presigned direct download URL |
 | `GET` | `/s/{slug}/files/{fileId}/preview` | — | Preview a file |
 | `POST` | `/s/{slug}/upload` | — | Upload to a reverse share |
+| `POST` | `/s/{slug}/upload/initiate` | — | Initiate direct upload to a reverse share (presigned PUT URL) |
+| `POST` | `/s/{slug}/upload/{uploadId}/finalize` | — | Finalize direct upload to a reverse share |
