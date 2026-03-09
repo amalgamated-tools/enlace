@@ -13,7 +13,7 @@ For contribution workflow, code style, and PR guidelines, see [CONTRIBUTING.md](
 ## Getting started
 
 ```bash
-# Install frontend dependencies
+# Install Go and frontend dependencies
 make dev-setup
 
 # Start backend and frontend dev servers with live reload
