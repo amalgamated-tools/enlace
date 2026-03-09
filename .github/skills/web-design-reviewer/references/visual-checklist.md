@@ -1,6 +1,6 @@
 # Visual Inspection Checklist
 
-A checklist for reviewing the git-stuff-done dashboard UI.
+A checklist for reviewing the Enlace UI.
 
 ---
 
