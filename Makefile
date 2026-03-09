@@ -27,6 +27,7 @@ dev: frontend-install ensure-embed-dir
 
 # Ensure frontend/dist exists for Go embed (placeholder for dev/test)
 ensure-embed-dir:
+	@echo "Ensuring frontend/dist exists for Go embed..."
 	@mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 
 # Run all tests
