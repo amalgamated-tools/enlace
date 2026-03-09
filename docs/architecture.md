@@ -12,6 +12,7 @@ enlace/
 │   ├── crypto/          # AES-GCM encryption helpers (used for secrets at rest)
 │   ├── database/        # SQLite setup and migrations
 │   ├── handler/         # HTTP handlers and router
+│   ├── integration/     # Integration tests (//go:build integration)
 │   ├── middleware/       # Authentication and rate limiting
 │   ├── model/           # Domain types (User, Share, File, etc.)
 │   ├── otel/            # Structured logging (slog)
@@ -21,11 +22,15 @@ enlace/
 │   └── telemetry/       # Optional anonymous telemetry
 ├── frontend/            # Svelte + TypeScript SPA
 │   └── src/
-│       ├── routes/      # Page components
-│       ├── lib/         # Shared components and API client
-│       └── test/        # Unit tests
+│       ├── routes/      # Page components (top-level pages and admin sub-pages)
+│       ├── lib/
+│       │   ├── api/     # API client functions (one module per resource)
+│       │   ├── components/ # Reusable UI components
+│       │   └── stores/  # Svelte stores for auth and UI state
+│       └── test/        # Test setup and shared utilities (Vitest)
+├── e2e/                 # Playwright end-to-end tests
 ├── docs/                # Documentation and auto-generated OpenAPI/Swagger specs
-├── scripts/             # Utility scripts
+├── scripts/             # Utility scripts (e.g., release.sh)
 ├── Makefile             # Build and dev targets
 ├── Dockerfile           # Multi-stage Docker build
 └── embed.go             # Go embed directive for frontend assets

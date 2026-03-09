@@ -54,8 +54,10 @@ For Docker Compose setup and production builds, see the [Deployment guide](docs/
 cmd/enlace/        # main entrypoint
 internal/
   config/          # environment-based configuration
+  crypto/          # AES-GCM encryption helpers (secrets at rest)
   database/        # SQLite helpers & migrations
   handler/         # HTTP handlers and router (chi)
+  integration/     # integration tests (//go:build integration)
   middleware/       # auth and rate-limiting middleware
   model/           # domain types (Share, File, User)
   otel/            # structured logging setup (slog)
@@ -64,7 +66,9 @@ internal/
   storage/         # Storage interface + local & S3 implementations
   telemetry/       # anonymous opt-in telemetry
 frontend/          # Svelte + TypeScript + Vite app
+e2e/               # Playwright end-to-end tests
 docs/              # documentation and auto-generated OpenAPI specs
+scripts/           # release and utility scripts
 ```
 
 ## License
