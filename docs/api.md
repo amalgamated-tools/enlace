@@ -629,6 +629,14 @@ Response `data` fields:
 
 The download count is incremented and the `share.downloaded` webhook is emitted when this endpoint is called, matching the behaviour of the regular download endpoint.
 
+| Status | Meaning |
+|---|---|
+| `200 OK` | Presigned URL generated successfully |
+| `401 Unauthorized` | Invalid or missing share token for a password-protected share |
+| `404 Not Found` | Share or file not found |
+| `409 Conflict` | Direct transfer is disabled (`DIRECT_TRANSFER_ENABLED=false`) or the configured storage backend does not support presigned URLs |
+| `410 Gone` | Share has expired, exceeded its download limit, or exceeded its view limit |
+
 ## Public share endpoints
 
 The following endpoints are publicly accessible (no authentication) and are used to view and interact with shares via their slug.
