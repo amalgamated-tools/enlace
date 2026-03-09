@@ -31,7 +31,7 @@ docker run -d \
 
 Open <http://localhost:8080> and register your first user.
 
-> **First admin bootstrap:** The first user to register on a fresh instance is automatically granted admin privileges. Subsequent registrations create regular users. Once an admin account exists, additional admins can be created or promoted via the admin panel or `POST /api/v1/admin/users`.
+> **First admin bootstrap:** The first user to register on a fresh instance is automatically granted admin privileges. This also applies to the first user created via OIDC sign-in when SSO is enabled. Subsequent registrations create regular users. Once an admin account exists, additional admins can be created or promoted via the admin panel or `POST /api/v1/admin/users`.
 
 For Docker Compose setup and production builds, see the [Deployment guide](docs/deployment.md).
 

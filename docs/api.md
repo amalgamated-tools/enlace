@@ -78,9 +78,9 @@ Full validation error example:
 | Field | Type | Description |
 |---|---|---|
 | `status` | string | Always `"ok"` when the service is running |
-| `email_configured` | bool | `true` when SMTP is fully configured; `false` otherwise |
+| `email_configured` | bool | `true` when SMTP is configured and Enlace has a usable mail client; `false` otherwise |
 
-`email_configured` is `true` only when `SMTP_HOST` (and `SMTP_FROM`) are set — either via environment variables or an admin DB override. The frontend reads this flag at startup to conditionally show email-related UI (the **Send via Email** button and **Notify by Email** field). Load balancers and container orchestrators can also poll this endpoint to confirm the service is live.
+`email_configured` is `true` only when SMTP is actually usable — in practice, Enlace must have a host, port, sender address, and a successfully initialized mail client from either environment variables or an admin DB override. The frontend reads this flag at startup to conditionally show email-related UI (the **Send via Email** button and **Notify by Email** field). Load balancers and container orchestrators can also poll this endpoint to confirm the service is live.
 
 ## Auth endpoints
 
