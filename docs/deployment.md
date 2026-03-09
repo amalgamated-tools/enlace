@@ -42,7 +42,6 @@ View and override the storage configuration without restarting or redeploying. T
 
 ### Email tab (`/#/admin/email`)
 
-
 View and override the SMTP configuration. Changes take effect on the next restart. The page shows the current database overrides (if any).
 
 - **No overrides configured** — Enlace is using the environment variable SMTP configuration (or email is disabled if `SMTP_HOST` is not set).
