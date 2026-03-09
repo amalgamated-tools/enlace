@@ -89,6 +89,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	userRepo := repository.NewUserRepository(db.DB())
 	shareRepo := repository.NewShareRepository(db.DB())
 	fileRepo := repository.NewFileRepository(db.DB())
+	pendingUploadRepo := repository.NewPendingUploadRepository(db.DB())
 	totpRepo := repository.NewTOTPRepository(db.DB())
 	settingsRepo := repository.NewSettingsRepository(db.DB())
 	apiKeyRepo := repository.NewAPIKeyRepository(db.DB())
@@ -104,7 +105,15 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	jwtSecret := []byte(cfg.JWTSecret)
 	authService := service.NewAuthService(userRepo, jwtSecret)
 	shareService := service.NewShareService(shareRepo, fileRepo, store)
-	fileService := service.NewFileService(fileRepo, shareRepo, store)
+	fileService := service.NewFileService(
+		fileRepo,
+		shareRepo,
+		store,
+		service.WithPendingUploads(pendingUploadRepo, time.Duration(cfg.DirectTransferExpiry)*time.Second),
+	)
+	if _, err := pendingUploadRepo.ExpireStale(cancelCtx, time.Now()); err != nil {
+		slog.WarnContext(cancelCtx, "failed to expire stale direct uploads", slog.Any("error", err))
+	}
 
 	// Initialize recipient repository and email service
 	recipientRepo := repository.NewRecipientRepository(db.DB())
@@ -144,25 +153,27 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 
 	// Initialize router
 	router := handler.NewRouter(handler.RouterConfig{
-		AuthService:       authService,
-		ShareService:      shareService,
-		FileService:       fileService,
-		EmailService:      emailService,
-		APIKeyService:     apiKeyService,
-		WebhookService:    webhookService,
-		UserRepo:          userRepo,
-		ShareRepo:         shareRepo,
-		FileRepo:          fileRepo,
-		Storage:           store,
-		SettingsRepo:      settingsRepo,
-		JWTSecret:         cfg.JWTSecret,
-		BaseURL:           cfg.BaseURL,
-		OIDCService:       oidcService,
-		FrontendFS:        frontendFS,
-		CORSOrigins:       corsOrigins,
-		TOTPService:       totpService,
-		Require2FA:        cfg.Require2FA,
-		TrustedProxyCIDRs: cfg.TrustedProxyCIDRs,
+		AuthService:           authService,
+		ShareService:          shareService,
+		FileService:           fileService,
+		EmailService:          emailService,
+		APIKeyService:         apiKeyService,
+		WebhookService:        webhookService,
+		UserRepo:              userRepo,
+		ShareRepo:             shareRepo,
+		FileRepo:              fileRepo,
+		Storage:               store,
+		SettingsRepo:          settingsRepo,
+		JWTSecret:             cfg.JWTSecret,
+		BaseURL:               cfg.BaseURL,
+		DirectTransferEnabled: cfg.DirectTransferEnabled,
+		DirectTransferExpiry:  time.Duration(cfg.DirectTransferExpiry) * time.Second,
+		OIDCService:           oidcService,
+		FrontendFS:            frontendFS,
+		CORSOrigins:           corsOrigins,
+		TOTPService:           totpService,
+		Require2FA:            cfg.Require2FA,
+		TrustedProxyCIDRs:     cfg.TrustedProxyCIDRs,
 	})
 
 	workerCtx, stopWorker := context.WithCancel(cancelCtx)

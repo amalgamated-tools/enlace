@@ -557,6 +557,78 @@ File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
 
 **`DELETE /api/v1/files/{id}`** — delete a file from a share you own. Returns HTTP 200 on success. Only the share owner can delete files.
 
+## Direct transfer endpoints
+
+When `DIRECT_TRANSFER_ENABLED=true` and `STORAGE_TYPE=s3`, Enlace supports a three-step direct-transfer flow that routes file data between the client and the object-storage bucket without passing through the Enlace server.
+
+> **Prerequisite:** `DIRECT_TRANSFER_ENABLED=true` must be set. All three endpoints return HTTP 409 when direct transfer is disabled or the configured storage backend does not support presigned URLs.
+
+---
+
+**`POST /api/v1/shares/{id}/files/initiate`** — initiate a direct upload. Requires authentication and share ownership.
+
+Request body:
+
+```json
+{ "filename": "report.pdf", "size": 2048576 }
+```
+
+Response `data` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `upload_id` | string | Pending upload UUID (used to finalize) |
+| `file_id` | string | File UUID that will be committed on finalize |
+| `filename` | string | Sanitized filename |
+| `size` | int | Declared file size in bytes |
+| `mime_type` | string | Detected MIME type |
+| `url` | string | Presigned PUT URL to upload the file to directly |
+| `method` | string | HTTP method to use for the PUT (typically `"PUT"`) |
+| `headers` | object | Required headers to include in the PUT request (e.g., `Content-Type`) |
+| `expires_at` | string (RFC3339) | Expiry time of the presigned URL |
+| `finalize_token` | string | Short-lived JWT to pass to the finalize endpoint |
+
+The `finalize_token` embeds the upload metadata and is signed with the server's JWT secret. It expires at the same time as `expires_at`.
+
+---
+
+**`POST /api/v1/files/uploads/{uploadId}/finalize`** — finalize a direct upload after the file has been PUT to object storage. Requires authentication.
+
+Path parameter: `uploadId` — the `upload_id` returned by the initiate endpoint.
+
+Request body:
+
+```json
+{ "token": "<finalize_token>" }
+```
+
+The server verifies the token signature, confirms the object exists in storage with the expected size and MIME type, then commits the file record. Returns HTTP 201 with the [File object](#file-object) on success.
+
+| Status | Meaning |
+|---|---|
+| `201 Created` | Upload finalized; file record created |
+| `400 Bad Request` | Missing or malformed token |
+| `401 Unauthorized` | Not authenticated |
+| `404 Not Found` | Pending upload not found or already consumed |
+| `409 Conflict` | Direct transfer disabled, or storage does not support presigned URLs |
+| `410 Gone` | Presigned URL has expired |
+| `500 Internal Server Error` | Storage verification failed (orphan object removed automatically) |
+
+---
+
+**`GET /s/{slug}/files/{fileId}/url`** — get a short-lived signed download URL for a public share file (no authentication required; password-protected shares require `X-Share-Token`).
+
+Response `data` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `url` | string | Presigned GET URL |
+| `method` | string | HTTP method to use (typically `"GET"`) |
+| `headers` | object | Headers to include in the request (may be empty) |
+| `expires_at` | string (RFC3339) | Expiry time of the presigned URL |
+
+The download count is incremented and the `share.downloaded` webhook is emitted when this endpoint is called, matching the behaviour of the regular download endpoint.
+
 ## Public share endpoints
 
 The following endpoints are publicly accessible (no authentication) and are used to view and interact with shares via their slug.
@@ -932,6 +1004,8 @@ Receiver guidance:
 | `DELETE` | `/api/v1/shares/{id}` | ✔ | Delete a share |
 | `GET` | `/api/v1/shares/{id}/files` | ✔ | List files in a share |
 | `POST` | `/api/v1/shares/{id}/files` | ✔ | Upload a file to a share |
+| `POST` | `/api/v1/shares/{id}/files/initiate` | ✔ | Initiate direct upload (presigned PUT URL) |
+| `POST` | `/api/v1/files/uploads/{uploadId}/finalize` | ✔ | Finalize direct upload |
 | `POST` | `/api/v1/shares/{id}/notify` | ✔ | Send email notifications for a share |
 | `GET` | `/api/v1/shares/{id}/recipients` | ✔ | List notified recipients for a share |
 | `DELETE` | `/api/v1/files/{id}` | ✔ | Delete a file |
@@ -973,5 +1047,6 @@ Receiver guidance:
 | `GET` | `/s/{slug}` | — | View a public share |
 | `POST` | `/s/{slug}/verify` | — | Unlock a password-protected share |
 | `GET` | `/s/{slug}/files/{fileId}` | — | Download a file |
+| `GET` | `/s/{slug}/files/{fileId}/url` | — | Get presigned direct download URL |
 | `GET` | `/s/{slug}/files/{fileId}/preview` | — | Preview a file |
 | `POST` | `/s/{slug}/upload` | — | Upload to a reverse share |
