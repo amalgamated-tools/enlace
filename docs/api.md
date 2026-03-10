@@ -476,7 +476,7 @@ Returns the current SMTP configuration after the update (same shape as `GET`).
 | `slug` | string | | Custom URL slug (3–50 chars, `[a-z0-9-]`); auto-generated if omitted |
 | `password` | string | | Password-protect the share |
 | `expires_at` | string (RFC3339) | | Expiry timestamp |
-| `max_downloads` | int | | Download limit (≥ 0) |
+| `max_downloads` | int | | Maximum number of unique download sessions (≥ 0). Each visitor counts as one session regardless of how many files they download. |
 | `is_reverse_share` | bool | | Allow others to upload files to this share |
 | `recipients` | array of strings | | Email addresses to notify immediately (requires SMTP to be configured) |
 
@@ -494,7 +494,7 @@ Returns HTTP 201 on success. Returns HTTP 409 if the specified `slug` is already
 | `clear_password` | bool | Set to `true` to remove the password |
 | `expires_at` | string (RFC3339) | New expiry timestamp |
 | `clear_expiry` | bool | Set to `true` to remove the expiry |
-| `max_downloads` | int | New download limit (≥ 0) |
+| `max_downloads` | int | New download session limit (≥ 0). Each unique visitor session counts once. |
 | `is_reverse_share` | bool | Enable or disable reverse-share uploads |
 
 > **Note:** `slug` cannot be changed after creation. To notify new recipients, use `POST /api/v1/shares/{id}/notify`.
@@ -511,8 +511,8 @@ Share responses include the following fields:
 | `description` | string | Optional description |
 | `has_password` | bool | Whether the share requires a password |
 | `expires_at` | string (RFC3339) | Expiry timestamp, omitted if not set |
-| `max_downloads` | int | Download limit, omitted if not set |
-| `download_count` | int | Number of sessions that have downloaded files from this share |
+| `max_downloads` | int | Maximum unique download sessions allowed; omitted if not set |
+| `download_count` | int | Number of unique visitor sessions that have downloaded at least one file from this share |
 | `is_reverse_share` | bool | Whether others can upload to this share |
 | `created_at` | string (RFC3339) | Creation timestamp |
 | `updated_at` | string (RFC3339) | Last-updated timestamp |
@@ -642,7 +642,7 @@ The following endpoints are publicly accessible (no authentication) and are used
 
 **`GET /s/{slug}`** — retrieve a share's metadata and file list.
 
-- If the share is **not** password-protected, the response is returned immediately.
+- If the share is **not** password-protected, the response is returned immediately. The server also sets an HttpOnly `share_token` session cookie (scoped to `/s/{slug}`, valid for 1 hour) that browser clients use to deduplicate download counting across multiple file downloads in the same session.
 - If the share **is** password-protected, you must first obtain an access token (see `POST /s/{slug}/verify` below) and pass it in the `X-Share-Token` header.
 
 Response `data` fields:
@@ -662,8 +662,8 @@ Response `data` fields:
 | `description` | string | Optional description |
 | `has_password` | bool | Whether the share requires a password |
 | `expires_at` | string (RFC3339) | Expiry timestamp, omitted if not set |
-| `max_downloads` | int | Download limit, omitted if not set |
-| `download_count` | int | Number of sessions that have downloaded files from this share |
+| `max_downloads` | int | Maximum unique download sessions allowed; omitted if not set |
+| `download_count` | int | Number of unique visitor sessions that have downloaded at least one file from this share |
 | `is_reverse_share` | bool | Whether others can upload to this share |
 | `created_at` | string (RFC3339) | Creation timestamp |
 
@@ -681,7 +681,7 @@ On success, returns:
 { "token": "<share-access-token>" }
 ```
 
-The token is valid for **1 hour**. Pass it in subsequent requests to the same share as either:
+The token is valid for **1 hour**. The server also sets an HttpOnly `share_token` cookie (path: `/s/{slug}`, MaxAge: 1 hour) so browser clients receive it automatically. API clients must pass it in subsequent requests to the same share as either:
 - `X-Share-Token: <token>` header, or
 - `?token=<token>` query parameter.
 
@@ -689,7 +689,7 @@ The token is valid for **1 hour**. Pass it in subsequent requests to the same sh
 
 **`GET /s/{slug}/files/{fileId}`** — download a file. Returns the raw file content with `Content-Disposition: attachment`.
 
-For password-protected shares, include the access token as `X-Share-Token: <token>` or `?token=<token>`.
+For password-protected shares, include the access token via `X-Share-Token: <token>` header, `?token=<token>` query parameter, or the `share_token` cookie (set automatically by `POST /s/{slug}/verify` for browser clients).
 
 **`GET /s/{slug}/files/{fileId}/preview`** — preview a file inline. Serves the file with `Content-Disposition: inline` for safe MIME types (images, PDFs, plain text, etc.), suitable for in-browser preview. **Scriptable MIME types** — `text/html`, `application/xhtml+xml`, `image/svg+xml`, `application/javascript`, `text/javascript`, `text/css`, and `application/xml` — are always forced to `Content-Disposition: attachment` regardless of the endpoint used, to prevent cross-site scripting via inline script execution. All served files also include a `Content-Security-Policy: default-src 'none'` header as defense-in-depth.
 
