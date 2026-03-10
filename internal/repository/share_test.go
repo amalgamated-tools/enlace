@@ -444,3 +444,91 @@ func TestShareRepository_NullableFieldsHandledCorrectly(t *testing.T) {
 		t.Errorf("expected MaxDownloads to be nil, got %v", found.MaxDownloads)
 	}
 }
+
+func TestShareRepository_TrackSessionDownload_NewSession(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := repository.NewShareRepository(db.DB())
+	ctx := context.Background()
+
+	share := &model.Share{
+		ID:            "share-123",
+		Slug:          "my-share",
+		Name:          "Test Share",
+		DownloadCount: 0,
+	}
+	_ = repo.Create(ctx, share)
+
+	counted, err := repo.TrackSessionDownload(ctx, share.ID, "session-1")
+	if err != nil {
+		t.Fatalf("failed to track session download: %v", err)
+	}
+	if !counted {
+		t.Error("expected first session to be counted")
+	}
+
+	found, _ := repo.GetByID(ctx, share.ID)
+	if found.DownloadCount != 1 {
+		t.Errorf("expected download_count 1, got %d", found.DownloadCount)
+	}
+}
+
+func TestShareRepository_TrackSessionDownload_DuplicateSession(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := repository.NewShareRepository(db.DB())
+	ctx := context.Background()
+
+	share := &model.Share{
+		ID:   "share-123",
+		Slug: "my-share",
+		Name: "Test Share",
+	}
+	_ = repo.Create(ctx, share)
+
+	// First call
+	_, _ = repo.TrackSessionDownload(ctx, share.ID, "session-1")
+
+	// Second call with same session
+	counted, err := repo.TrackSessionDownload(ctx, share.ID, "session-1")
+	if err != nil {
+		t.Fatalf("failed to track duplicate session: %v", err)
+	}
+	if counted {
+		t.Error("expected duplicate session not to be counted")
+	}
+
+	found, _ := repo.GetByID(ctx, share.ID)
+	if found.DownloadCount != 1 {
+		t.Errorf("expected download_count 1, got %d", found.DownloadCount)
+	}
+}
+
+func TestShareRepository_TrackSessionDownload_DifferentSessions(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := repository.NewShareRepository(db.DB())
+	ctx := context.Background()
+
+	share := &model.Share{
+		ID:   "share-123",
+		Slug: "my-share",
+		Name: "Test Share",
+	}
+	_ = repo.Create(ctx, share)
+
+	counted1, _ := repo.TrackSessionDownload(ctx, share.ID, "session-1")
+	counted2, _ := repo.TrackSessionDownload(ctx, share.ID, "session-2")
+
+	if !counted1 || !counted2 {
+		t.Error("expected both different sessions to be counted")
+	}
+
+	found, _ := repo.GetByID(ctx, share.ID)
+	if found.DownloadCount != 2 {
+		t.Errorf("expected download_count 2, got %d", found.DownloadCount)
+	}
+}

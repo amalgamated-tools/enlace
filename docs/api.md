@@ -512,7 +512,7 @@ Share responses include the following fields:
 | `has_password` | bool | Whether the share requires a password |
 | `expires_at` | string (RFC3339) | Expiry timestamp, omitted if not set |
 | `max_downloads` | int | Download limit, omitted if not set |
-| `download_count` | int | Number of times the share has been accessed |
+| `download_count` | int | Number of sessions that have downloaded files from this share |
 | `is_reverse_share` | bool | Whether others can upload to this share |
 | `created_at` | string (RFC3339) | Creation timestamp |
 | `updated_at` | string (RFC3339) | Last-updated timestamp |
@@ -663,7 +663,7 @@ Response `data` fields:
 | `has_password` | bool | Whether the share requires a password |
 | `expires_at` | string (RFC3339) | Expiry timestamp, omitted if not set |
 | `max_downloads` | int | Download limit, omitted if not set |
-| `download_count` | int | Number of times the share has been accessed |
+| `download_count` | int | Number of sessions that have downloaded files from this share |
 | `is_reverse_share` | bool | Whether others can upload to this share |
 | `created_at` | string (RFC3339) | Creation timestamp |
 

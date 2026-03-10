@@ -290,6 +290,16 @@ func (s *ShareService) IncrementDownloadCount(ctx context.Context, id string) er
 	return nil
 }
 
+// TrackSessionDownload records a download for the given session. If sessionID
+// is empty, it falls back to unconditionally incrementing the download count.
+func (s *ShareService) TrackSessionDownload(ctx context.Context, shareID, sessionID string) error {
+	if sessionID == "" {
+		return s.IncrementDownloadCount(ctx, shareID)
+	}
+	_, err := s.shareRepo.TrackSessionDownload(ctx, shareID, sessionID)
+	return err
+}
+
 // generateUniqueSlug generates a random 8-character slug that doesn't exist in the database.
 func (s *ShareService) generateUniqueSlug(ctx context.Context) (string, error) {
 	for i := 0; i < 10; i++ {

@@ -152,3 +152,28 @@ func (r *ShareRepository) IncrementDownloadCount(ctx context.Context, id string)
 	}
 	return nil
 }
+
+// TrackSessionDownload records a download session. If the session was already
+// recorded for this share, it returns false (already counted). If the row was
+// newly inserted, it atomically increments download_count and returns true.
+func (r *ShareRepository) TrackSessionDownload(ctx context.Context, shareID, sessionID string) (bool, error) {
+	result, err := r.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO share_download_sessions (session_id, share_id) VALUES (?, ?)`,
+		sessionID, shareID,
+	)
+	if err != nil {
+		return false, err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return false, nil
+	}
+	_, err = r.db.ExecContext(ctx,
+		`UPDATE shares SET download_count = download_count + 1, updated_at = ? WHERE id = ?`,
+		time.Now(), shareID,
+	)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}

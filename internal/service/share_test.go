@@ -964,3 +964,61 @@ func TestShareService_Update_SetReverseShare(t *testing.T) {
 		t.Error("expected share to be reverse share after update")
 	}
 }
+
+func TestShareService_TrackSessionDownload_WithSession(t *testing.T) {
+	svc, _, cleanup := setupShareService(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	share, _ := svc.Create(ctx, service.CreateShareInput{
+		Name: "Test Share",
+	})
+
+	// First download in session
+	err := svc.TrackSessionDownload(ctx, share.ID, "session-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found, _ := svc.GetByID(ctx, share.ID)
+	if found.DownloadCount != 1 {
+		t.Errorf("expected download_count 1, got %d", found.DownloadCount)
+	}
+
+	// Second download same session — should not increment
+	err = svc.TrackSessionDownload(ctx, share.ID, "session-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found, _ = svc.GetByID(ctx, share.ID)
+	if found.DownloadCount != 1 {
+		t.Errorf("expected download_count still 1, got %d", found.DownloadCount)
+	}
+}
+
+func TestShareService_TrackSessionDownload_EmptySession(t *testing.T) {
+	svc, _, cleanup := setupShareService(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	share, _ := svc.Create(ctx, service.CreateShareInput{
+		Name: "Test Share",
+	})
+
+	// Empty session falls back to unconditional increment
+	err := svc.TrackSessionDownload(ctx, share.ID, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err = svc.TrackSessionDownload(ctx, share.ID, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found, _ := svc.GetByID(ctx, share.ID)
+	if found.DownloadCount != 2 {
+		t.Errorf("expected download_count 2 (unconditional), got %d", found.DownloadCount)
+	}
+}

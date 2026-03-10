@@ -43,6 +43,7 @@ func TestNew_CreatesAllTables(t *testing.T) {
 		"api_keys",
 		"webhook_subscriptions",
 		"webhook_deliveries",
+		"share_download_sessions",
 	}
 
 	for _, table := range expectedTables {

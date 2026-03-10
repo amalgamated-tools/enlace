@@ -199,6 +199,13 @@ func runMigrations(db *sql.DB) error {
 			value TEXT NOT NULL,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
+		`CREATE TABLE IF NOT EXISTS share_download_sessions (
+			session_id TEXT NOT NULL,
+			share_id TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (session_id, share_id),
+			FOREIGN KEY (share_id) REFERENCES shares(id) ON DELETE CASCADE
+		)`,
 	}
 
 	for _, m := range migrations {

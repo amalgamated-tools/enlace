@@ -32,6 +32,7 @@ type mockPublicShareService struct {
 	verifyPasswordFn         func(ctx context.Context, id string, password string) bool
 	validateAccessFn         func(ctx context.Context, share *model.Share) error
 	incrementDownloadCountFn func(ctx context.Context, id string) error
+	trackSessionDownloadFn   func(ctx context.Context, shareID, sessionID string) error
 }
 
 func (m *mockPublicShareService) GetBySlug(ctx context.Context, slug string) (*model.Share, error) {
@@ -65,6 +66,13 @@ func (m *mockPublicShareService) ValidateAccess(ctx context.Context, share *mode
 func (m *mockPublicShareService) IncrementDownloadCount(ctx context.Context, id string) error {
 	if m.incrementDownloadCountFn != nil {
 		return m.incrementDownloadCountFn(ctx, id)
+	}
+	return nil
+}
+
+func (m *mockPublicShareService) TrackSessionDownload(ctx context.Context, shareID, sessionID string) error {
+	if m.trackSessionDownloadFn != nil {
+		return m.trackSessionDownloadFn(ctx, shareID, sessionID)
 	}
 	return nil
 }
@@ -232,9 +240,7 @@ func TestPublicHandler_ViewShare_Success(t *testing.T) {
 			return nil
 		},
 		incrementDownloadCountFn: func(ctx context.Context, id string) error {
-			if id != shareID {
-				t.Errorf("expected share ID %s, got %s", shareID, id)
-			}
+			t.Error("ViewShare should not call IncrementDownloadCount")
 			return nil
 		},
 	}
@@ -286,6 +292,25 @@ func TestPublicHandler_ViewShare_Success(t *testing.T) {
 	}
 	if len(response.Data.Files) != 2 {
 		t.Errorf("expected 2 files, got %d", len(response.Data.Files))
+	}
+
+	// Verify session cookie is set for non-protected share
+	var sessionCookie *http.Cookie
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "share_token" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Error("expected share_token session cookie for non-protected share")
+	} else {
+		if !sessionCookie.HttpOnly {
+			t.Error("expected cookie to be HttpOnly")
+		}
+		if sessionCookie.Path != "/s/"+slug {
+			t.Errorf("expected cookie path /s/%s, got %s", slug, sessionCookie.Path)
+		}
 	}
 }
 
@@ -378,6 +403,7 @@ func TestPublicHandler_ViewShare_PasswordProtected_WithToken(t *testing.T) {
 			return nil
 		},
 		incrementDownloadCountFn: func(ctx context.Context, id string) error {
+			t.Error("ViewShare should not call IncrementDownloadCount")
 			return nil
 		},
 	}
@@ -868,6 +894,7 @@ func TestPublicHandler_DownloadFile_Success(t *testing.T) {
 	file := newPublicTestFile(fileID, shareID, "test.txt")
 	fileContent := "Hello, World!"
 
+	var trackCalled bool
 	mockShare := &mockPublicShareService{
 		getBySlugFn: func(ctx context.Context, s string) (*model.Share, error) {
 			return share, nil
@@ -875,7 +902,11 @@ func TestPublicHandler_DownloadFile_Success(t *testing.T) {
 		validateAccessFn: func(ctx context.Context, s *model.Share) error {
 			return nil
 		},
-		incrementDownloadCountFn: func(ctx context.Context, id string) error {
+		trackSessionDownloadFn: func(ctx context.Context, sid, sessID string) error {
+			trackCalled = true
+			if sid != shareID {
+				t.Errorf("expected share ID %s, got %s", shareID, sid)
+			}
 			return nil
 		},
 	}
@@ -902,6 +933,10 @@ func TestPublicHandler_DownloadFile_Success(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	if !trackCalled {
+		t.Error("expected TrackSessionDownload to be called")
 	}
 
 	// Check headers
