@@ -4,13 +4,17 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: screenshots
+  cancel-in-progress: true
+
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   screenshots:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
     name: Retake Screenshots
     steps:
       - uses: actions/checkout@v6
@@ -83,14 +87,27 @@ jobs:
         env:
           BASE_URL: http://localhost:8080
 
-      - name: Commit updated screenshots
+      - name: Check for changes
+        id: diff
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A screenshots/
-          if git diff --cached --quiet; then
-            echo "No screenshot changes detected."
+          if git diff --quiet screenshots/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            git commit -m "Update screenshots"
-            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Create Pull Request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Update screenshots"
+          title: "Update screenshots"
+          body: |
+            Auto-generated screenshot update.
+
+            This PR was created because the screenshots in `screenshots/` changed
+            after rebuilding the app from the latest code on main.
+          base: ${{ github.head_ref || github.ref_name }}
+          branch: auto/screenshots
+          delete-branch: true
+          add-paths: screenshots/
