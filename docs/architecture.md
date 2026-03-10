@@ -99,7 +99,7 @@ Enlace supports scoped, long-lived API keys for programmatic access without user
 - **`internal/handler/api_key_handler.go`** — HTTP handlers for `GET/POST/DELETE /api/v1/me/api-keys`.
 - **`internal/middleware/auth.go`** — Detects `enl_` prefixed tokens and routes them through the API key authentication path instead of JWT validation.
 
-The full key value is returned only once at creation. A 14-character prefix (`key_prefix`) is stored in plaintext for display and identification; the remainder is stored as a SHA-256 hash. See [Admin API key endpoints](api.md#admin-api-key-endpoints) for the complete API reference.
+The full key value is returned only once at creation. A 14-character prefix (`key_prefix`) is stored in plaintext for display and identification; the remainder is stored as a SHA-256 hash. See [User API key endpoints](api.md#user-api-key-endpoints) for the complete API reference.
 
 ## Frontend
 
