@@ -8,7 +8,7 @@ Authorization: Bearer <access_token_or_api_key>
 
 **JWT access tokens** are returned by the login and token-refresh endpoints and grant full access to all endpoints available to that user.
 
-**API keys** (`enl_…`) are created via [`POST /api/v1/admin/api-keys`](#admin-api-key-endpoints) and grant access only to the endpoints matching their granted scopes (`shares:read`, `shares:write`, `files:read`, `files:write`). Admin-only and user-profile endpoints always require a JWT access token — API keys cannot be used for them.
+**API keys** (`enl_…`) are created via [`POST /api/v1/me/api-keys`](#user-api-key-endpoints) and grant access only to the endpoints matching their granted scopes (`shares:read`, `shares:write`, `files:read`, `files:write`). Admin-only and user-profile endpoints always require a JWT access token — API keys cannot be used for them.
 
 > **Token types:** Enlace issues two distinct JWT token types. Access tokens (`token_type: "access"`, 15-minute expiry) are required for all API calls. Refresh tokens (`token_type: "refresh"`, 7-day expiry) are accepted **only** by `POST /api/v1/auth/refresh` — passing a refresh token to any other endpoint returns HTTP 401. Likewise, presenting an access token to the refresh endpoint returns HTTP 401. This prevents token misuse and limits the blast radius of a leaked token.
 
@@ -790,11 +790,11 @@ Fields in each recipient object:
 | `email` | string | Notified email address |
 | `sent_at` | string (RFC3339) | Timestamp when the notification was sent |
 
-## Admin API key endpoints
+## User API key endpoints
 
-All admin API key endpoints require authentication with an account that has `is_admin: true`. API keys allow programmatic access to Enlace without user credentials. Each key is scoped to a fixed set of permissions and is identified by a short prefix (the first 14 characters) for management purposes. The full key value is returned **only once** at creation time.
+All authenticated users can create and manage their own API keys. API keys allow programmatic access to Enlace without user credentials. Each key is scoped to a fixed set of permissions and is identified by a short prefix (the first 14 characters) for management purposes. The full key value is returned **only once** at creation time.
 
-**`GET /api/v1/admin/api-keys`** — list all API keys created by the current admin account.
+**`GET /api/v1/me/api-keys`** — list all API keys created by the current user.
 
 Returns an array of API key objects:
 
@@ -808,7 +808,7 @@ Returns an array of API key objects:
 | `last_used_at` | string (RFC3339) or null | When the key was last used; `null` if never used |
 | `created_at` | string (RFC3339) | Creation timestamp |
 
-**`POST /api/v1/admin/api-keys`** — create a scoped API key. Returns HTTP 201 on success.
+**`POST /api/v1/me/api-keys`** — create a scoped API key. Returns HTTP 201 on success.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -846,7 +846,7 @@ Returns the created key object plus the full key value (same fields as list, wit
 
 Returns HTTP 400 if `name` is empty, `scopes` is empty, or any scope value is not in the supported set. Invalid scopes produce a validation error: `{"scopes": "contains unsupported scope"}`.
 
-**`DELETE /api/v1/admin/api-keys/{id}`** — revoke an API key. Revoked keys are rejected immediately. Returns HTTP 404 if the key does not exist or belongs to a different admin.
+**`DELETE /api/v1/me/api-keys/{id}`** — revoke an API key. Revoked keys are rejected immediately. Returns HTTP 404 if the key does not exist or belongs to a different user.
 
 ## Admin webhook endpoints
 
@@ -1103,9 +1103,9 @@ Receiver guidance:
 | `GET` | `/api/v1/admin/smtp` | ✔ admin | Get SMTP configuration |
 | `PUT` | `/api/v1/admin/smtp` | ✔ admin | Update SMTP configuration |
 | `DELETE` | `/api/v1/admin/smtp` | ✔ admin | Clear SMTP configuration (revert to env vars) |
-| `GET` | `/api/v1/admin/api-keys` | ✔ admin | List API keys created by the current admin |
-| `POST` | `/api/v1/admin/api-keys` | ✔ admin | Create a scoped API key (secret returned once) |
-| `DELETE` | `/api/v1/admin/api-keys/{id}` | ✔ admin | Revoke an API key |
+| `GET` | `/api/v1/me/api-keys` | ✔ | List API keys created by the current user |
+| `POST` | `/api/v1/me/api-keys` | ✔ | Create a scoped API key (secret returned once) |
+| `DELETE` | `/api/v1/me/api-keys/{id}` | ✔ | Revoke an API key |
 | `GET` | `/api/v1/admin/webhooks` | ✔ admin | List webhook subscriptions created by the current admin |
 | `POST` | `/api/v1/admin/webhooks` | ✔ admin | Create a webhook subscription |
 | `PATCH` | `/api/v1/admin/webhooks/{id}` | ✔ admin | Update a webhook subscription |
