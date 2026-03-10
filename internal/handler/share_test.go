@@ -97,8 +97,6 @@ func newTestShare(id string, creatorID string) *model.Share {
 		ExpiresAt:      nil,
 		MaxDownloads:   nil,
 		DownloadCount:  0,
-		MaxViews:       nil,
-		ViewCount:      0,
 		IsReverseShare: false,
 		CreatedAt:      now,
 		UpdatedAt:      now,
@@ -291,9 +289,7 @@ func TestShareHandler_Create_WithAllFields(t *testing.T) {
 	userID := "user-123"
 	share := newTestShare("share-123", userID)
 	maxDownloads := 10
-	maxViews := 100
 	share.MaxDownloads = &maxDownloads
-	share.MaxViews = &maxViews
 
 	mockShare := &mockShareService{
 		createFn: func(ctx context.Context, input service.CreateShareInput) (*model.Share, error) {
@@ -305,9 +301,6 @@ func TestShareHandler_Create_WithAllFields(t *testing.T) {
 			}
 			if input.MaxDownloads == nil || *input.MaxDownloads != 10 {
 				t.Error("expected max_downloads to be 10")
-			}
-			if input.MaxViews == nil || *input.MaxViews != 100 {
-				t.Error("expected max_views to be 100")
 			}
 			if !input.IsReverseShare {
 				t.Error("expected is_reverse_share to be true")
@@ -328,7 +321,6 @@ func TestShareHandler_Create_WithAllFields(t *testing.T) {
 		"password": "secret",
 		"expires_at": "2024-12-31T23:59:59Z",
 		"max_downloads": 10,
-		"max_views": 100,
 		"is_reverse_share": true
 	}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/shares", bytes.NewBufferString(body))
@@ -378,11 +370,6 @@ func TestShareHandler_Create_ValidationErrors(t *testing.T) {
 			name:      "negative max_downloads",
 			body:      `{"name": "Test", "max_downloads": -1}`,
 			wantField: "max_downloads",
-		},
-		{
-			name:      "negative max_views",
-			body:      `{"name": "Test", "max_views": -1}`,
-			wantField: "max_views",
 		},
 	}
 
@@ -803,11 +790,6 @@ func TestShareHandler_Update_ValidationErrors(t *testing.T) {
 			name:      "negative max_downloads",
 			body:      `{"max_downloads": -1}`,
 			wantField: "max_downloads",
-		},
-		{
-			name:      "negative max_views",
-			body:      `{"max_views": -1}`,
-			wantField: "max_views",
 		},
 	}
 

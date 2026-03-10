@@ -31,8 +31,8 @@ type mockPublicShareService struct {
 	getByIDFn                func(ctx context.Context, id string) (*model.Share, error)
 	verifyPasswordFn         func(ctx context.Context, id string, password string) bool
 	validateAccessFn         func(ctx context.Context, share *model.Share) error
-	incrementViewCountFn     func(ctx context.Context, id string) error
 	incrementDownloadCountFn func(ctx context.Context, id string) error
+	trackSessionDownloadFn   func(ctx context.Context, shareID, sessionID string) error
 }
 
 func (m *mockPublicShareService) GetBySlug(ctx context.Context, slug string) (*model.Share, error) {
@@ -63,16 +63,16 @@ func (m *mockPublicShareService) ValidateAccess(ctx context.Context, share *mode
 	return nil
 }
 
-func (m *mockPublicShareService) IncrementViewCount(ctx context.Context, id string) error {
-	if m.incrementViewCountFn != nil {
-		return m.incrementViewCountFn(ctx, id)
+func (m *mockPublicShareService) IncrementDownloadCount(ctx context.Context, id string) error {
+	if m.incrementDownloadCountFn != nil {
+		return m.incrementDownloadCountFn(ctx, id)
 	}
 	return nil
 }
 
-func (m *mockPublicShareService) IncrementDownloadCount(ctx context.Context, id string) error {
-	if m.incrementDownloadCountFn != nil {
-		return m.incrementDownloadCountFn(ctx, id)
+func (m *mockPublicShareService) TrackSessionDownload(ctx context.Context, shareID, sessionID string) error {
+	if m.trackSessionDownloadFn != nil {
+		return m.trackSessionDownloadFn(ctx, shareID, sessionID)
 	}
 	return nil
 }
@@ -167,8 +167,6 @@ func newPublicTestShare(id, slug string) *model.Share {
 		ExpiresAt:      nil,
 		MaxDownloads:   nil,
 		DownloadCount:  0,
-		MaxViews:       nil,
-		ViewCount:      0,
 		IsReverseShare: false,
 		CreatedAt:      now,
 		UpdatedAt:      now,
@@ -241,10 +239,8 @@ func TestPublicHandler_ViewShare_Success(t *testing.T) {
 		validateAccessFn: func(ctx context.Context, s *model.Share) error {
 			return nil
 		},
-		incrementViewCountFn: func(ctx context.Context, id string) error {
-			if id != shareID {
-				t.Errorf("expected share ID %s, got %s", shareID, id)
-			}
+		incrementDownloadCountFn: func(ctx context.Context, id string) error {
+			t.Error("ViewShare should not call IncrementDownloadCount")
 			return nil
 		},
 	}
@@ -296,6 +292,25 @@ func TestPublicHandler_ViewShare_Success(t *testing.T) {
 	}
 	if len(response.Data.Files) != 2 {
 		t.Errorf("expected 2 files, got %d", len(response.Data.Files))
+	}
+
+	// Verify session cookie is set for non-protected share
+	var sessionCookie *http.Cookie
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "share_token" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Error("expected share_token session cookie for non-protected share")
+	} else {
+		if !sessionCookie.HttpOnly {
+			t.Error("expected cookie to be HttpOnly")
+		}
+		if sessionCookie.Path != "/s/"+slug {
+			t.Errorf("expected cookie path /s/%s, got %s", slug, sessionCookie.Path)
+		}
 	}
 }
 
@@ -372,32 +387,6 @@ func TestPublicHandler_ViewShare_DownloadLimitReached(t *testing.T) {
 	}
 }
 
-// TestPublicHandler_ViewShare_ViewLimitReached tests viewing a share with view limit reached.
-func TestPublicHandler_ViewShare_ViewLimitReached(t *testing.T) {
-	share := newPublicTestShare("share-123", "test-share")
-
-	mockShare := &mockPublicShareService{
-		getBySlugFn: func(ctx context.Context, slug string) (*model.Share, error) {
-			return share, nil
-		},
-		validateAccessFn: func(ctx context.Context, s *model.Share) error {
-			return service.ErrViewLimit
-		},
-	}
-
-	h := handler.NewPublicHandler(mockShare, nil, testJWTSecret)
-	router := setupPublicRouter(h)
-
-	req := httptest.NewRequest(http.MethodGet, "/s/test-share", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusGone {
-		t.Errorf("expected status %d, got %d", http.StatusGone, w.Code)
-	}
-}
-
 // TestPublicHandler_ViewShare_PasswordProtected_WithToken tests viewing password-protected share with valid token.
 func TestPublicHandler_ViewShare_PasswordProtected_WithToken(t *testing.T) {
 	shareID := "share-123"
@@ -413,7 +402,8 @@ func TestPublicHandler_ViewShare_PasswordProtected_WithToken(t *testing.T) {
 		validateAccessFn: func(ctx context.Context, s *model.Share) error {
 			return nil
 		},
-		incrementViewCountFn: func(ctx context.Context, id string) error {
+		incrementDownloadCountFn: func(ctx context.Context, id string) error {
+			t.Error("ViewShare should not call IncrementDownloadCount")
 			return nil
 		},
 	}
@@ -469,18 +459,10 @@ func TestPublicHandler_ViewShare_PasswordProtected_WithoutToken(t *testing.T) {
 func TestPublicHandler_GetDownloadURL_Success(t *testing.T) {
 	share := newPublicTestShare("share-123", "test-share")
 	file := newPublicTestFile("file-123", share.ID, "test.txt")
-	downloadCountCalls := 0
 
 	mockShare := &mockPublicShareService{
 		getBySlugFn:      func(ctx context.Context, slug string) (*model.Share, error) { return share, nil },
 		validateAccessFn: func(ctx context.Context, share *model.Share) error { return nil },
-		incrementDownloadCountFn: func(ctx context.Context, id string) error {
-			if id != share.ID {
-				t.Fatalf("expected download count for share %s, got %s", share.ID, id)
-			}
-			downloadCountCalls++
-			return nil
-		},
 	}
 	mockFile := &mockPublicFileService{
 		getByIDFn: func(ctx context.Context, id string) (*model.File, error) { return file, nil },
@@ -505,9 +487,6 @@ func TestPublicHandler_GetDownloadURL_Success(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
-	if downloadCountCalls != 1 {
-		t.Fatalf("expected download count increment, got %d", downloadCountCalls)
 	}
 }
 
@@ -915,6 +894,7 @@ func TestPublicHandler_DownloadFile_Success(t *testing.T) {
 	file := newPublicTestFile(fileID, shareID, "test.txt")
 	fileContent := "Hello, World!"
 
+	var trackCalled bool
 	mockShare := &mockPublicShareService{
 		getBySlugFn: func(ctx context.Context, s string) (*model.Share, error) {
 			return share, nil
@@ -922,7 +902,11 @@ func TestPublicHandler_DownloadFile_Success(t *testing.T) {
 		validateAccessFn: func(ctx context.Context, s *model.Share) error {
 			return nil
 		},
-		incrementDownloadCountFn: func(ctx context.Context, id string) error {
+		trackSessionDownloadFn: func(ctx context.Context, sid, sessID string) error {
+			trackCalled = true
+			if sid != shareID {
+				t.Errorf("expected share ID %s, got %s", shareID, sid)
+			}
 			return nil
 		},
 	}
@@ -949,6 +933,10 @@ func TestPublicHandler_DownloadFile_Success(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	if !trackCalled {
+		t.Error("expected TrackSessionDownload to be called")
 	}
 
 	// Check headers
@@ -1544,7 +1532,7 @@ func TestPublicHandler_ViewShare_FileListError(t *testing.T) {
 		validateAccessFn: func(ctx context.Context, s *model.Share) error {
 			return nil
 		},
-		incrementViewCountFn: func(ctx context.Context, id string) error {
+		incrementDownloadCountFn: func(ctx context.Context, id string) error {
 			return nil
 		},
 	}
@@ -1580,9 +1568,6 @@ func TestPublicHandler_DownloadFile_GetContentError(t *testing.T) {
 			return share, nil
 		},
 		validateAccessFn: func(ctx context.Context, s *model.Share) error {
-			return nil
-		},
-		incrementDownloadCountFn: func(ctx context.Context, id string) error {
 			return nil
 		},
 	}
@@ -1659,8 +1644,6 @@ func TestPublicHandler_ViewShare_WithExpiresAt(t *testing.T) {
 	share.ExpiresAt = &expiresAt
 	maxDownloads := 10
 	share.MaxDownloads = &maxDownloads
-	maxViews := 100
-	share.MaxViews = &maxViews
 
 	mockShare := &mockPublicShareService{
 		getBySlugFn: func(ctx context.Context, s string) (*model.Share, error) {
@@ -1669,7 +1652,7 @@ func TestPublicHandler_ViewShare_WithExpiresAt(t *testing.T) {
 		validateAccessFn: func(ctx context.Context, s *model.Share) error {
 			return nil
 		},
-		incrementViewCountFn: func(ctx context.Context, id string) error {
+		incrementDownloadCountFn: func(ctx context.Context, id string) error {
 			return nil
 		},
 	}
@@ -1698,7 +1681,6 @@ func TestPublicHandler_ViewShare_WithExpiresAt(t *testing.T) {
 			Share struct {
 				ExpiresAt    *string `json:"expires_at"`
 				MaxDownloads *int    `json:"max_downloads"`
-				MaxViews     *int    `json:"max_views"`
 			} `json:"share"`
 		} `json:"data"`
 	}
@@ -1711,9 +1693,6 @@ func TestPublicHandler_ViewShare_WithExpiresAt(t *testing.T) {
 	}
 	if response.Data.Share.MaxDownloads == nil || *response.Data.Share.MaxDownloads != 10 {
 		t.Error("expected max_downloads to be 10")
-	}
-	if response.Data.Share.MaxViews == nil || *response.Data.Share.MaxViews != 100 {
-		t.Error("expected max_views to be 100")
 	}
 }
 

@@ -9,7 +9,6 @@
   let slug = "";
   let password = "";
   let maxDownloads: string = "";
-  let maxViews: string = "";
   let expiresAt = "";
   let isReverseShare = false;
 
@@ -59,7 +58,6 @@
         slug: slug.trim() || undefined,
         password: password || undefined,
         max_downloads: maxDownloads ? parseInt(maxDownloads, 10) : undefined,
-        max_views: maxViews ? parseInt(maxViews, 10) : undefined,
         expires_at: expiresAt ? dateToRFC3339(expiresAt) : undefined,
         is_reverse_share: isReverseShare,
         recipients: recipientList.length > 0 ? recipientList : undefined,
@@ -136,12 +134,6 @@
           type="number"
           label="Max Downloads"
           bind:value={maxDownloads}
-          placeholder="Unlimited"
-        />
-        <Input
-          type="number"
-          label="Max Views"
-          bind:value={maxViews}
           placeholder="Unlimited"
         />
       </div>

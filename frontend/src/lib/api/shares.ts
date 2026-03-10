@@ -9,8 +9,6 @@ export interface Share {
   expires_at: string | null;
   max_downloads: number | null;
   download_count: number;
-  max_views: number | null;
-  view_count: number;
   is_reverse_share: boolean;
   created_at: string;
   updated_at: string;
@@ -23,7 +21,6 @@ export interface CreateShareInput {
   password?: string;
   expires_at?: string;
   max_downloads?: number;
-  max_views?: number;
   is_reverse_share?: boolean;
   recipients?: string[];
 }
@@ -35,7 +32,6 @@ export interface UpdateShareInput {
   expires_at?: string;
   clear_expiry?: boolean;
   max_downloads?: number;
-  max_views?: number;
 }
 
 export function dateToRFC3339(date: string): string {

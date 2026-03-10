@@ -106,58 +106,6 @@ func TestShare_IsDownloadLimitReached(t *testing.T) {
 	}
 }
 
-func TestShare_IsViewLimitReached(t *testing.T) {
-	tests := []struct {
-		name      string
-		maxViews  *int
-		viewCount int
-		want      bool
-	}{
-		{
-			name:      "nil limit - not reached",
-			maxViews:  nil,
-			viewCount: 100,
-			want:      false,
-		},
-		{
-			name:      "under limit",
-			maxViews:  intPtr(10),
-			viewCount: 5,
-			want:      false,
-		},
-		{
-			name:      "at limit",
-			maxViews:  intPtr(10),
-			viewCount: 10,
-			want:      true,
-		},
-		{
-			name:      "over limit",
-			maxViews:  intPtr(10),
-			viewCount: 15,
-			want:      true,
-		},
-		{
-			name:      "zero limit zero views",
-			maxViews:  intPtr(0),
-			viewCount: 0,
-			want:      true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &Share{
-				MaxViews:  tt.maxViews,
-				ViewCount: tt.viewCount,
-			}
-			if got := s.IsViewLimitReached(); got != tt.want {
-				t.Errorf("IsViewLimitReached() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestShare_HasPassword(t *testing.T) {
 	tests := []struct {
 		name         string

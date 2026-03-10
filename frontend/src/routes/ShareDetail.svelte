@@ -33,7 +33,6 @@
   let editDescription = "";
   let editPassword = "";
   let editMaxDownloads = "";
-  let editMaxViews = "";
   let editExpiresAt = "";
 
   let deleteModal = false;
@@ -66,7 +65,6 @@
       editMaxDownloads = shareData.max_downloads
         ? String(shareData.max_downloads)
         : "";
-      editMaxViews = shareData.max_views ? String(shareData.max_views) : "";
       editExpiresAt = shareData.expires_at
         ? shareData.expires_at.split("T")[0]
         : "";
@@ -109,7 +107,6 @@
         max_downloads: editMaxDownloads
           ? parseInt(editMaxDownloads, 10)
           : undefined,
-        max_views: editMaxViews ? parseInt(editMaxViews, 10) : undefined,
         expires_at: editExpiresAt ? dateToRFC3339(editExpiresAt) : undefined,
         clear_expiry: share.expires_at && !editExpiresAt ? true : undefined,
       });
@@ -257,12 +254,6 @@
               bind:value={editMaxDownloads}
               placeholder="Unlimited"
             />
-            <Input
-              type="number"
-              label="Max Views"
-              bind:value={editMaxViews}
-              placeholder="Unlimited"
-            />
             <div class="space-y-1.5">
               <label
                 for="edit-expires-at"
@@ -316,11 +307,6 @@
                 {/if}
               </div>
               <div class="flex gap-4 mt-2 text-xs text-subtle">
-                <span
-                  >{share.view_count} view{share.view_count !== 1
-                    ? "s"
-                    : ""}{share.max_views ? ` / ${share.max_views}` : ""}</span
-                >
                 <span
                   >{share.download_count} download{share.download_count !== 1
                     ? "s"

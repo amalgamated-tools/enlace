@@ -3781,9 +3781,6 @@ const docTemplate = `{
                 "max_downloads": {
                     "type": "integer"
                 },
-                "max_views": {
-                    "type": "integer"
-                },
                 "name": {
                     "type": "string"
                 },
@@ -4007,17 +4004,11 @@ const docTemplate = `{
                 "max_downloads": {
                     "type": "integer"
                 },
-                "max_views": {
-                    "type": "integer"
-                },
                 "name": {
                     "type": "string"
                 },
                 "slug": {
                     "type": "string"
-                },
-                "view_count": {
-                    "type": "integer"
                 }
             }
         },
@@ -4115,9 +4106,6 @@ const docTemplate = `{
                 "max_downloads": {
                     "type": "integer"
                 },
-                "max_views": {
-                    "type": "integer"
-                },
                 "name": {
                     "type": "string"
                 },
@@ -4126,9 +4114,6 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
-                },
-                "view_count": {
-                    "type": "integer"
                 }
             }
         },
@@ -4352,9 +4337,6 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "max_downloads": {
-                    "type": "integer"
-                },
-                "max_views": {
                     "type": "integer"
                 },
                 "name": {

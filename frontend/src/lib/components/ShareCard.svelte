@@ -74,7 +74,6 @@
   </div>
   <div class="flex items-center gap-4 mt-3 text-xs text-subtle">
     <span class="font-mono">/{share.slug}</span>
-    <span>{share.view_count} view{share.view_count !== 1 ? "s" : ""}</span>
     <span
       >{share.download_count} download{share.download_count !== 1
         ? "s"

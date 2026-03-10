@@ -1,7 +1,10 @@
 package database_test
 
 import (
+	"database/sql"
 	"testing"
+
+	_ "modernc.org/sqlite"
 
 	"github.com/amalgamated-tools/enlace/internal/database"
 )
@@ -40,6 +43,7 @@ func TestNew_CreatesAllTables(t *testing.T) {
 		"api_keys",
 		"webhook_subscriptions",
 		"webhook_deliveries",
+		"share_download_sessions",
 	}
 
 	for _, table := range expectedTables {
@@ -264,6 +268,137 @@ func TestNew_WithFilePath(t *testing.T) {
 		t.Errorf("expected users table to exist")
 	}
 }
+
+func TestMigration_MaxViewsCoalesced(t *testing.T) {
+	// Simulate an old-schema database that still has max_views and view_count
+	// columns, then run New() which triggers the migration that drops them.
+	tmpDir := t.TempDir()
+	dbPath := tmpDir + "/migrate.db"
+
+	// Open a raw connection and create the OLD schema with max_views / view_count.
+	rawDB, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open raw db: %v", err)
+	}
+
+	oldSchema := []string{
+		`CREATE TABLE users (
+			id TEXT PRIMARY KEY,
+			email TEXT UNIQUE NOT NULL,
+			password_hash TEXT NOT NULL,
+			display_name TEXT NOT NULL,
+			is_admin INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			oidc_subject TEXT DEFAULT '',
+			oidc_issuer TEXT DEFAULT ''
+		)`,
+		`CREATE TABLE shares (
+			id TEXT PRIMARY KEY,
+			creator_id TEXT,
+			slug TEXT UNIQUE NOT NULL,
+			name TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			password_hash TEXT,
+			expires_at DATETIME,
+			max_downloads INTEGER,
+			download_count INTEGER NOT NULL DEFAULT 0,
+			max_views INTEGER,
+			view_count INTEGER NOT NULL DEFAULT 0,
+			is_reverse_share INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE SET NULL
+		)`,
+	}
+	for _, stmt := range oldSchema {
+		if _, err := rawDB.Exec(stmt); err != nil {
+			t.Fatalf("failed to create old schema: %v", err)
+		}
+	}
+
+	// Insert test rows covering all edge cases.
+	inserts := []string{
+		// Both NULL limits, zero counts
+		`INSERT INTO shares (id, slug, name) VALUES ('s1', 'slug1', 'Both NULL')`,
+		// Only max_downloads set, view_count higher
+		`INSERT INTO shares (id, slug, name, max_downloads, download_count, view_count) VALUES ('s2', 'slug2', 'DL only', 5, 1, 3)`,
+		// Only max_views set, download_count higher
+		`INSERT INTO shares (id, slug, name, max_views, download_count, view_count) VALUES ('s3', 'slug3', 'Views only', 10, 4, 2)`,
+		// Both limits set, view_count higher
+		`INSERT INTO shares (id, slug, name, max_downloads, max_views, download_count, view_count) VALUES ('s4', 'slug4', 'Both set', 5, 10, 1, 7)`,
+	}
+	for _, ins := range inserts {
+		if _, err := rawDB.Exec(ins); err != nil {
+			t.Fatalf("failed to insert test row: %v", err)
+		}
+	}
+	rawDB.Close()
+
+	// Now open with database.New which runs migrations.
+	db, err := database.New(dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database after migration: %v", err)
+	}
+	defer db.Close()
+
+	// Verify max_views column no longer exists.
+	var colCount int
+	rows, err := db.DB().Query("PRAGMA table_info(shares)")
+	if err != nil {
+		t.Fatalf("failed to query table_info: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notnull int
+		var dfltValue interface{}
+		var pk int
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
+			t.Fatalf("failed to scan column: %v", err)
+		}
+		if name == "max_views" || name == "view_count" {
+			colCount++
+		}
+	}
+	if colCount != 0 {
+		t.Errorf("expected max_views/view_count columns to be removed, found %d", colCount)
+	}
+
+	// Verify coalesced data.
+	type row struct {
+		maxDownloads  *int
+		downloadCount int
+	}
+	expected := map[string]row{
+		"s1": {nil, 0},        // both NULL → NULL, MAX(0,0)=0
+		"s2": {intPtr(5), 3},  // COALESCE(5,NULL)=5, MAX(1,3)=3
+		"s3": {intPtr(10), 4}, // COALESCE(NULL,10)=10, MAX(4,2)=4
+		"s4": {intPtr(5), 7},  // COALESCE(5,10)=5, MAX(1,7)=7
+	}
+
+	for id, want := range expected {
+		var maxDL *int
+		var dlCount int
+		err := db.DB().QueryRow(
+			"SELECT max_downloads, download_count FROM shares WHERE id = ?", id,
+		).Scan(&maxDL, &dlCount)
+		if err != nil {
+			t.Fatalf("failed to query share %s: %v", id, err)
+		}
+		if (want.maxDownloads == nil) != (maxDL == nil) {
+			t.Errorf("share %s: max_downloads mismatch: want %v, got %v", id, want.maxDownloads, maxDL)
+		} else if want.maxDownloads != nil && *want.maxDownloads != *maxDL {
+			t.Errorf("share %s: max_downloads want %d, got %d", id, *want.maxDownloads, *maxDL)
+		}
+		if dlCount != want.downloadCount {
+			t.Errorf("share %s: download_count want %d, got %d", id, want.downloadCount, dlCount)
+		}
+	}
+}
+
+func intPtr(v int) *int { return &v }
 
 func TestMigration_OIDCColumns(t *testing.T) {
 	db, err := database.New(":memory:")

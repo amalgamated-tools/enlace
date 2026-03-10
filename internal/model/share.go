@@ -12,8 +12,6 @@ type Share struct {
 	ExpiresAt      *time.Time
 	MaxDownloads   *int
 	DownloadCount  int
-	MaxViews       *int
-	ViewCount      int
 	IsReverseShare bool
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -33,14 +31,6 @@ func (s *Share) IsDownloadLimitReached() bool {
 		return false
 	}
 	return s.DownloadCount >= *s.MaxDownloads
-}
-
-// IsViewLimitReached reports whether the share has reached its view limit.
-func (s *Share) IsViewLimitReached() bool {
-	if s.MaxViews == nil {
-		return false
-	}
-	return s.ViewCount >= *s.MaxViews
 }
 
 // HasPassword reports whether the share requires a password.

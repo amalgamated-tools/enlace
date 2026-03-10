@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
 	"github.com/amalgamated-tools/enlace/internal/model"
 	"github.com/amalgamated-tools/enlace/internal/service"
@@ -33,8 +34,8 @@ type PublicShareServiceInterface interface {
 	GetByID(ctx context.Context, id string) (*model.Share, error)
 	VerifyPassword(ctx context.Context, id string, password string) bool
 	ValidateAccess(ctx context.Context, share *model.Share) error
-	IncrementViewCount(ctx context.Context, id string) error
 	IncrementDownloadCount(ctx context.Context, id string) error
+	TrackSessionDownload(ctx context.Context, shareID, sessionID string) error
 }
 
 // PublicFileServiceInterface defines the interface for file service operations needed by PublicHandler.
@@ -128,8 +129,6 @@ type publicShareResponse struct {
 	ExpiresAt      *string `json:"expires_at,omitempty"`
 	MaxDownloads   *int    `json:"max_downloads,omitempty"`
 	DownloadCount  int     `json:"download_count"`
-	MaxViews       *int    `json:"max_views,omitempty"`
-	ViewCount      int     `json:"view_count"`
 	IsReverseShare bool    `json:"is_reverse_share"`
 	CreatedAt      string  `json:"created_at"`
 }
@@ -200,11 +199,25 @@ func (h *PublicHandler) ViewShare(w http.ResponseWriter, r *http.Request) {
 			Error(w, http.StatusUnauthorized, "password verification required")
 			return
 		}
-	}
-
-	// Increment view count
-	if err := h.shareService.IncrementViewCount(r.Context(), share.ID); err != nil {
-		slog.Warn("failed to increment view count", "share_id", share.ID, "error", err)
+	} else {
+		// For non-protected shares, issue a session token via cookie so that
+		// subsequent file downloads can be deduplicated per session.
+		if h.extractSessionID(r, share.ID) == "" {
+			token, err := h.generateShareAccessToken(share.ID)
+			if err != nil {
+				slog.Warn("failed to generate session token", "share_id", share.ID, "error", err)
+			} else {
+				http.SetCookie(w, &http.Cookie{
+					Name:     "share_token",
+					Value:    token,
+					Path:     "/s/" + slug,
+					MaxAge:   int(shareAccessTokenExpiry.Seconds()),
+					HttpOnly: true,
+					SameSite: http.SameSiteLaxMode,
+					Secure:   h.secureCookies || r.TLS != nil,
+				})
+			}
+		}
 	}
 
 	// Get files for the share
@@ -385,9 +398,12 @@ func (h *PublicHandler) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.shareService.IncrementDownloadCount(r.Context(), share.ID); err != nil {
-		slog.Warn("failed to increment download count", "share_id", share.ID, "error", err)
+	// Track session-based download count
+	sessionID := h.extractSessionID(r, share.ID)
+	if err := h.shareService.TrackSessionDownload(r.Context(), share.ID, sessionID); err != nil {
+		slog.Warn("failed to track session download", "share_id", share.ID, "error", err)
 	}
+
 	h.emitShareDownloadedWebhook(share, file)
 
 	result, err := h.fileService.GetPresignedDownloadURL(r.Context(), fileID, h.directExpiry)
@@ -449,9 +465,10 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 		return
 	}
 
-	// Increment download count
-	if err := h.shareService.IncrementDownloadCount(r.Context(), share.ID); err != nil {
-		slog.Warn("failed to increment download count", "share_id", share.ID, "error", err)
+	// Track session-based download count
+	sessionID := h.extractSessionID(r, share.ID)
+	if err := h.shareService.TrackSessionDownload(r.Context(), share.ID, sessionID); err != nil {
+		slog.Warn("failed to track session download", "share_id", share.ID, "error", err)
 	}
 
 	h.emitShareDownloadedWebhook(share, file)
@@ -956,6 +973,7 @@ func (h *PublicHandler) generateShareAccessToken(shareID string) (string, error)
 	claims := &ShareAccessClaims{
 		ShareID: shareID,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uuid.NewString(),
 			ExpiresAt: jwt.NewNumericDate(now.Add(shareAccessTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
@@ -1007,6 +1025,42 @@ func (h *PublicHandler) validateShareToken(r *http.Request, expectedShareID stri
 	return nil
 }
 
+// extractSessionID attempts to extract the session ID (JTI) from the share
+// access token. Returns empty string if no valid token is found or if the
+// token's ShareID does not match the expected share.
+func (h *PublicHandler) extractSessionID(r *http.Request, expectedShareID string) string {
+	tokenStr := r.Header.Get("X-Share-Token")
+	if tokenStr == "" {
+		if cookie, err := r.Cookie("share_token"); err == nil {
+			tokenStr = cookie.Value
+		}
+	}
+	if tokenStr == "" {
+		return ""
+	}
+
+	token, err := jwt.ParseWithClaims(tokenStr, &ShareAccessClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("invalid signing method")
+		}
+		return h.jwtSecret, nil
+	})
+	if err != nil {
+		return ""
+	}
+
+	claims, ok := token.Claims.(*ShareAccessClaims)
+	if !ok || !token.Valid {
+		return ""
+	}
+
+	if claims.ShareID != expectedShareID {
+		return ""
+	}
+
+	return claims.ID
+}
+
 // handleAccessError maps access validation errors to HTTP responses.
 func (h *PublicHandler) handleAccessError(w http.ResponseWriter, err error) {
 	switch {
@@ -1014,8 +1068,6 @@ func (h *PublicHandler) handleAccessError(w http.ResponseWriter, err error) {
 		Error(w, http.StatusGone, "share has expired")
 	case errors.Is(err, service.ErrDownloadLimit):
 		Error(w, http.StatusGone, "download limit reached")
-	case errors.Is(err, service.ErrViewLimit):
-		Error(w, http.StatusGone, "view limit reached")
 	default:
 		Error(w, http.StatusInternalServerError, "access validation failed")
 	}
@@ -1030,7 +1082,6 @@ func (h *PublicHandler) toPublicShareResponse(share *model.Share) publicShareRes
 		Description:    share.Description,
 		HasPassword:    share.HasPassword(),
 		DownloadCount:  share.DownloadCount,
-		ViewCount:      share.ViewCount,
 		IsReverseShare: share.IsReverseShare,
 		CreatedAt:      share.CreatedAt.Format(time.RFC3339),
 	}
@@ -1042,10 +1093,6 @@ func (h *PublicHandler) toPublicShareResponse(share *model.Share) publicShareRes
 
 	if share.MaxDownloads != nil {
 		resp.MaxDownloads = share.MaxDownloads
-	}
-
-	if share.MaxViews != nil {
-		resp.MaxViews = share.MaxViews
 	}
 
 	return resp

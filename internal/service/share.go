@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -21,7 +22,6 @@ var (
 	ErrShareNotFound    = errors.New("share not found")
 	ErrShareExpired     = errors.New("share has expired")
 	ErrDownloadLimit    = errors.New("download limit reached")
-	ErrViewLimit        = errors.New("view limit reached")
 	ErrSlugExists       = errors.New("slug already exists")
 	ErrPasswordRequired = errors.New("password required")
 )
@@ -46,7 +46,6 @@ type CreateShareInput struct {
 	Password       *string
 	ExpiresAt      *time.Time
 	MaxDownloads   *int
-	MaxViews       *int
 	IsReverseShare bool
 }
 
@@ -59,7 +58,6 @@ type UpdateShareInput struct {
 	ExpiresAt      *time.Time
 	ClearExpiry    bool
 	MaxDownloads   *int
-	MaxViews       *int
 	IsReverseShare *bool
 }
 
@@ -120,8 +118,6 @@ func (s *ShareService) Create(ctx context.Context, input CreateShareInput) (*mod
 		ExpiresAt:      input.ExpiresAt,
 		MaxDownloads:   input.MaxDownloads,
 		DownloadCount:  0,
-		MaxViews:       input.MaxViews,
-		ViewCount:      0,
 		IsReverseShare: input.IsReverseShare,
 	}
 
@@ -177,8 +173,6 @@ func (s *ShareService) Update(ctx context.Context, id string, input UpdateShareI
 		ExpiresAt:      share.ExpiresAt,
 		MaxDownloads:   share.MaxDownloads,
 		DownloadCount:  share.DownloadCount,
-		MaxViews:       share.MaxViews,
-		ViewCount:      share.ViewCount,
 		IsReverseShare: share.IsReverseShare,
 		CreatedAt:      share.CreatedAt,
 		UpdatedAt:      share.UpdatedAt,
@@ -207,9 +201,6 @@ func (s *ShareService) Update(ctx context.Context, id string, input UpdateShareI
 	}
 	if input.MaxDownloads != nil {
 		updated.MaxDownloads = input.MaxDownloads
-	}
-	if input.MaxViews != nil {
-		updated.MaxViews = input.MaxViews
 	}
 	if input.IsReverseShare != nil {
 		updated.IsReverseShare = *input.IsReverseShare
@@ -285,9 +276,6 @@ func (s *ShareService) ValidateAccess(_ context.Context, share *model.Share) err
 	if share.IsDownloadLimitReached() {
 		return ErrDownloadLimit
 	}
-	if share.IsViewLimitReached() {
-		return ErrViewLimit
-	}
 	return nil
 }
 
@@ -303,16 +291,14 @@ func (s *ShareService) IncrementDownloadCount(ctx context.Context, id string) er
 	return nil
 }
 
-// IncrementViewCount atomically increments the view counter for a share.
-func (s *ShareService) IncrementViewCount(ctx context.Context, id string) error {
-	err := s.shareRepo.IncrementViewCount(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return ErrShareNotFound
-		}
-		return err
+// TrackSessionDownload records a download for the given session. If sessionID
+// is empty, it falls back to unconditionally incrementing the download count.
+func (s *ShareService) TrackSessionDownload(ctx context.Context, shareID, sessionID string) error {
+	if sessionID == "" {
+		return s.IncrementDownloadCount(ctx, shareID)
 	}
-	return nil
+	_, err := s.shareRepo.TrackSessionDownload(ctx, shareID, sessionID)
+	return err
 }
 
 // generateUniqueSlug generates a random 8-character slug that doesn't exist in the database.
@@ -343,4 +329,26 @@ func generateRandomSlug() (string, error) {
 	// Use base32 encoding for URL-safe characters, then truncate and lowercase
 	encoded := base32.StdEncoding.EncodeToString(bytes)
 	return strings.ToLower(encoded[:slugLength]), nil
+}
+
+// StartSessionCleanup runs a background goroutine that periodically removes
+// expired download session records. It stops when the context is cancelled.
+func (s *ShareService) StartSessionCleanup(ctx context.Context, interval, maxAge time.Duration) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				deleted, err := s.shareRepo.CleanupExpiredSessions(ctx, maxAge)
+				if err != nil {
+					slog.Warn("failed to cleanup expired download sessions", "error", err)
+				} else if deleted > 0 {
+					slog.Debug("cleaned up expired download sessions", "deleted", deleted)
+				}
+			}
+		}
+	}()
 }

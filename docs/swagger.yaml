@@ -102,8 +102,6 @@ definitions:
         type: boolean
       max_downloads:
         type: integer
-      max_views:
-        type: integer
       name:
         type: string
       password:
@@ -249,14 +247,10 @@ definitions:
         type: boolean
       max_downloads:
         type: integer
-      max_views:
-        type: integer
       name:
         type: string
       slug:
         type: string
-      view_count:
-        type: integer
     type: object
   handler.recipientResponse:
     properties:
@@ -320,16 +314,12 @@ definitions:
         type: boolean
       max_downloads:
         type: integer
-      max_views:
-        type: integer
       name:
         type: string
       slug:
         type: string
       updated_at:
         type: string
-      view_count:
-        type: integer
     type: object
   handler.smtpConfigResponse:
     properties:
@@ -473,8 +463,6 @@ definitions:
       is_reverse_share:
         type: boolean
       max_downloads:
-        type: integer
-      max_views:
         type: integer
       name:
         type: string
