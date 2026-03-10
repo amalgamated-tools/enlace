@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { push, querystring } from "svelte-spa-router";
-  import { Button, Input } from "../lib/components";
+  import { Button, Input, ApiKeysSection } from "../lib/components";
   import {
     auth,
     isAuthenticated,
@@ -721,4 +721,6 @@
       </div>
     </div>
   {/if}
+
+  <ApiKeysSection />
 </div>

@@ -96,10 +96,10 @@ Enlace supports scoped, long-lived API keys for programmatic access without user
 - **`internal/model/api_key.go`** — `APIKey` domain type.
 - **`internal/repository/api_key.go`** — SQL queries for creating, listing, and revoking keys.
 - **`internal/service/api_key.go`** — Business logic for key generation (token format `enl_<uuid>_<secret>`), scope validation, bcrypt-equivalent SHA-256 hashing, and authentication via `Authenticate`.
-- **`internal/handler/admin_api_key.go`** — Admin HTTP handlers for `GET/POST/DELETE /api/v1/admin/api-keys`.
+- **`internal/handler/api_key_handler.go`** — HTTP handlers for `GET/POST/DELETE /api/v1/me/api-keys`.
 - **`internal/middleware/auth.go`** — Detects `enl_` prefixed tokens and routes them through the API key authentication path instead of JWT validation.
 
-The full key value is returned only once at creation. A 14-character prefix (`key_prefix`) is stored in plaintext for display and identification; the remainder is stored as a SHA-256 hash. See [Admin API key endpoints](api.md#admin-api-key-endpoints) for the complete API reference.
+The full key value is returned only once at creation. A 14-character prefix (`key_prefix`) is stored in plaintext for display and identification; the remainder is stored as a SHA-256 hash. See [User API key endpoints](api.md#user-api-key-endpoints) for the complete API reference.
 
 ## Frontend
 

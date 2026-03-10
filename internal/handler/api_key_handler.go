@@ -22,7 +22,7 @@ type APIKeyServiceInterface interface {
 	Revoke(ctx context.Context, creatorID, id string) error
 }
 
-// APIKeyHandler manages admin API key routes.
+// APIKeyHandler manages API key routes.
 type APIKeyHandler struct {
 	service APIKeyServiceInterface
 }
@@ -52,18 +52,17 @@ type createAPIKeyResponse struct {
 	Key string `json:"key"`
 }
 
-// List handles GET /api/v1/admin/api-keys.
+// List handles GET /api/v1/me/api-keys.
 //
 //	@Summary		List API keys
-//	@Description	Returns all API keys created by the authenticated admin. Requires admin role.
-//	@Tags			admin
+//	@Description	Returns all API keys created by the authenticated user.
+//	@Tags			me
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{object}	APIResponse{data=[]apiKeyResponse}
 //	@Failure		401	{object}	APIResponse
-//	@Failure		403	{object}	APIResponse
 //	@Failure		500	{object}	APIResponse
-//	@Router			/api/v1/admin/api-keys [get]
+//	@Router			/api/v1/me/api-keys [get]
 func (h *APIKeyHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -84,11 +83,11 @@ func (h *APIKeyHandler) List(w http.ResponseWriter, r *http.Request) {
 	Success(w, http.StatusOK, resp)
 }
 
-// Create handles POST /api/v1/admin/api-keys.
+// Create handles POST /api/v1/me/api-keys.
 //
 //	@Summary		Create API key
-//	@Description	Creates a scoped API key for the authenticated admin. The full key value is returned only once at creation. Requires admin role.
-//	@Tags			admin
+//	@Description	Creates a scoped API key for the authenticated user. The full key value is returned only once at creation.
+//	@Tags			me
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
@@ -96,9 +95,8 @@ func (h *APIKeyHandler) List(w http.ResponseWriter, r *http.Request) {
 //	@Success		201		{object}	APIResponse{data=createAPIKeyResponse}
 //	@Failure		400		{object}	ValidationErrorResponse
 //	@Failure		401		{object}	APIResponse
-//	@Failure		403		{object}	APIResponse
 //	@Failure		500		{object}	APIResponse
-//	@Router			/api/v1/admin/api-keys [post]
+//	@Router			/api/v1/me/api-keys [post]
 func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {
@@ -137,21 +135,20 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	Success(w, http.StatusCreated, resp)
 }
 
-// Revoke handles DELETE /api/v1/admin/api-keys/{id}.
+// Revoke handles DELETE /api/v1/me/api-keys/{id}.
 //
 //	@Summary		Revoke API key
-//	@Description	Revokes an API key. Revoked keys are rejected immediately. Returns HTTP 404 if the key does not exist or belongs to a different admin. Requires admin role.
-//	@Tags			admin
+//	@Description	Revokes an API key. Revoked keys are rejected immediately. Returns HTTP 404 if the key does not exist or belongs to a different user.
+//	@Tags			me
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			id	path		string	true	"API key ID"
 //	@Success		200	{object}	APIResponse
 //	@Failure		400	{object}	APIResponse
 //	@Failure		401	{object}	APIResponse
-//	@Failure		403	{object}	APIResponse
 //	@Failure		404	{object}	APIResponse
 //	@Failure		500	{object}	APIResponse
-//	@Router			/api/v1/admin/api-keys/{id} [delete]
+//	@Router			/api/v1/me/api-keys/{id} [delete]
 func (h *APIKeyHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	if userID == "" {

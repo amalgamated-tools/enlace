@@ -234,6 +234,15 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 					r.Post("/recovery-codes", totpHandler.RegenerateRecoveryCodes)
 				})
 			}
+
+			// API key management routes
+			if apiKeyHandler != nil {
+				r.Route("/api-keys", func(r chi.Router) {
+					r.Get("/", apiKeyHandler.List)
+					r.Post("/", apiKeyHandler.Create)
+					r.Delete("/{id}", apiKeyHandler.Revoke)
+				})
+			}
 		})
 
 		// Admin routes - require authentication and admin role
@@ -267,13 +276,6 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 					r.Get("/", smtpConfigHandler.GetSMTPConfig)
 					r.Put("/", smtpConfigHandler.UpdateSMTPConfig)
 					r.Delete("/", smtpConfigHandler.DeleteSMTPConfig)
-				})
-			}
-			if apiKeyHandler != nil {
-				r.Route("/api-keys", func(r chi.Router) {
-					r.Get("/", apiKeyHandler.List)
-					r.Post("/", apiKeyHandler.Create)
-					r.Delete("/{id}", apiKeyHandler.Revoke)
 				})
 			}
 			if webhookHandler != nil {

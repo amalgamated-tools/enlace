@@ -27,8 +27,8 @@ export const ALL_SCOPES = [
 ] as const;
 
 export const apiKeysApi = {
-  list: () => api.get<ApiKey[]>("/admin/api-keys"),
+  list: () => api.get<ApiKey[]>("/me/api-keys"),
   create: (input: CreateApiKeyInput) =>
-    api.post<CreateApiKeyResponse>("/admin/api-keys", input),
-  revoke: (id: string) => api.delete<void>(`/admin/api-keys/${id}`),
+    api.post<CreateApiKeyResponse>("/me/api-keys", input),
+  revoke: (id: string) => api.delete<void>(`/me/api-keys/${id}`),
 };
