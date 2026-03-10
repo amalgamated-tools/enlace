@@ -60,7 +60,7 @@
         password: password || undefined,
         max_downloads: maxDownloads ? parseInt(maxDownloads, 10) : undefined,
         max_views: maxViews ? parseInt(maxViews, 10) : undefined,
-        expires_at: expiresAt || undefined,
+        expires_at: expiresAt ? `${expiresAt}T00:00:00Z` : undefined,
         is_reverse_share: isReverseShare,
         recipients: recipientList.length > 0 ? recipientList : undefined,
       });

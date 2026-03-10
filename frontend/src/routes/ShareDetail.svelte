@@ -109,7 +109,7 @@
           ? parseInt(editMaxDownloads, 10)
           : undefined,
         max_views: editMaxViews ? parseInt(editMaxViews, 10) : undefined,
-        expires_at: editExpiresAt || undefined,
+        expires_at: editExpiresAt ? `${editExpiresAt}T00:00:00Z` : undefined,
       });
       share = updated;
       editPassword = "";
