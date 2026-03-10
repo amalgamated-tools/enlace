@@ -57,6 +57,15 @@ cd e2e
 BASE_URL=http://localhost:5173 node ../scripts/take-screenshots.mjs
 ```
 
+### Automated CI screenshot updates
+
+The `.github/workflows/screenshots.yml` workflow runs automatically on every push to `main`. It builds the app from source, starts the server, runs `scripts/take-screenshots.mjs`, and then checks whether any PNG files in `screenshots/` changed.
+
+- **If screenshots changed**, the workflow opens a draft pull request from the `auto/screenshots` branch with the updated images. Review and merge the PR to commit the new screenshots.
+- **If screenshots are unchanged**, the workflow exits without creating a PR.
+
+Only one screenshot workflow runs at a time — the `concurrency: screenshots` group cancels any in-progress run when a new push arrives.
+
 ## S3-compatible storage (local dev)
 
 The dev compose file ships [RustFS](https://rustfs.com/), an S3-compatible server:
