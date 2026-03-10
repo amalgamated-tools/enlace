@@ -33,7 +33,6 @@ type PublicShareServiceInterface interface {
 	GetByID(ctx context.Context, id string) (*model.Share, error)
 	VerifyPassword(ctx context.Context, id string, password string) bool
 	ValidateAccess(ctx context.Context, share *model.Share) error
-	IncrementViewCount(ctx context.Context, id string) error
 	IncrementDownloadCount(ctx context.Context, id string) error
 }
 
@@ -128,8 +127,6 @@ type publicShareResponse struct {
 	ExpiresAt      *string `json:"expires_at,omitempty"`
 	MaxDownloads   *int    `json:"max_downloads,omitempty"`
 	DownloadCount  int     `json:"download_count"`
-	MaxViews       *int    `json:"max_views,omitempty"`
-	ViewCount      int     `json:"view_count"`
 	IsReverseShare bool    `json:"is_reverse_share"`
 	CreatedAt      string  `json:"created_at"`
 }
@@ -202,9 +199,9 @@ func (h *PublicHandler) ViewShare(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Increment view count
-	if err := h.shareService.IncrementViewCount(r.Context(), share.ID); err != nil {
-		slog.Warn("failed to increment view count", "share_id", share.ID, "error", err)
+	// Increment download count (counts share page access)
+	if err := h.shareService.IncrementDownloadCount(r.Context(), share.ID); err != nil {
+		slog.Warn("failed to increment download count", "share_id", share.ID, "error", err)
 	}
 
 	// Get files for the share
@@ -385,9 +382,6 @@ func (h *PublicHandler) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.shareService.IncrementDownloadCount(r.Context(), share.ID); err != nil {
-		slog.Warn("failed to increment download count", "share_id", share.ID, "error", err)
-	}
 	h.emitShareDownloadedWebhook(share, file)
 
 	result, err := h.fileService.GetPresignedDownloadURL(r.Context(), fileID, h.directExpiry)
@@ -447,11 +441,6 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 	share, file, ok := h.loadShareAndFileForDownload(w, r, slug, fileID)
 	if !ok {
 		return
-	}
-
-	// Increment download count
-	if err := h.shareService.IncrementDownloadCount(r.Context(), share.ID); err != nil {
-		slog.Warn("failed to increment download count", "share_id", share.ID, "error", err)
 	}
 
 	h.emitShareDownloadedWebhook(share, file)
@@ -1014,8 +1003,6 @@ func (h *PublicHandler) handleAccessError(w http.ResponseWriter, err error) {
 		Error(w, http.StatusGone, "share has expired")
 	case errors.Is(err, service.ErrDownloadLimit):
 		Error(w, http.StatusGone, "download limit reached")
-	case errors.Is(err, service.ErrViewLimit):
-		Error(w, http.StatusGone, "view limit reached")
 	default:
 		Error(w, http.StatusInternalServerError, "access validation failed")
 	}
@@ -1030,7 +1017,6 @@ func (h *PublicHandler) toPublicShareResponse(share *model.Share) publicShareRes
 		Description:    share.Description,
 		HasPassword:    share.HasPassword(),
 		DownloadCount:  share.DownloadCount,
-		ViewCount:      share.ViewCount,
 		IsReverseShare: share.IsReverseShare,
 		CreatedAt:      share.CreatedAt.Format(time.RFC3339),
 	}
@@ -1042,10 +1028,6 @@ func (h *PublicHandler) toPublicShareResponse(share *model.Share) publicShareRes
 
 	if share.MaxDownloads != nil {
 		resp.MaxDownloads = share.MaxDownloads
-	}
-
-	if share.MaxViews != nil {
-		resp.MaxViews = share.MaxViews
 	}
 
 	return resp

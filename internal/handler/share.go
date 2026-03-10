@@ -76,7 +76,6 @@ type createShareRequest struct {
 	Password       *string  `json:"password"`
 	ExpiresAt      *string  `json:"expires_at"`
 	MaxDownloads   *int     `json:"max_downloads"`
-	MaxViews       *int     `json:"max_views"`
 	IsReverseShare bool     `json:"is_reverse_share"`
 	Recipients     []string `json:"recipients"`
 }
@@ -90,7 +89,6 @@ type updateShareRequest struct {
 	ExpiresAt      *string `json:"expires_at"`
 	ClearExpiry    *bool   `json:"clear_expiry"`
 	MaxDownloads   *int    `json:"max_downloads"`
-	MaxViews       *int    `json:"max_views"`
 	IsReverseShare *bool   `json:"is_reverse_share"`
 }
 
@@ -104,8 +102,6 @@ type shareResponse struct {
 	ExpiresAt      *string `json:"expires_at,omitempty"`
 	MaxDownloads   *int    `json:"max_downloads,omitempty"`
 	DownloadCount  int     `json:"download_count"`
-	MaxViews       *int    `json:"max_views,omitempty"`
-	ViewCount      int     `json:"view_count"`
 	IsReverseShare bool    `json:"is_reverse_share"`
 	CreatedAt      string  `json:"created_at"`
 	UpdatedAt      string  `json:"updated_at"`
@@ -213,7 +209,6 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Password:       req.Password,
 		ExpiresAt:      expiresAt,
 		MaxDownloads:   req.MaxDownloads,
-		MaxViews:       req.MaxViews,
 		IsReverseShare: req.IsReverseShare,
 	}
 
@@ -386,7 +381,6 @@ func (h *ShareHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Password:       req.Password,
 		ExpiresAt:      expiresAt,
 		MaxDownloads:   req.MaxDownloads,
-		MaxViews:       req.MaxViews,
 		IsReverseShare: req.IsReverseShare,
 	}
 
@@ -484,10 +478,6 @@ func (h *ShareHandler) validateCreateRequest(req createShareRequest) map[string]
 		errs["max_downloads"] = "max_downloads must be non-negative"
 	}
 
-	if req.MaxViews != nil && *req.MaxViews < 0 {
-		errs["max_views"] = "max_views must be non-negative"
-	}
-
 	return errs
 }
 
@@ -506,10 +496,6 @@ func (h *ShareHandler) validateUpdateRequest(req updateShareRequest) map[string]
 
 	if req.MaxDownloads != nil && *req.MaxDownloads < 0 {
 		errs["max_downloads"] = "max_downloads must be non-negative"
-	}
-
-	if req.MaxViews != nil && *req.MaxViews < 0 {
-		errs["max_views"] = "max_views must be non-negative"
 	}
 
 	return errs
@@ -538,7 +524,6 @@ func (h *ShareHandler) toShareResponse(share *model.Share) shareResponse {
 		Description:    share.Description,
 		HasPassword:    share.HasPassword(),
 		DownloadCount:  share.DownloadCount,
-		ViewCount:      share.ViewCount,
 		IsReverseShare: share.IsReverseShare,
 		CreatedAt:      share.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:      share.UpdatedAt.Format(time.RFC3339),
@@ -551,10 +536,6 @@ func (h *ShareHandler) toShareResponse(share *model.Share) shareResponse {
 
 	if share.MaxDownloads != nil {
 		resp.MaxDownloads = share.MaxDownloads
-	}
-
-	if share.MaxViews != nil {
-		resp.MaxViews = share.MaxViews
 	}
 
 	return resp

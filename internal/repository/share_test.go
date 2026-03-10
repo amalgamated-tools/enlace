@@ -66,7 +66,6 @@ func TestShareRepository_Create_WithAllFields(t *testing.T) {
 	passwordHash := "sharepasshash"
 	expiresAt := time.Now().Add(24 * time.Hour)
 	maxDownloads := 10
-	maxViews := 100
 
 	share := &model.Share{
 		ID:             "share-full",
@@ -78,8 +77,6 @@ func TestShareRepository_Create_WithAllFields(t *testing.T) {
 		ExpiresAt:      &expiresAt,
 		MaxDownloads:   &maxDownloads,
 		DownloadCount:  5,
-		MaxViews:       &maxViews,
-		ViewCount:      50,
 		IsReverseShare: true,
 	}
 
@@ -107,12 +104,6 @@ func TestShareRepository_Create_WithAllFields(t *testing.T) {
 	}
 	if found.DownloadCount != 5 {
 		t.Errorf("expected download_count 5, got %d", found.DownloadCount)
-	}
-	if found.MaxViews == nil || *found.MaxViews != maxViews {
-		t.Errorf("expected max_views %d, got %v", maxViews, found.MaxViews)
-	}
-	if found.ViewCount != 50 {
-		t.Errorf("expected view_count 50, got %d", found.ViewCount)
 	}
 	if !found.IsReverseShare {
 		t.Error("expected is_reverse_share to be true")
@@ -417,48 +408,6 @@ func TestShareRepository_IncrementDownloadCount_NotFound(t *testing.T) {
 	}
 }
 
-func TestShareRepository_IncrementViewCount(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	repo := repository.NewShareRepository(db.DB())
-	ctx := context.Background()
-
-	share := &model.Share{
-		ID:        "share-123",
-		Slug:      "my-share",
-		Name:      "Test Share",
-		ViewCount: 10,
-	}
-	_ = repo.Create(ctx, share)
-
-	err := repo.IncrementViewCount(ctx, share.ID)
-	if err != nil {
-		t.Fatalf("failed to increment view count: %v", err)
-	}
-
-	found, err := repo.GetByID(ctx, share.ID)
-	if err != nil {
-		t.Fatalf("failed to get share: %v", err)
-	}
-	if found.ViewCount != 11 {
-		t.Errorf("expected view_count 11, got %d", found.ViewCount)
-	}
-}
-
-func TestShareRepository_IncrementViewCount_NotFound(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	repo := repository.NewShareRepository(db.DB())
-	ctx := context.Background()
-
-	err := repo.IncrementViewCount(ctx, "nonexistent-id")
-	if err != repository.ErrNotFound {
-		t.Errorf("expected ErrNotFound, got %v", err)
-	}
-}
-
 func TestShareRepository_NullableFieldsHandledCorrectly(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
@@ -493,8 +442,5 @@ func TestShareRepository_NullableFieldsHandledCorrectly(t *testing.T) {
 	}
 	if found.MaxDownloads != nil {
 		t.Errorf("expected MaxDownloads to be nil, got %v", found.MaxDownloads)
-	}
-	if found.MaxViews != nil {
-		t.Errorf("expected MaxViews to be nil, got %v", found.MaxViews)
 	}
 }

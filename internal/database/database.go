@@ -66,8 +66,6 @@ func runMigrations(db *sql.DB) error {
 			expires_at DATETIME,
 			max_downloads INTEGER,
 			download_count INTEGER NOT NULL DEFAULT 0,
-			max_views INTEGER,
-			view_count INTEGER NOT NULL DEFAULT 0,
 			is_reverse_share INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -222,6 +220,42 @@ func runMigrations(db *sql.DB) error {
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_users_oidc ON users(oidc_issuer, oidc_subject)`); err != nil {
 		return err
+	}
+
+	// Migration: remove max_views and view_count columns, coalescing data into download_count.
+	if columnExists(db, "shares", "max_views") {
+		migrationSQL := []string{
+			`CREATE TABLE shares_new (
+				id TEXT PRIMARY KEY,
+				creator_id TEXT,
+				slug TEXT UNIQUE NOT NULL,
+				name TEXT NOT NULL,
+				description TEXT NOT NULL DEFAULT '',
+				password_hash TEXT,
+				expires_at DATETIME,
+				max_downloads INTEGER,
+				download_count INTEGER NOT NULL DEFAULT 0,
+				is_reverse_share INTEGER NOT NULL DEFAULT 0,
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE SET NULL
+			)`,
+			`INSERT INTO shares_new (id, creator_id, slug, name, description, password_hash, expires_at, max_downloads, download_count, is_reverse_share, created_at, updated_at)
+			 SELECT id, creator_id, slug, name, description, password_hash, expires_at,
+				COALESCE(max_downloads, max_views),
+				MAX(download_count, view_count),
+				is_reverse_share, created_at, updated_at
+			 FROM shares`,
+			`DROP TABLE shares`,
+			`ALTER TABLE shares_new RENAME TO shares`,
+			`CREATE INDEX IF NOT EXISTS idx_shares_slug ON shares(slug)`,
+			`CREATE INDEX IF NOT EXISTS idx_shares_creator_id ON shares(creator_id)`,
+		}
+		for _, stmt := range migrationSQL {
+			if _, err := db.Exec(stmt); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

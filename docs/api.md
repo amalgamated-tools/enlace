@@ -477,7 +477,6 @@ Returns the current SMTP configuration after the update (same shape as `GET`).
 | `password` | string | | Password-protect the share |
 | `expires_at` | string (RFC3339) | | Expiry timestamp |
 | `max_downloads` | int | | Download limit (≥ 0) |
-| `max_views` | int | | View limit (≥ 0) |
 | `is_reverse_share` | bool | | Allow others to upload files to this share |
 | `recipients` | array of strings | | Email addresses to notify immediately (requires SMTP to be configured) |
 
@@ -496,7 +495,6 @@ Returns HTTP 201 on success. Returns HTTP 409 if the specified `slug` is already
 | `expires_at` | string (RFC3339) | New expiry timestamp |
 | `clear_expiry` | bool | Set to `true` to remove the expiry |
 | `max_downloads` | int | New download limit (≥ 0) |
-| `max_views` | int | New view limit (≥ 0) |
 | `is_reverse_share` | bool | Enable or disable reverse-share uploads |
 
 > **Note:** `slug` cannot be changed after creation. To notify new recipients, use `POST /api/v1/shares/{id}/notify`.
@@ -514,9 +512,7 @@ Share responses include the following fields:
 | `has_password` | bool | Whether the share requires a password |
 | `expires_at` | string (RFC3339) | Expiry timestamp, omitted if not set |
 | `max_downloads` | int | Download limit, omitted if not set |
-| `download_count` | int | Number of times files have been downloaded |
-| `max_views` | int | View limit, omitted if not set |
-| `view_count` | int | Number of times the share has been viewed |
+| `download_count` | int | Number of times the share has been accessed |
 | `is_reverse_share` | bool | Whether others can upload to this share |
 | `created_at` | string (RFC3339) | Creation timestamp |
 | `updated_at` | string (RFC3339) | Last-updated timestamp |
@@ -642,7 +638,7 @@ The download count is incremented and the `share.downloaded` webhook is emitted 
 
 The following endpoints are publicly accessible (no authentication) and are used to view and interact with shares via their slug.
 
-> **HTTP 410 Gone:** All public share endpoints return HTTP 410 when the share has **expired** (`expires_at` is in the past), the **download limit** has been reached (`download_count >= max_downloads`), or the **view limit** has been reached (`view_count >= max_views`). Clients should handle 410 as a terminal "share no longer accessible" state distinct from 404 (share does not exist).
+> **HTTP 410 Gone:** All public share endpoints return HTTP 410 when the share has **expired** (`expires_at` is in the past) or the **download limit** has been reached (`download_count >= max_downloads`). Clients should handle 410 as a terminal "share no longer accessible" state distinct from 404 (share does not exist).
 
 **`GET /s/{slug}`** — retrieve a share's metadata and file list.
 
@@ -667,9 +663,7 @@ Response `data` fields:
 | `has_password` | bool | Whether the share requires a password |
 | `expires_at` | string (RFC3339) | Expiry timestamp, omitted if not set |
 | `max_downloads` | int | Download limit, omitted if not set |
-| `download_count` | int | Number of times files have been downloaded |
-| `max_views` | int | View limit, omitted if not set |
-| `view_count` | int | Number of times the share has been viewed |
+| `download_count` | int | Number of times the share has been accessed |
 | `is_reverse_share` | bool | Whether others can upload to this share |
 | `created_at` | string (RFC3339) | Creation timestamp |
 

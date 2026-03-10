@@ -21,7 +21,6 @@ var (
 	ErrShareNotFound    = errors.New("share not found")
 	ErrShareExpired     = errors.New("share has expired")
 	ErrDownloadLimit    = errors.New("download limit reached")
-	ErrViewLimit        = errors.New("view limit reached")
 	ErrSlugExists       = errors.New("slug already exists")
 	ErrPasswordRequired = errors.New("password required")
 )
@@ -46,7 +45,6 @@ type CreateShareInput struct {
 	Password       *string
 	ExpiresAt      *time.Time
 	MaxDownloads   *int
-	MaxViews       *int
 	IsReverseShare bool
 }
 
@@ -59,7 +57,6 @@ type UpdateShareInput struct {
 	ExpiresAt      *time.Time
 	ClearExpiry    bool
 	MaxDownloads   *int
-	MaxViews       *int
 	IsReverseShare *bool
 }
 
@@ -120,8 +117,6 @@ func (s *ShareService) Create(ctx context.Context, input CreateShareInput) (*mod
 		ExpiresAt:      input.ExpiresAt,
 		MaxDownloads:   input.MaxDownloads,
 		DownloadCount:  0,
-		MaxViews:       input.MaxViews,
-		ViewCount:      0,
 		IsReverseShare: input.IsReverseShare,
 	}
 
@@ -177,8 +172,6 @@ func (s *ShareService) Update(ctx context.Context, id string, input UpdateShareI
 		ExpiresAt:      share.ExpiresAt,
 		MaxDownloads:   share.MaxDownloads,
 		DownloadCount:  share.DownloadCount,
-		MaxViews:       share.MaxViews,
-		ViewCount:      share.ViewCount,
 		IsReverseShare: share.IsReverseShare,
 		CreatedAt:      share.CreatedAt,
 		UpdatedAt:      share.UpdatedAt,
@@ -207,9 +200,6 @@ func (s *ShareService) Update(ctx context.Context, id string, input UpdateShareI
 	}
 	if input.MaxDownloads != nil {
 		updated.MaxDownloads = input.MaxDownloads
-	}
-	if input.MaxViews != nil {
-		updated.MaxViews = input.MaxViews
 	}
 	if input.IsReverseShare != nil {
 		updated.IsReverseShare = *input.IsReverseShare
@@ -285,27 +275,12 @@ func (s *ShareService) ValidateAccess(_ context.Context, share *model.Share) err
 	if share.IsDownloadLimitReached() {
 		return ErrDownloadLimit
 	}
-	if share.IsViewLimitReached() {
-		return ErrViewLimit
-	}
 	return nil
 }
 
 // IncrementDownloadCount atomically increments the download counter for a share.
 func (s *ShareService) IncrementDownloadCount(ctx context.Context, id string) error {
 	err := s.shareRepo.IncrementDownloadCount(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return ErrShareNotFound
-		}
-		return err
-	}
-	return nil
-}
-
-// IncrementViewCount atomically increments the view counter for a share.
-func (s *ShareService) IncrementViewCount(ctx context.Context, id string) error {
-	err := s.shareRepo.IncrementViewCount(ctx, id)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return ErrShareNotFound

@@ -27,7 +27,6 @@
   });
 
   $: recentShares = shares.slice(0, 5);
-  $: totalViews = shares.reduce((sum, s) => sum + s.view_count, 0);
   $: totalDownloads = shares.reduce((sum, s) => sum + s.download_count, 0);
 </script>
 
@@ -36,18 +35,12 @@
     <p class="text-sm text-subtle">Loading...</p>
   </div>
 {:else}
-  <div class="grid gap-5 sm:grid-cols-3 mb-10">
+  <div class="grid gap-5 sm:grid-cols-2 mb-10">
     <div class="bg-surface rounded-xl border border-border p-5">
       <p class="text-xs font-medium text-subtle uppercase tracking-wider">
         Total Shares
       </p>
       <p class="text-2xl font-semibold text-text mt-1">{shares.length}</p>
-    </div>
-    <div class="bg-surface rounded-xl border border-border p-5">
-      <p class="text-xs font-medium text-subtle uppercase tracking-wider">
-        Total Views
-      </p>
-      <p class="text-2xl font-semibold text-text mt-1">{totalViews}</p>
     </div>
     <div class="bg-surface rounded-xl border border-border p-5">
       <p class="text-xs font-medium text-subtle uppercase tracking-wider">

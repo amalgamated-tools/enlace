@@ -3775,9 +3775,6 @@
                 "max_downloads": {
                     "type": "integer"
                 },
-                "max_views": {
-                    "type": "integer"
-                },
                 "name": {
                     "type": "string"
                 },
@@ -4001,17 +3998,11 @@
                 "max_downloads": {
                     "type": "integer"
                 },
-                "max_views": {
-                    "type": "integer"
-                },
                 "name": {
                     "type": "string"
                 },
                 "slug": {
                     "type": "string"
-                },
-                "view_count": {
-                    "type": "integer"
                 }
             }
         },
@@ -4109,9 +4100,6 @@
                 "max_downloads": {
                     "type": "integer"
                 },
-                "max_views": {
-                    "type": "integer"
-                },
                 "name": {
                     "type": "string"
                 },
@@ -4120,9 +4108,6 @@
                 },
                 "updated_at": {
                     "type": "string"
-                },
-                "view_count": {
-                    "type": "integer"
                 }
             }
         },
@@ -4346,9 +4331,6 @@
                     "type": "boolean"
                 },
                 "max_downloads": {
-                    "type": "integer"
-                },
-                "max_views": {
                     "type": "integer"
                 },
                 "name": {

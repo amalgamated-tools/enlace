@@ -224,12 +224,10 @@ func TestShareService_Create_WithLimits(t *testing.T) {
 	ctx := context.Background()
 
 	maxDownloads := 10
-	maxViews := 100
 	input := service.CreateShareInput{
 		CreatorID:    userID,
 		Name:         "Limited Share",
 		MaxDownloads: &maxDownloads,
-		MaxViews:     &maxViews,
 	}
 
 	share, err := svc.Create(ctx, input)
@@ -239,9 +237,6 @@ func TestShareService_Create_WithLimits(t *testing.T) {
 
 	if share.MaxDownloads == nil || *share.MaxDownloads != 10 {
 		t.Errorf("expected max downloads 10, got %v", share.MaxDownloads)
-	}
-	if share.MaxViews == nil || *share.MaxViews != 100 {
-		t.Errorf("expected max views 100, got %v", share.MaxViews)
 	}
 }
 
@@ -828,63 +823,6 @@ func TestShareService_ValidateAccess_DownloadLimitReached(t *testing.T) {
 	}
 }
 
-func TestShareService_ValidateAccess_ViewLimitReached(t *testing.T) {
-	db, err := database.New(":memory:")
-	if err != nil {
-		t.Fatalf("failed to create test db: %v", err)
-	}
-	defer db.Close()
-
-	userRepo := repository.NewUserRepository(db.DB())
-	shareRepo := repository.NewShareRepository(db.DB())
-	fileRepo := repository.NewFileRepository(db.DB())
-	mockStore := &mockStorage{}
-
-	// Create user
-	user := &model.User{
-		ID:           "user-123",
-		Email:        "test@example.com",
-		PasswordHash: "hash",
-		DisplayName:  "Test User",
-	}
-	if err := userRepo.Create(context.Background(), user); err != nil {
-		t.Fatalf("failed to create test user: %v", err)
-	}
-
-	svc := service.NewShareService(shareRepo, fileRepo, mockStore)
-	ctx := context.Background()
-
-	// Create a share with max views of 1
-	maxViews := 1
-	input := service.CreateShareInput{
-		CreatorID: user.ID,
-		Name:      "Limited Share",
-		MaxViews:  &maxViews,
-	}
-	share, err := svc.Create(ctx, input)
-	if err != nil {
-		t.Fatalf("failed to create share: %v", err)
-	}
-
-	// Increment view count to reach limit
-	err = svc.IncrementViewCount(ctx, share.ID)
-	if err != nil {
-		t.Fatalf("failed to increment view count: %v", err)
-	}
-
-	// Fetch updated share
-	share, err = svc.GetByID(ctx, share.ID)
-	if err != nil {
-		t.Fatalf("failed to get share: %v", err)
-	}
-
-	// Validate access
-	err = svc.ValidateAccess(ctx, share)
-	if !errors.Is(err, service.ErrViewLimit) {
-		t.Errorf("expected ErrViewLimit, got %v", err)
-	}
-}
-
 func TestShareService_IncrementDownloadCount(t *testing.T) {
 	svc, _, userID, cleanup := setupShareServiceWithUser(t)
 	defer cleanup()
@@ -934,55 +872,6 @@ func TestShareService_IncrementDownloadCount_NotFound(t *testing.T) {
 	}
 }
 
-func TestShareService_IncrementViewCount(t *testing.T) {
-	svc, _, userID, cleanup := setupShareServiceWithUser(t)
-	defer cleanup()
-
-	ctx := context.Background()
-
-	// Create a share
-	input := service.CreateShareInput{
-		CreatorID: userID,
-		Name:      "Test Share",
-	}
-	share, err := svc.Create(ctx, input)
-	if err != nil {
-		t.Fatalf("failed to create share: %v", err)
-	}
-
-	if share.ViewCount != 0 {
-		t.Errorf("expected initial view count 0, got %d", share.ViewCount)
-	}
-
-	// Increment view count
-	err = svc.IncrementViewCount(ctx, share.ID)
-	if err != nil {
-		t.Fatalf("failed to increment view count: %v", err)
-	}
-
-	// Verify count increased
-	updated, err := svc.GetByID(ctx, share.ID)
-	if err != nil {
-		t.Fatalf("failed to get share: %v", err)
-	}
-
-	if updated.ViewCount != 1 {
-		t.Errorf("expected view count 1, got %d", updated.ViewCount)
-	}
-}
-
-func TestShareService_IncrementViewCount_NotFound(t *testing.T) {
-	svc, _, cleanup := setupShareService(t)
-	defer cleanup()
-
-	ctx := context.Background()
-
-	err := svc.IncrementViewCount(ctx, "nonexistent-id")
-	if !errors.Is(err, service.ErrShareNotFound) {
-		t.Errorf("expected ErrShareNotFound, got %v", err)
-	}
-}
-
 func TestShareService_GeneratedSlugIsUnique(t *testing.T) {
 	svc, _, userID, cleanup := setupShareServiceWithUser(t)
 	defer cleanup()
@@ -1026,10 +915,8 @@ func TestShareService_Update_SetLimits(t *testing.T) {
 
 	// Update with limits
 	maxDownloads := 50
-	maxViews := 500
 	updateInput := service.UpdateShareInput{
 		MaxDownloads: &maxDownloads,
-		MaxViews:     &maxViews,
 	}
 
 	updated, err := svc.Update(ctx, created.ID, updateInput)
@@ -1039,9 +926,6 @@ func TestShareService_Update_SetLimits(t *testing.T) {
 
 	if updated.MaxDownloads == nil || *updated.MaxDownloads != 50 {
 		t.Errorf("expected max downloads 50, got %v", updated.MaxDownloads)
-	}
-	if updated.MaxViews == nil || *updated.MaxViews != 500 {
-		t.Errorf("expected max views 500, got %v", updated.MaxViews)
 	}
 }
 
