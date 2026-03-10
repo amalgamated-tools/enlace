@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { push, querystring } from "svelte-spa-router";
-  import { Button, Input } from "../lib/components";
+  import { Button, Input, Modal } from "../lib/components";
   import {
     auth,
     isAuthenticated,
@@ -9,7 +9,16 @@
     themePreference,
     toast,
   } from "../lib/stores";
-  import { api, getOIDCConfig, getOIDCLinkURL, totpApi } from "../lib/api";
+  import {
+    api,
+    apiKeysApi,
+    ApiError,
+    ALL_SCOPES,
+    getOIDCConfig,
+    getOIDCLinkURL,
+    totpApi,
+  } from "../lib/api";
+  import type { ApiKey, CreateApiKeyResponse } from "../lib/api";
   import type { TOTPStatus } from "../lib/api/totp";
 
   let displayName = "";
@@ -43,6 +52,22 @@
   let setupErrors: Record<string, string> = {};
   let codesCopied = false;
 
+  // API key state
+  const allScopes = ALL_SCOPES;
+  let apiKeys: ApiKey[] = [];
+  let loadingApiKeys = true;
+  let createApiKeyModal = false;
+  let creatingApiKey = false;
+  let newApiKeyName = "";
+  let newApiKeyScopes: string[] = [];
+  let apiKeyCreateErrors: Record<string, string> = {};
+  let apiKeyModal = false;
+  let createdApiKey = "";
+  let apiKeyCopied = false;
+  let revokeApiKeyModal = false;
+  let revokingApiKey = false;
+  let apiKeyToRevoke: ApiKey | null = null;
+
   async function copyRecoveryCodes() {
     try {
       await navigator.clipboard.writeText(setupRecoveryCodes.join("\n"));
@@ -64,6 +89,127 @@
     a.download = "enlace-2fa.txt";
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
+
+  // API key functions
+  async function loadApiKeys() {
+    loadingApiKeys = true;
+    try {
+      apiKeys = await apiKeysApi.list();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to load API keys";
+      toast.error(message);
+    } finally {
+      loadingApiKeys = false;
+    }
+  }
+
+  function openCreateApiKeyModal() {
+    newApiKeyName = "";
+    newApiKeyScopes = [];
+    apiKeyCreateErrors = {};
+    createApiKeyModal = true;
+  }
+
+  function toggleApiKeyScope(scope: string) {
+    if (newApiKeyScopes.includes(scope)) {
+      newApiKeyScopes = newApiKeyScopes.filter((s) => s !== scope);
+    } else {
+      newApiKeyScopes = [...newApiKeyScopes, scope];
+    }
+  }
+
+  async function handleCreateApiKey(e: Event) {
+    e.preventDefault();
+    apiKeyCreateErrors = {};
+
+    if (!newApiKeyName.trim()) {
+      apiKeyCreateErrors = {
+        ...apiKeyCreateErrors,
+        name: "Name is required",
+      };
+    }
+    if (newApiKeyScopes.length === 0) {
+      apiKeyCreateErrors = {
+        ...apiKeyCreateErrors,
+        scopes: "At least one scope is required",
+      };
+    }
+
+    if (Object.keys(apiKeyCreateErrors).length > 0) {
+      return;
+    }
+
+    creatingApiKey = true;
+    try {
+      const result: CreateApiKeyResponse = await apiKeysApi.create({
+        name: newApiKeyName.trim(),
+        scopes: newApiKeyScopes,
+      });
+      const { key, ...apiKey } = result;
+      createdApiKey = key;
+      apiKeyCopied = false;
+      apiKeys = [...apiKeys, apiKey];
+      createApiKeyModal = false;
+      apiKeyModal = true;
+      toast.success("API key created");
+    } catch (err) {
+      if (err instanceof ApiError && err.fields) {
+        apiKeyCreateErrors = err.fields;
+      } else {
+        const message =
+          err instanceof Error ? err.message : "Failed to create API key";
+        toast.error(message);
+      }
+    } finally {
+      creatingApiKey = false;
+    }
+  }
+
+  async function copyApiKey() {
+    try {
+      await navigator.clipboard.writeText(createdApiKey);
+      apiKeyCopied = true;
+      toast.success("API key copied to clipboard");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to copy API key to clipboard";
+      toast.error(message);
+    }
+  }
+
+  function confirmRevokeApiKey(apiKey: ApiKey) {
+    apiKeyToRevoke = apiKey;
+    revokeApiKeyModal = true;
+  }
+
+  async function handleRevokeApiKey() {
+    if (!apiKeyToRevoke) return;
+
+    const revokeId = apiKeyToRevoke.id;
+    revokingApiKey = true;
+    try {
+      await apiKeysApi.revoke(revokeId);
+      apiKeys = apiKeys.map((k) =>
+        k.id === revokeId ? { ...k, revoked_at: new Date().toISOString() } : k,
+      );
+      revokeApiKeyModal = false;
+      apiKeyToRevoke = null;
+      toast.success("API key revoked");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to revoke API key";
+      toast.error(message);
+    } finally {
+      revokingApiKey = false;
+    }
+  }
+
+  function formatApiKeyDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString();
   }
 
   onMount(async () => {
@@ -104,6 +250,9 @@
     } catch {
       // 2FA status not available
     }
+
+    // Load API keys
+    loadApiKeys();
   });
 
   function handleLinkOIDC() {
@@ -721,4 +870,237 @@
       </div>
     </div>
   {/if}
+
+  <div class="bg-surface rounded-xl border border-border mt-6">
+    <div
+      class="px-6 py-4 border-b border-border flex items-center justify-between"
+    >
+      <h3 class="text-sm font-semibold text-text">API Keys</h3>
+      <Button size="sm" on:click={openCreateApiKeyModal}>Create API Key</Button>
+    </div>
+    <div class="p-6">
+      {#if loadingApiKeys}
+        <p class="text-sm text-subtle text-center py-4">Loading...</p>
+      {:else}
+        <div class="overflow-hidden">
+          <table class="min-w-full divide-y divide-border">
+            <thead>
+              <tr class="bg-surface-subtle">
+                <th
+                  class="px-4 py-2 text-left text-xs font-medium text-subtle uppercase tracking-wider"
+                  >Name</th
+                >
+                <th
+                  class="px-4 py-2 text-left text-xs font-medium text-subtle uppercase tracking-wider"
+                  >Key Prefix</th
+                >
+                <th
+                  class="px-4 py-2 text-left text-xs font-medium text-subtle uppercase tracking-wider"
+                  >Scopes</th
+                >
+                <th
+                  class="px-4 py-2 text-left text-xs font-medium text-subtle uppercase tracking-wider"
+                  >Last Used</th
+                >
+                <th
+                  class="px-4 py-2 text-left text-xs font-medium text-subtle uppercase tracking-wider"
+                  >Created</th
+                >
+                <th
+                  class="px-4 py-2 text-right text-xs font-medium text-subtle uppercase tracking-wider"
+                  >Actions</th
+                >
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              {#each apiKeys as apiKey (apiKey.id)}
+                <tr class="hover:bg-surface-subtle transition-colors">
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span
+                      class="text-sm font-medium {apiKey.revoked_at
+                        ? 'text-muted line-through'
+                        : 'text-text'}"
+                    >
+                      {apiKey.name}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <code
+                      class="text-sm font-mono {apiKey.revoked_at
+                        ? 'text-muted'
+                        : 'text-text'}"
+                    >
+                      {apiKey.key_prefix}...
+                    </code>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex flex-wrap gap-1">
+                      {#each apiKey.scopes as scope}
+                        <span
+                          class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-surface-muted text-muted"
+                        >
+                          {scope}
+                        </span>
+                      {/each}
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-muted">
+                    {apiKey.last_used_at
+                      ? formatApiKeyDate(apiKey.last_used_at)
+                      : "Never"}
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-muted">
+                    {formatApiKeyDate(apiKey.created_at)}
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-right text-xs">
+                    {#if apiKey.revoked_at}
+                      <span
+                        class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-surface-muted text-muted"
+                      >
+                        Revoked
+                      </span>
+                    {:else}
+                      <button
+                        class="text-red-500 hover:text-red-700 transition-colors"
+                        on:click={() => confirmRevokeApiKey(apiKey)}
+                      >
+                        Revoke
+                      </button>
+                    {/if}
+                  </td>
+                </tr>
+              {:else}
+                <tr>
+                  <td
+                    colspan="6"
+                    class="px-4 py-8 text-center text-sm text-subtle"
+                  >
+                    No API keys configured
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+    </div>
+  </div>
+
+  <!-- Create API Key Modal -->
+  <Modal
+    open={createApiKeyModal}
+    title="Create API Key"
+    on:close={() => {
+      if (!creatingApiKey) createApiKeyModal = false;
+    }}
+  >
+    <form on:submit={handleCreateApiKey} class="space-y-4">
+      <Input
+        label="Name"
+        bind:value={newApiKeyName}
+        error={apiKeyCreateErrors.name}
+        autocomplete="off"
+        required
+      />
+      <fieldset>
+        <legend class="block text-sm font-medium text-text mb-2">Scopes</legend>
+        {#if apiKeyCreateErrors.scopes}
+          <p class="text-sm text-red-500 mb-2">{apiKeyCreateErrors.scopes}</p>
+        {/if}
+        <div class="space-y-2">
+          {#each allScopes as scope}
+            <div class="flex items-center gap-2.5">
+              <input
+                type="checkbox"
+                id="create-apikey-{scope}"
+                checked={newApiKeyScopes.includes(scope)}
+                on:change={() => toggleApiKeyScope(scope)}
+                class="w-4 h-4 text-text border-border rounded focus:ring-accent/20"
+              />
+              <label for="create-apikey-{scope}" class="text-sm text-muted"
+                >{scope}</label
+              >
+            </div>
+          {/each}
+        </div>
+      </fieldset>
+      <div class="flex gap-2 justify-end pt-2">
+        <Button
+          variant="secondary"
+          on:click={() => {
+            if (!creatingApiKey) createApiKeyModal = false;
+          }}
+          disabled={creatingApiKey}>Cancel</Button
+        >
+        <Button type="submit" loading={creatingApiKey}>Create</Button>
+      </div>
+    </form>
+  </Modal>
+
+  <!-- API Key Display Modal -->
+  <Modal
+    open={apiKeyModal}
+    title="API Key"
+    on:close={() => {
+      if (
+        apiKeyCopied ||
+        confirm(
+          "Are you sure? The API key will not be shown again after closing.",
+        )
+      ) {
+        apiKeyModal = false;
+      }
+    }}
+  >
+    <div class="space-y-4">
+      <div
+        class="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800"
+      >
+        Copy this API key now. It will not be shown again.
+      </div>
+      <div class="flex items-center gap-2">
+        <code
+          class="flex-1 p-3 bg-surface-muted rounded-lg text-sm text-text break-all font-mono"
+        >
+          {createdApiKey}
+        </code>
+        <Button variant="secondary" on:click={copyApiKey}>
+          {apiKeyCopied ? "Copied" : "Copy"}
+        </Button>
+      </div>
+      <div class="flex justify-end pt-2">
+        <Button on:click={() => (apiKeyModal = false)}>Done</Button>
+      </div>
+    </div>
+  </Modal>
+
+  <!-- Revoke API Key Modal -->
+  <Modal
+    open={revokeApiKeyModal}
+    title="Revoke API Key"
+    on:close={() => {
+      revokeApiKeyModal = false;
+      apiKeyToRevoke = null;
+    }}
+  >
+    <p class="text-sm text-muted mb-5">
+      Are you sure you want to revoke "{apiKeyToRevoke?.name}"? This action
+      cannot be undone. Any integrations using this key will immediately stop
+      working.
+    </p>
+    <div class="flex gap-2 justify-end">
+      <Button
+        variant="secondary"
+        on:click={() => {
+          revokeApiKeyModal = false;
+          apiKeyToRevoke = null;
+        }}>Cancel</Button
+      >
+      <Button
+        variant="danger"
+        loading={revokingApiKey}
+        on:click={handleRevokeApiKey}>Revoke</Button
+      >
+    </div>
+  </Modal>
 </div>

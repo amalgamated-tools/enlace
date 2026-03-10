@@ -17,29 +17,29 @@ beforeEach(() => {
 });
 
 describe("apiKeysApi", () => {
-  it("list calls GET /admin/api-keys", async () => {
+  it("list calls GET /me/api-keys", async () => {
     const keys = [{ id: "1", name: "My Key" }];
     mockedApi.get.mockResolvedValueOnce(keys);
 
     const result = await apiKeysApi.list();
     expect(result).toEqual(keys);
-    expect(mockedApi.get).toHaveBeenCalledWith("/admin/api-keys");
+    expect(mockedApi.get).toHaveBeenCalledWith("/me/api-keys");
   });
 
-  it("create calls POST /admin/api-keys", async () => {
+  it("create calls POST /me/api-keys", async () => {
     const input = { name: "New Key", scopes: ["shares:read"] };
     const created = { id: "1", key: "enl_abc123", ...input };
     mockedApi.post.mockResolvedValueOnce(created);
 
     const result = await apiKeysApi.create(input);
     expect(result).toEqual(created);
-    expect(mockedApi.post).toHaveBeenCalledWith("/admin/api-keys", input);
+    expect(mockedApi.post).toHaveBeenCalledWith("/me/api-keys", input);
   });
 
-  it("revoke calls DELETE /admin/api-keys/:id", async () => {
+  it("revoke calls DELETE /me/api-keys/:id", async () => {
     mockedApi.delete.mockResolvedValueOnce(undefined);
 
     await apiKeysApi.revoke("1");
-    expect(mockedApi.delete).toHaveBeenCalledWith("/admin/api-keys/1");
+    expect(mockedApi.delete).toHaveBeenCalledWith("/me/api-keys/1");
   });
 });
