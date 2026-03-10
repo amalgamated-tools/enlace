@@ -13,6 +13,7 @@
   import {
     sharesApi,
     filesApi,
+    dateToRFC3339,
     type Share,
     type FileInfo,
     type ShareRecipient,
@@ -109,7 +110,8 @@
           ? parseInt(editMaxDownloads, 10)
           : undefined,
         max_views: editMaxViews ? parseInt(editMaxViews, 10) : undefined,
-        expires_at: editExpiresAt || undefined,
+        expires_at: editExpiresAt ? dateToRFC3339(editExpiresAt) : undefined,
+        clear_expiry: share.expires_at && !editExpiresAt ? true : undefined,
       });
       share = updated;
       editPassword = "";

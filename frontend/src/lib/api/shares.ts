@@ -28,6 +28,20 @@ export interface CreateShareInput {
   recipients?: string[];
 }
 
+export interface UpdateShareInput {
+  name?: string;
+  description?: string;
+  password?: string;
+  expires_at?: string;
+  clear_expiry?: boolean;
+  max_downloads?: number;
+  max_views?: number;
+}
+
+export function dateToRFC3339(date: string): string {
+  return `${date}T00:00:00Z`;
+}
+
 export interface ShareRecipient {
   id: string;
   email: string;
@@ -38,7 +52,7 @@ export const sharesApi = {
   list: () => api.get<Share[]>("/shares"),
   get: (id: string) => api.get<Share>(`/shares/${id}`),
   create: (input: CreateShareInput) => api.post<Share>("/shares", input),
-  update: (id: string, input: Partial<CreateShareInput>) =>
+  update: (id: string, input: UpdateShareInput) =>
     api.patch<Share>(`/shares/${id}`, input),
   delete: (id: string) => api.delete<void>(`/shares/${id}`),
   sendNotification: (id: string, recipients: string[]) =>

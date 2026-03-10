@@ -2,7 +2,7 @@
   import { push } from "svelte-spa-router";
   import { Button, Input, FileUploader } from "../lib/components";
   import { auth, isAuthenticated, toast, emailConfigured } from "../lib/stores";
-  import { sharesApi, filesApi } from "../lib/api";
+  import { sharesApi, filesApi, dateToRFC3339 } from "../lib/api";
 
   let name = "";
   let description = "";
@@ -60,7 +60,7 @@
         password: password || undefined,
         max_downloads: maxDownloads ? parseInt(maxDownloads, 10) : undefined,
         max_views: maxViews ? parseInt(maxViews, 10) : undefined,
-        expires_at: expiresAt || undefined,
+        expires_at: expiresAt ? dateToRFC3339(expiresAt) : undefined,
         is_reverse_share: isReverseShare,
         recipients: recipientList.length > 0 ? recipientList : undefined,
       });
