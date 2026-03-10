@@ -164,6 +164,19 @@ async function main() {
     await page.waitForSelector('input[autocomplete="one-time-code"]');
     await page.screenshot({ path: path.join(screenshotsDir, 'settings-2fa-verify.png') });
 
+    // Close 2FA modal and scroll to API Keys section
+    console.log('📸 Settings — API Keys (light)...');
+    await page.keyboard.press('Escape');
+    await page.goto(`${BASE_URL}/#/settings`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('h3:has-text("API Keys")');
+    await page.locator('h3:has-text("API Keys")').scrollIntoViewIfNeeded();
+    await setTheme(page, 'light');
+    await page.screenshot({ path: path.join(screenshotsDir, 'settings-api-keys-light.png') });
+
+    console.log('📸 Settings — API Keys (dark)...');
+    await setTheme(page, 'dark');
+    await page.screenshot({ path: path.join(screenshotsDir, 'settings-api-keys-dark.png') });
+
     // ── Admin panel screenshots ─────────────────────
     const adminPages = [
         { route: 'admin/users', name: 'admin-users', selector: 'h2:has-text("User Management")' },
@@ -171,7 +184,6 @@ async function main() {
         { route: 'admin/email', name: 'admin-email', selector: 'h3:has-text("SMTP Configuration")' },
         { route: 'admin/webhooks', name: 'admin-webhooks', selector: 'h2:has-text("Webhooks")' },
         { route: 'admin/files', name: 'admin-files', selector: 'h3:has-text("File Restrictions")' },
-        { route: 'admin/api-keys', name: 'admin-api-keys', selector: 'h2:has-text("API Keys")' },
     ];
 
     for (const { route, name, selector } of adminPages) {
