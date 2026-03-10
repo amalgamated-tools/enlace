@@ -18,6 +18,53 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Dark mode** — three-way theme toggle (system, light, dark) with preference persisted in the browser
 - **Embeds frontend** — single binary ships the compiled Svelte app
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><b>Login — Light</b></td>
+    <td align="center"><b>Login — Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/login-light.png" alt="Login light mode" width="480"/></td>
+    <td><img src="screenshots/login-dark.png" alt="Login dark mode" width="480"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Dashboard — Light</b></td>
+    <td align="center"><b>Dashboard — Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/dashboard-with-shares-light.png" alt="Dashboard with shares light mode" width="480"/></td>
+    <td><img src="screenshots/dashboard-with-shares-dark.png" alt="Dashboard with shares dark mode" width="480"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Create Share — Light</b></td>
+    <td align="center"><b>Create Share — Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/new-share-filled-light.png" alt="Create share light mode" width="480"/></td>
+    <td><img src="screenshots/new-share-filled-dark.png" alt="Create share dark mode" width="480"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Share Detail — Light</b></td>
+    <td align="center"><b>Share Detail — Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/share-detail-light.png" alt="Share detail light mode" width="480"/></td>
+    <td><img src="screenshots/share-detail-dark.png" alt="Share detail dark mode" width="480"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Settings — Light</b></td>
+    <td align="center"><b>Admin: Users — Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/settings-light.png" alt="Settings light mode" width="480"/></td>
+    <td><img src="screenshots/admin-users-dark.png" alt="Admin users dark mode" width="480"/></td>
+  </tr>
+</table>
+
+> All 34 screenshots (light and dark variants for every page) live in the [`screenshots/`](screenshots/) directory and are regenerated automatically via `make screenshots`.
+
 ## Quick Start
 
 ```bash
