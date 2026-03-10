@@ -36,7 +36,8 @@ The compiled `dist/` directory is embedded into the Go binary at build time via 
 ```
 src/
   lib/
-    api/          # typed API client (auth, shares, files, OIDC)
+    api/          # typed API client (auth, shares, files, OIDC) and shared utilities
+                  # dateToRFC3339(date) converts HTML date inputs (YYYY-MM-DD) to RFC3339
     components/   # shared UI components (FileList, FileUploader, ShareCard, …)
     stores/       # Svelte stores for auth and toast notifications
   routes/         # page components (Login, Dashboard, Shares, ShareDetail, …)
