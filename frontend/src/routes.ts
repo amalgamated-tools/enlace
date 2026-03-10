@@ -29,6 +29,7 @@ export default {
   "/admin/email": AdminEmail,
   "/admin/webhooks": AdminWebhooks,
   "/admin/files": AdminFileRestrictions,
+  "/admin/api-keys": "/settings",
   "/s/:slug": PublicShare,
   "*": Dashboard,
 };
