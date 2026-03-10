@@ -623,7 +623,7 @@ Response `data` fields:
 | `headers` | object | Headers to include in the request (may be empty) |
 | `expires_at` | string (RFC3339) | Expiry time of the presigned URL |
 
-The download count is incremented and the `share.downloaded` webhook is emitted when this endpoint is called, matching the behaviour of the regular download endpoint.
+The `share.downloaded` webhook is emitted when this endpoint is called, matching the behaviour of the regular download endpoint.
 
 | Status | Meaning |
 |---|---|
@@ -631,7 +631,7 @@ The download count is incremented and the `share.downloaded` webhook is emitted 
 | `401 Unauthorized` | Invalid or missing share token for a password-protected share |
 | `404 Not Found` | Share or file not found |
 | `409 Conflict` | Direct transfer is disabled (`DIRECT_TRANSFER_ENABLED=false`) or the configured storage backend does not support presigned URLs |
-| `410 Gone` | Share has expired, exceeded its download limit, or exceeded its view limit |
+| `410 Gone` | Share has expired or exceeded its download limit |
 | `500 Internal Server Error` | Failed to retrieve the share or file, or failed to generate the presigned URL |
 
 ## Public share endpoints

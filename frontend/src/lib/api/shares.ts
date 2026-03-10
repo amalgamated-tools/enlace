@@ -32,7 +32,6 @@ export interface UpdateShareInput {
   expires_at?: string;
   clear_expiry?: boolean;
   max_downloads?: number;
-  max_views?: number;
 }
 
 export function dateToRFC3339(date: string): string {
