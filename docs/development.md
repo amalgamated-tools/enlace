@@ -40,6 +40,23 @@ make swagger        # regenerate OpenAPI/Swagger docs (requires swag)
 make swagger-fmt    # format swag annotations in Go source
 ```
 
+## Generating screenshots
+
+The `screenshots/` directory contains Playwright-generated PNG images (light and dark, @2× resolution) of every page. To regenerate them locally:
+
+```bash
+make screenshots
+```
+
+This target cleans previous build artifacts, builds the frontend, starts the Go backend and Vite dev server, runs `scripts/take-screenshots.mjs` via Playwright, then shuts down the servers. Requires [goreman](https://github.com/mattn/goreman) or [overmind](https://github.com/DarthSim/overmind) to be installed.
+
+You can also point the script at an already-running instance:
+
+```bash
+cd e2e
+BASE_URL=http://localhost:5173 node ../scripts/take-screenshots.mjs
+```
+
 ## S3-compatible storage (local dev)
 
 The dev compose file ships [RustFS](https://rustfs.com/), an S3-compatible server:
