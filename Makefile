@@ -136,7 +136,7 @@ screenshots: clean e2e-install frontend-install ensure-embed-dir
 	@goreman -f Procfile.dev start & DEV_PID=$$!; \
 	echo "Waiting for frontend (localhost:5173) and backend (localhost:8080)..."; \
 	for i in $$(seq 1 60); do \
-		if curl -s -o /dev/null http://localhost:5173 && curl -s -o /dev/null http://localhost:8080/api/health; then \
+		if curl -s -o /dev/null http://localhost:5173 && curl -s -o /dev/null http://localhost:8080/health; then \
 			echo "Servers ready."; \
 			break; \
 		fi; \
@@ -147,7 +147,7 @@ screenshots: clean e2e-install frontend-install ensure-embed-dir
 		fi; \
 		sleep 1; \
 	done; \
-	node scripts/take-screenshots.mjs; \
+	cd e2e && node ../scripts/take-screenshots.mjs; \
 	RESULT=$$?; \
 	kill $$DEV_PID 2>/dev/null; \
 	exit $$RESULT

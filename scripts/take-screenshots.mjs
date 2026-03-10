@@ -1,4 +1,4 @@
-import { chromium } from 'playwright-core';
+import { chromium } from '@playwright/test';
 import { fileURLToPath } from 'url';
 import { mkdir } from 'fs/promises';
 import path from 'path';
