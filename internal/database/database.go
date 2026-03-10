@@ -258,10 +258,21 @@ func runMigrations(db *sql.DB) error {
 			`CREATE INDEX IF NOT EXISTS idx_shares_slug ON shares(slug)`,
 			`CREATE INDEX IF NOT EXISTS idx_shares_creator_id ON shares(creator_id)`,
 		}
+
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+
 		for _, stmt := range migrationSQL {
-			if _, err := db.Exec(stmt); err != nil {
+			if _, err := tx.Exec(stmt); err != nil {
+				_ = tx.Rollback()
 				return err
 			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			return err
 		}
 	}
 
