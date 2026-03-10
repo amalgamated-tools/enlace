@@ -206,6 +206,7 @@ func runMigrations(db *sql.DB) error {
 			PRIMARY KEY (session_id, share_id),
 			FOREIGN KEY (share_id) REFERENCES shares(id) ON DELETE CASCADE
 		)`,
+		`CREATE INDEX IF NOT EXISTS idx_share_download_sessions_created_at ON share_download_sessions(created_at)`,
 	}
 
 	for _, m := range migrations {

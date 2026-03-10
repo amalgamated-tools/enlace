@@ -178,6 +178,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 
 	workerCtx, stopWorker := context.WithCancel(cancelCtx)
 	go webhookService.RunDeliveryWorker(workerCtx, 10*time.Second)
+	shareService.StartSessionCleanup(workerCtx, 1*time.Hour, 2*time.Hour)
 
 	// Create server
 	server := &http.Server{

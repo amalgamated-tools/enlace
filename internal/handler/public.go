@@ -202,7 +202,7 @@ func (h *PublicHandler) ViewShare(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// For non-protected shares, issue a session token via cookie so that
 		// subsequent file downloads can be deduplicated per session.
-		if h.extractSessionID(r) == "" {
+		if h.extractSessionID(r, share.ID) == "" {
 			token, err := h.generateShareAccessToken(share.ID)
 			if err != nil {
 				slog.Warn("failed to generate session token", "share_id", share.ID, "error", err)
@@ -399,7 +399,7 @@ func (h *PublicHandler) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Track session-based download count
-	sessionID := h.extractSessionID(r)
+	sessionID := h.extractSessionID(r, share.ID)
 	if err := h.shareService.TrackSessionDownload(r.Context(), share.ID, sessionID); err != nil {
 		slog.Warn("failed to track session download", "share_id", share.ID, "error", err)
 	}
@@ -466,7 +466,7 @@ func (h *PublicHandler) serveFile(w http.ResponseWriter, r *http.Request, dispos
 	}
 
 	// Track session-based download count
-	sessionID := h.extractSessionID(r)
+	sessionID := h.extractSessionID(r, share.ID)
 	if err := h.shareService.TrackSessionDownload(r.Context(), share.ID, sessionID); err != nil {
 		slog.Warn("failed to track session download", "share_id", share.ID, "error", err)
 	}
@@ -1026,8 +1026,9 @@ func (h *PublicHandler) validateShareToken(r *http.Request, expectedShareID stri
 }
 
 // extractSessionID attempts to extract the session ID (JTI) from the share
-// access token. Returns empty string if no valid token is found.
-func (h *PublicHandler) extractSessionID(r *http.Request) string {
+// access token. Returns empty string if no valid token is found or if the
+// token's ShareID does not match the expected share.
+func (h *PublicHandler) extractSessionID(r *http.Request, expectedShareID string) string {
 	tokenStr := r.Header.Get("X-Share-Token")
 	if tokenStr == "" {
 		if cookie, err := r.Cookie("share_token"); err == nil {
@@ -1050,6 +1051,10 @@ func (h *PublicHandler) extractSessionID(r *http.Request) string {
 
 	claims, ok := token.Claims.(*ShareAccessClaims)
 	if !ok || !token.Valid {
+		return ""
+	}
+
+	if claims.ShareID != expectedShareID {
 		return ""
 	}
 

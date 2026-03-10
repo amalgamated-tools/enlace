@@ -177,3 +177,17 @@ func (r *ShareRepository) TrackSessionDownload(ctx context.Context, shareID, ses
 	}
 	return true, nil
 }
+
+// CleanupExpiredSessions deletes download session records older than the given
+// duration. This prevents unbounded growth of the share_download_sessions table
+// since session tokens expire after a fixed period (typically 1 hour).
+func (r *ShareRepository) CleanupExpiredSessions(ctx context.Context, maxAge time.Duration) (int64, error) {
+	cutoff := time.Now().Add(-maxAge)
+	result, err := r.db.ExecContext(ctx,
+		`DELETE FROM share_download_sessions WHERE created_at < ?`, cutoff,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}

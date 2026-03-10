@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -328,4 +329,26 @@ func generateRandomSlug() (string, error) {
 	// Use base32 encoding for URL-safe characters, then truncate and lowercase
 	encoded := base32.StdEncoding.EncodeToString(bytes)
 	return strings.ToLower(encoded[:slugLength]), nil
+}
+
+// StartSessionCleanup runs a background goroutine that periodically removes
+// expired download session records. It stops when the context is cancelled.
+func (s *ShareService) StartSessionCleanup(ctx context.Context, interval, maxAge time.Duration) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				deleted, err := s.shareRepo.CleanupExpiredSessions(ctx, maxAge)
+				if err != nil {
+					slog.Warn("failed to cleanup expired download sessions", "error", err)
+				} else if deleted > 0 {
+					slog.Debug("cleaned up expired download sessions", "deleted", deleted)
+				}
+			}
+		}
+	}()
 }
