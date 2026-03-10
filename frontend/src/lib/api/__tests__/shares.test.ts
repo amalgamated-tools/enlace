@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { sharesApi } from "../shares";
+import { sharesApi, dateToRFC3339 } from "../shares";
 
 vi.mock("../client", () => ({
   api: {
@@ -84,5 +84,30 @@ describe("sharesApi", () => {
     const result = await sharesApi.getRecipients("1");
     expect(result).toEqual(recipients);
     expect(mockedApi.get).toHaveBeenCalledWith("/shares/1/recipients");
+  });
+
+  it("update passes clear_expiry to remove an expiry date", async () => {
+    const updated = { id: "1", name: "Share", expires_at: null };
+    mockedApi.patch.mockResolvedValueOnce(updated);
+
+    const result = await sharesApi.update("1", { clear_expiry: true });
+    expect(result).toEqual(updated);
+    expect(mockedApi.patch).toHaveBeenCalledWith("/shares/1", {
+      clear_expiry: true,
+    });
+  });
+});
+
+describe("dateToRFC3339", () => {
+  it("appends T00:00:00Z to a YYYY-MM-DD date string", () => {
+    expect(dateToRFC3339("2026-03-10")).toBe("2026-03-10T00:00:00Z");
+  });
+
+  it("works for the start of the year", () => {
+    expect(dateToRFC3339("2026-01-01")).toBe("2026-01-01T00:00:00Z");
+  });
+
+  it("works for the end of the year", () => {
+    expect(dateToRFC3339("2026-12-31")).toBe("2026-12-31T00:00:00Z");
   });
 });
