@@ -1,0 +1,95 @@
+name: Update Screenshots
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    name: Retake Screenshots
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: pnpm run build
+
+      - name: Set up Go
+        uses: actions/setup-go@v6.2.0
+        with:
+          go-version: stable
+
+      - name: Build Go binary
+        run: go build -o enlace ./cmd/enlace
+
+      - name: Install e2e dependencies
+        working-directory: ./e2e
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        working-directory: ./e2e
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Start server and take screenshots
+        run: |
+          mkdir -p screenshots
+          TMPDIR=$(mktemp -d)
+          PORT=8080 \
+          DATABASE_PATH="$TMPDIR/screenshots.db" \
+          JWT_SECRET="screenshots-ci" \
+          STORAGE_TYPE="local" \
+          STORAGE_LOCAL_PATH="$TMPDIR/uploads" \
+          ./enlace &
+          SERVER_PID=$!
+
+          echo "Waiting for server to be ready..."
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null http://localhost:8080/health; then
+              echo "Server ready."
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "Timeout waiting for server"
+              kill $SERVER_PID 2>/dev/null
+              exit 1
+            fi
+            sleep 1
+          done
+
+          cd e2e && node ../scripts/take-screenshots.mjs
+          RESULT=$?
+          kill $SERVER_PID 2>/dev/null
+          exit $RESULT
+        env:
+          BASE_URL: http://localhost:8080
+
+      - name: Commit updated screenshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add screenshots/
+          if git diff --cached --quiet; then
+            echo "No screenshot changes detected."
+          else
+            git commit -m "Update screenshots"
+            git push
+          fi
