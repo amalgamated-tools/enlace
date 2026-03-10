@@ -80,7 +80,7 @@ Create and revoke long-lived API keys for programmatic access without user crede
 - **Key list** — displays each key's name, prefix (first 14 characters), granted scopes, last-used timestamp, and creation date. Revoked keys are shown with a strikethrough.
 - **Revoke** — permanently invalidates the key. Revoked keys remain visible for audit purposes but cannot be reinstated.
 
-> API keys cannot be used for admin-only or user-profile endpoints — those always require a JWT access token. See [Admin API key endpoints](api.md#admin-api-key-endpoints) for the full API reference.
+> API keys cannot be used for admin-only or user-profile endpoints — those always require a JWT access token. See [User API key endpoints](api.md#user-api-key-endpoints) for the full API reference.
 
 ## Docker Image Tags
 
