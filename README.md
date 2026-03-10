@@ -1,12 +1,12 @@
 # Enlace
 
-A self-hosted file-sharing application with a Go backend and Svelte frontend. Create password-protected, expiring shares, set download or view limits, and let others upload files to you via reverse shares.
+A self-hosted file-sharing application with a Go backend and Svelte frontend. Create password-protected, expiring shares, set download limits, and let others upload files to you via reverse shares.
 
 ## Features
 
 - **File shares** — upload files and generate a public link
 - **Reverse shares** — let others upload files to a link you control
-- **Access controls** — optional password protection, expiry date, download limit, and view limit per share
+- **Access controls** — optional password protection, expiry date, and download limit per share
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
 - **Two-factor authentication** — per-user TOTP 2FA with QR-code setup, recovery codes, and optional admin-enforced enrollment (`REQUIRE_2FA`); mutually exclusive with SSO/OIDC
 - **Storage backends** — local filesystem or any S3-compatible object store; storage settings can be overridden at runtime via the admin API without redeploying (changes take effect after restart)
