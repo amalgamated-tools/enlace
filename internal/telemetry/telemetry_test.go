@@ -12,6 +12,20 @@ import (
 	"testing"
 )
 
+// setCachedInstallID is a test helper to safely set the cached install ID.
+func setCachedInstallID(id string) {
+	installIDMu.Lock()
+	cachedInstallID = id
+	installIDMu.Unlock()
+}
+
+// getCachedInstallID is a test helper to safely read the cached install ID.
+func getCachedInstallID() string {
+	installIDMu.RLock()
+	defer installIDMu.RUnlock()
+	return cachedInstallID
+}
+
 func TestSendBoot_AlwaysSends(t *testing.T) {
 	// Boot telemetry should send even without TELEMETRY_ENABLED
 	var called atomic.Bool
@@ -25,7 +39,7 @@ func TestSendBoot_AlwaysSends(t *testing.T) {
 	os.Unsetenv("TELEMETRY_ENABLED")
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	t.Setenv("DATA_DIR", tmpDir)
-	cachedInstallID = ""
+	setCachedInstallID("")
 
 	SendBoot("1.0.0")
 
@@ -47,7 +61,7 @@ func TestSendBoot_AlwaysSendsWhenDisabled(t *testing.T) {
 	t.Setenv("TELEMETRY_ENABLED", "false")
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	t.Setenv("DATA_DIR", tmpDir)
-	cachedInstallID = ""
+	setCachedInstallID("")
 
 	SendBoot("1.0.0")
 
@@ -77,7 +91,7 @@ func TestSendBoot_SuccessfulPayload(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	t.Setenv("DATA_DIR", tmpDir)
-	cachedInstallID = ""
+	setCachedInstallID("")
 
 	SendBoot("2.5.0")
 
@@ -111,8 +125,8 @@ func TestSendBoot_SuccessfulPayload(t *testing.T) {
 	}
 
 	// Verify cachedInstallID is set
-	if cachedInstallID != received.InstallID {
-		t.Errorf("cachedInstallID %q doesn't match payload %q", cachedInstallID, received.InstallID)
+	if got := getCachedInstallID(); got != received.InstallID {
+		t.Errorf("cachedInstallID %q doesn't match payload %q", got, received.InstallID)
 	}
 }
 
@@ -127,7 +141,7 @@ func TestSendBoot_OnlyOnce(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	t.Setenv("DATA_DIR", tmpDir)
-	cachedInstallID = ""
+	setCachedInstallID("")
 
 	// First call should send
 	SendBoot("1.0.0")
@@ -151,7 +165,7 @@ func TestSendBoot_ServerError(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	t.Setenv("DATA_DIR", tmpDir)
-	cachedInstallID = ""
+	setCachedInstallID("")
 
 	SendBoot("1.0.0")
 
@@ -165,7 +179,7 @@ func TestSendBoot_ConnectionFailure(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("TELEMETRY_ENDPOINT", "http://127.0.0.1:1")
 	t.Setenv("DATA_DIR", tmpDir)
-	cachedInstallID = ""
+	setCachedInstallID("")
 
 	SendBoot("1.0.0")
 
@@ -185,7 +199,7 @@ func TestSendBoot_WriteFailure(t *testing.T) {
 
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	t.Setenv("DATA_DIR", filepath.Join(t.TempDir(), "nonexistent", "subdir"))
-	cachedInstallID = ""
+	setCachedInstallID("")
 
 	SendBoot("1.0.0")
 
@@ -207,7 +221,7 @@ func TestSendEvent_DisabledByDefault(t *testing.T) {
 	defer srv.Close()
 
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
-	cachedInstallID = "test-id"
+	setCachedInstallID("test-id")
 
 	SendEvent("1.0.0", "test.event", nil)
 
@@ -227,7 +241,7 @@ func TestSendEvent_DisabledExplicitly(t *testing.T) {
 	defer srv.Close()
 
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
-	cachedInstallID = "test-id"
+	setCachedInstallID("test-id")
 
 	SendEvent("1.0.0", "test.event", nil)
 
@@ -251,11 +265,11 @@ func TestSendEvent_Success(t *testing.T) {
 	t.Setenv("TELEMETRY_ENABLED", "true")
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	t.Setenv("DATA_DIR", tmpDir)
-	cachedInstallID = ""
+	setCachedInstallID("")
 
 	// Boot first to establish install ID
 	SendBoot("1.0.0")
-	bootID := cachedInstallID
+	bootID := getCachedInstallID()
 
 	// Now send event
 	props := map[string]string{"key": "value"}
@@ -290,7 +304,7 @@ func TestSendEvent_NoInstallID(t *testing.T) {
 
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	t.Setenv("DATA_DIR", t.TempDir()) // empty dir, no install_id file
-	cachedInstallID = ""
+	setCachedInstallID("")
 
 	SendEvent("1.0.0", "test.event", nil)
 
@@ -314,7 +328,7 @@ func TestSendEvent_ReadsInstallIDFromFile(t *testing.T) {
 	t.Setenv("TELEMETRY_ENABLED", "true")
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	t.Setenv("DATA_DIR", tmpDir)
-	cachedInstallID = "" // not set via SendBoot
+	setCachedInstallID("") // not set via SendBoot
 
 	// Write install_id file manually
 	expectedID := "file-based-install-id"
@@ -330,7 +344,7 @@ func TestSendEvent_ReadsInstallIDFromFile(t *testing.T) {
 	}
 
 	// cachedInstallID should now be populated
-	if cachedInstallID != expectedID {
-		t.Errorf("cachedInstallID should be %q, got %q", expectedID, cachedInstallID)
+	if got := getCachedInstallID(); got != expectedID {
+		t.Errorf("cachedInstallID should be %q, got %q", expectedID, got)
 	}
 }

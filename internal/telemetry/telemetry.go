@@ -10,10 +10,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+// installIDMu protects cachedInstallID from concurrent access.
+var installIDMu sync.RWMutex
 
 // cachedInstallID is set during SendBoot and read by SendEvent for correlation.
 var cachedInstallID string
@@ -89,7 +93,9 @@ func SendBoot(version string) {
 	slog.Info("NOTICE: This application collects anonymous boot telemetry data (application version, OS, architecture) once per install to help improve the product.")
 
 	id, isNew := loadOrCreateInstallID(installIDPath)
+	installIDMu.Lock()
 	cachedInstallID = id
+	installIDMu.Unlock()
 
 	if !isNew {
 		slog.Debug("Telemetry already sent for this install, skipping")
@@ -156,13 +162,17 @@ func SendEvent(version, eventType string, properties map[string]string) {
 		return
 	}
 
+	installIDMu.RLock()
 	installID := cachedInstallID
+	installIDMu.RUnlock()
 	if installID == "" {
 		// Try reading from file if SendBoot hasn't been called yet
 		data, err := os.ReadFile(getInstallIDPath())
 		if err == nil && len(data) > 0 {
 			installID = string(data)
+			installIDMu.Lock()
 			cachedInstallID = installID
+			installIDMu.Unlock()
 		}
 	}
 
@@ -210,5 +220,7 @@ func SendEvent(version, eventType string, properties map[string]string) {
 
 // GetInstallID returns the cached install ID, if available.
 func GetInstallID() string {
+	installIDMu.RLock()
+	defer installIDMu.RUnlock()
 	return cachedInstallID
 }
