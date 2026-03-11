@@ -1,25 +1,15 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { push, querystring } from "svelte-spa-router";
-  import { Button, Input, ApiKeysSection } from "../lib/components";
-  import {
-    auth,
-    isAuthenticated,
-    setThemePreference,
-    themePreference,
-    toast,
-  } from "../lib/stores";
-  import { api, getOIDCConfig, getOIDCLinkURL, totpApi } from "../lib/api";
-  import type { TOTPStatus } from "../lib/api/totp";
+  import { Button, Input, SettingsNav } from "../../lib/components";
+  import { auth, isAuthenticated, toast } from "../../lib/stores";
+  import { api, getOIDCConfig, getOIDCLinkURL, totpApi } from "../../lib/api";
+  import type { TOTPStatus } from "../../lib/api/totp";
 
-  let displayName = "";
   let currentPassword = "";
   let newPassword = "";
   let confirmPassword = "";
-
-  let savingProfile = false;
   let savingPassword = false;
-  let profileErrors: Record<string, string> = {};
   let passwordErrors: Record<string, string> = {};
 
   let oidcEnabled = false;
@@ -71,14 +61,12 @@
     const params = new URLSearchParams($querystring);
     if (params.get("oidc") === "linked") {
       toast.success("SSO account linked successfully");
-      // Remove query param from URL
-      push("/settings");
+      push("/settings/security");
     }
 
     // Check if admin requires 2FA setup
     if (params.get("setup2fa") === "true") {
-      push("/settings");
-      // Will trigger setup after status loads
+      push("/settings/security");
     }
 
     // Fetch OIDC config
@@ -86,14 +74,12 @@
       const config = await getOIDCConfig();
       oidcEnabled = config.enabled;
     } catch {
-      // OIDC not available
       oidcEnabled = false;
     }
 
     // Fetch 2FA status
     try {
       totpStatus = await totpApi.getStatus();
-      // Auto-open setup if redirected from login with setup2fa flag
       if (
         params.get("setup2fa") === "true" &&
         !totpStatus.enabled &&
@@ -115,7 +101,7 @@
     try {
       await api.delete("/me/oidc");
       toast.success("OIDC account unlinked");
-      auth.init(); // Refresh user data
+      auth.init();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to unlink OIDC";
@@ -127,43 +113,6 @@
 
   $: if ($auth.initialized && !$isAuthenticated) {
     push("/login");
-  }
-
-  $: if ($auth.user) {
-    displayName = $auth.user.display_name;
-  }
-
-  async function handleUpdateProfile(e: Event) {
-    e.preventDefault();
-    profileErrors = {};
-
-    if (!displayName.trim()) {
-      profileErrors = {
-        ...profileErrors,
-        displayName: "Display name is required",
-      };
-      return;
-    }
-
-    savingProfile = true;
-    try {
-      const updated = await api.patch<{
-        display_name: string;
-        email: string;
-        id: string;
-        is_admin: boolean;
-      }>("/me", {
-        display_name: displayName.trim(),
-      });
-      auth.setUser({ ...updated, display_name: updated.display_name });
-      toast.success("Profile updated");
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to update profile";
-      toast.error(message);
-    } finally {
-      savingProfile = false;
-    }
   }
 
   async function handleChangePassword(e: Event) {
@@ -325,116 +274,9 @@
 
 <div>
   <h2 class="text-lg font-semibold text-text mb-6">Settings</h2>
+  <SettingsNav />
 
   <div class="bg-surface rounded-xl border border-border mb-6">
-    <div class="px-6 py-4 border-b border-border">
-      <h3 class="text-sm font-semibold text-text">Appearance</h3>
-    </div>
-    <div class="p-6">
-      <p class="text-sm text-muted mb-4">Choose your preferred color theme.</p>
-      <div class="flex gap-2">
-        <button
-          on:click={() => setThemePreference("system")}
-          class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors {$themePreference ===
-          'system'
-            ? 'border-accent bg-accent/10 text-text font-medium'
-            : 'border-border text-muted hover:text-text hover:border-border-strong'}"
-        >
-          <svg
-            class="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="4" width="18" height="12" rx="2"></rect>
-            <path d="M8 20h8"></path>
-            <path d="M12 16v4"></path>
-          </svg>
-          System
-        </button>
-        <button
-          on:click={() => setThemePreference("light")}
-          class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors {$themePreference ===
-          'light'
-            ? 'border-accent bg-accent/10 text-text font-medium'
-            : 'border-border text-muted hover:text-text hover:border-border-strong'}"
-        >
-          <svg
-            class="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="4"></circle>
-            <path d="M12 2v2"></path>
-            <path d="M12 20v2"></path>
-            <path d="M4.93 4.93l1.41 1.41"></path>
-            <path d="M17.66 17.66l1.41 1.41"></path>
-            <path d="M2 12h2"></path>
-            <path d="M20 12h2"></path>
-            <path d="M6.34 17.66l-1.41 1.41"></path>
-            <path d="M19.07 4.93l-1.41 1.41"></path>
-          </svg>
-          Light
-        </button>
-        <button
-          on:click={() => setThemePreference("dark")}
-          class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors {$themePreference ===
-          'dark'
-            ? 'border-accent bg-accent/10 text-text font-medium'
-            : 'border-border text-muted hover:text-text hover:border-border-strong'}"
-        >
-          <svg
-            class="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"></path>
-          </svg>
-          Dark
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div class="bg-surface rounded-xl border border-border mb-6">
-    <div class="px-6 py-4 border-b border-border">
-      <h3 class="text-sm font-semibold text-text">Profile</h3>
-    </div>
-    <div class="p-6">
-      <form on:submit={handleUpdateProfile} class="space-y-5">
-        <Input
-          type="email"
-          label="Email"
-          value={$auth.user?.email || ""}
-          autocomplete="email"
-          disabled
-        />
-        <Input
-          label="Display Name"
-          bind:value={displayName}
-          error={profileErrors.displayName}
-          autocomplete="name"
-          required
-        />
-        <Button type="submit" loading={savingProfile}>
-          {savingProfile ? "Saving..." : "Update Profile"}
-        </Button>
-      </form>
-    </div>
-  </div>
-
-  <div class="bg-surface rounded-xl border border-border">
     <div class="px-6 py-4 border-b border-border">
       <h3 class="text-sm font-semibold text-text">Change Password</h3>
     </div>
@@ -473,7 +315,7 @@
   </div>
 
   {#if totpStatus !== null && !$auth.user?.oidc_linked}
-    <div class="bg-surface rounded-xl border border-border mt-6">
+    <div class="bg-surface rounded-xl border border-border mb-6">
       <div class="px-6 py-4 border-b border-border">
         <h3 class="text-sm font-semibold text-text">
           Two-Factor Authentication
@@ -542,6 +384,41 @@
               </Button>
             </form>
           </div>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
+  {#if oidcEnabled}
+    <div class="bg-surface rounded-xl border border-border">
+      <div class="px-6 py-4 border-b border-border">
+        <h3 class="text-sm font-semibold text-text">Single Sign-On</h3>
+      </div>
+      <div class="p-6">
+        {#if $auth.user?.oidc_linked}
+          <p class="text-sm text-muted mb-4">
+            Your account is linked to an external identity provider.
+          </p>
+          {#if $auth.user?.has_password}
+            <Button
+              variant="secondary"
+              on:click={handleUnlinkOIDC}
+              loading={unlinkingOIDC}
+            >
+              {unlinkingOIDC ? "Unlinking..." : "Unlink SSO Account"}
+            </Button>
+          {:else}
+            <p class="text-xs text-subtle">
+              Set a password before unlinking SSO to avoid being locked out.
+            </p>
+          {/if}
+        {:else}
+          <p class="text-sm text-muted mb-4">
+            Link your account to an external identity provider for easier login.
+          </p>
+          <Button variant="secondary" on:click={handleLinkOIDC}>
+            Link SSO Account
+          </Button>
         {/if}
       </div>
     </div>
@@ -686,41 +563,4 @@
       </div>
     </div>
   {/if}
-
-  {#if oidcEnabled}
-    <div class="bg-surface rounded-xl border border-border mt-6">
-      <div class="px-6 py-4 border-b border-border">
-        <h3 class="text-sm font-semibold text-text">Single Sign-On</h3>
-      </div>
-      <div class="p-6">
-        {#if $auth.user?.oidc_linked}
-          <p class="text-sm text-muted mb-4">
-            Your account is linked to an external identity provider.
-          </p>
-          {#if $auth.user?.has_password}
-            <Button
-              variant="secondary"
-              on:click={handleUnlinkOIDC}
-              loading={unlinkingOIDC}
-            >
-              {unlinkingOIDC ? "Unlinking..." : "Unlink SSO Account"}
-            </Button>
-          {:else}
-            <p class="text-xs text-subtle">
-              Set a password before unlinking SSO to avoid being locked out.
-            </p>
-          {/if}
-        {:else}
-          <p class="text-sm text-muted mb-4">
-            Link your account to an external identity provider for easier login.
-          </p>
-          <Button variant="secondary" on:click={handleLinkOIDC}>
-            Link SSO Account
-          </Button>
-        {/if}
-      </div>
-    </div>
-  {/if}
-
-  <ApiKeysSection />
 </div>

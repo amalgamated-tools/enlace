@@ -97,7 +97,7 @@
               Shares
             </a>
             <a
-              href="#/settings"
+              href="#/settings/profile"
               class="px-3 py-1.5 text-sm rounded-md transition-colors {settingsActive
                 ? 'text-text bg-surface-muted font-medium'
                 : 'text-muted hover:text-text hover:bg-surface-subtle'}"

@@ -7,3 +7,4 @@ export { default as FileList } from "./FileList.svelte";
 export { default as ShareCard } from "./ShareCard.svelte";
 export { default as AdminNav } from "./AdminNav.svelte";
 export { default as ApiKeysSection } from "./ApiKeysSection.svelte";
+export { default as SettingsNav } from "./SettingsNav.svelte";
