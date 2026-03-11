@@ -4,7 +4,9 @@ import Dashboard from "./routes/Dashboard.svelte";
 import Shares from "./routes/Shares.svelte";
 import ShareDetail from "./routes/ShareDetail.svelte";
 import NewShare from "./routes/NewShare.svelte";
-import Settings from "./routes/Settings.svelte";
+import SettingsProfile from "./routes/settings/Profile.svelte";
+import SettingsSecurity from "./routes/settings/Security.svelte";
+import SettingsApiKeys from "./routes/settings/ApiKeys.svelte";
 import AdminUsers from "./routes/admin/Users.svelte";
 import AdminStorage from "./routes/admin/Storage.svelte";
 import AdminEmail from "./routes/admin/Email.svelte";
@@ -23,7 +25,9 @@ export default {
   "/shares": Shares,
   "/shares/new": NewShare,
   "/shares/:id": ShareDetail,
-  "/settings": Settings,
+  "/settings/profile": SettingsProfile,
+  "/settings/security": SettingsSecurity,
+  "/settings/api-keys": SettingsApiKeys,
   "/admin/users": AdminUsers,
   "/admin/storage": AdminStorage,
   "/admin/email": AdminEmail,
