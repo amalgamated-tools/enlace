@@ -19,7 +19,7 @@ enlace/
 │   ├── repository/      # Data access layer
 │   ├── service/         # Business logic layer
 │   ├── storage/         # File storage abstraction (local, S3)
-│   └── telemetry/       # Optional anonymous telemetry
+│   └── telemetry/       # Two-level anonymous telemetry: mandatory boot ping + opt-in event telemetry
 ├── frontend/            # Svelte + TypeScript SPA
 │   └── src/
 │       ├── routes/      # Page components (top-level pages and admin sub-pages)
