@@ -561,6 +561,7 @@ func (h *PublicHandler) emitShareDownloadedWebhook(share *model.Share, file *mod
 				"share_id": shareID,
 				"file_id":  fileID,
 				"name":     fileName,
+				"slug":     share.Slug,
 			},
 		}); err != nil {
 			slog.Warn("failed to emit webhook", "event_type", "share.downloaded", "share_id", shareID, "file_id", fileID, "error", err)
@@ -716,6 +717,7 @@ func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Requ
 				CreatorID: creatorID,
 				Resource:  share.ID,
 				Data: map[string]interface{}{
+					"slug":     share.Slug,
 					"share_id": share.ID,
 					"count":    len(uploadedFiles),
 					"files":    uploaded,
@@ -943,6 +945,7 @@ func (h *PublicHandler) FinalizeReverseShareUpload(w http.ResponseWriter, r *htt
 				Resource:  share.ID,
 				Data: map[string]interface{}{
 					"share_id": share.ID,
+					"slug":     share.Slug,
 					"count":    1,
 					"files": []map[string]interface{}{
 						{
