@@ -111,7 +111,7 @@ internal/
   repository/      # data-access layer
   service/         # business logic
   storage/         # Storage interface + local & S3 implementations
-  telemetry/       # anonymous opt-in telemetry
+  telemetry/       # two-level anonymous telemetry (mandatory boot ping + opt-in event telemetry)
 frontend/          # Svelte + TypeScript + Vite app
 e2e/               # Playwright end-to-end tests
 docs/              # documentation and auto-generated OpenAPI specs
