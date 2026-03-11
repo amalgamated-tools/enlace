@@ -15,6 +15,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// cachedInstallID is set during SendBoot and read by SendEvent for correlation.
+var cachedInstallID string
+
+// Payload is the boot telemetry payload sent once per install.
 type Payload struct {
 	Application   string `json:"application"`
 	InstallID     string `json:"install_id"`
@@ -25,46 +29,74 @@ type Payload struct {
 	UnixTimestamp int64  `json:"unix_timestamp"`
 }
 
-// Send submits the anonymous install telemetry payload when telemetry is enabled.
-func Send(version string) {
-	// Telemetry is opt-in meaning it is disabled by default unless explicitly enabled
-	envTelemetryEnabled, ok := os.LookupEnv("TELEMETRY_ENABLED")
-	if ok {
-		slog.Debug("Telemetry environment variable found", slog.String("TELEMETRY_ENABLED", envTelemetryEnabled))
+// EventPayload is the event telemetry payload sent when telemetry is enabled.
+type EventPayload struct {
+	Application   string            `json:"application"`
+	InstallID     string            `json:"install_id"`
+	EventType     string            `json:"event_type"`
+	Version       string            `json:"version"`
+	Properties    map[string]string `json:"properties,omitempty"`
+	Timestamp     string            `json:"timestamp"`
+	UnixTimestamp int64             `json:"unix_timestamp"`
+}
 
-		if !strings.EqualFold(envTelemetryEnabled, "true") {
-			slog.Info("Telemetry is disabled via TELEMETRY_ENABLED environment variable")
-			return
-		}
-	} else {
-		slog.Warn("TELEMETRY_ENABLED environment variable not set, telemetry is disabled by default")
-		return
-	}
-
+func getEndpoint() string {
 	endpoint := os.Getenv("TELEMETRY_ENDPOINT")
 	if endpoint == "" {
-		slog.Debug("Telemetry endpoint not set, using default")
 		endpoint = "https://telemetry-worker.amalgamated-tools.workers.dev"
 	}
+	return endpoint
+}
 
-	slog.Warn("NOTICE: This application collects anonymous telemetry data to help improve the product. To disable telemetry, set the environment variable TELEMETRY_ENABLED=false")
-
+func getInstallIDPath() string {
 	dataDir := os.Getenv("DATA_DIR")
 	if dataDir == "" {
 		dataDir = "./data"
 	}
-	installIDPath := filepath.Join(dataDir, "install_id")
+	return filepath.Join(dataDir, "install_id")
+}
+
+// loadOrCreateInstallID reads the install ID from disk if it exists,
+// or generates a new one. Returns the ID and whether it was newly created.
+func loadOrCreateInstallID(path string) (string, bool) {
+	data, err := os.ReadFile(path)
+	if err == nil && len(data) > 0 {
+		return string(data), false
+	}
+	return uuid.New().String(), true
+}
+
+func sendPayload(endpoint string, body []byte) (*http.Response, error) {
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+	return client.Do(req)
+}
+
+// SendBoot submits the anonymous install telemetry payload.
+// This is mandatory and cannot be opted out of. It only sends once per install.
+func SendBoot(version string) {
+	endpoint := getEndpoint()
+	installIDPath := getInstallIDPath()
 	slog.Debug("Using data directory for install ID", slog.String("path", installIDPath))
 
-	// Only send once per install
-	if _, err := os.Stat(installIDPath); err == nil {
+	slog.Info("NOTICE: This application collects anonymous boot telemetry data (application version, OS, architecture) once per install to help improve the product.")
+
+	id, isNew := loadOrCreateInstallID(installIDPath)
+	cachedInstallID = id
+
+	if !isNew {
 		slog.Debug("Telemetry already sent for this install, skipping")
 		return
 	}
 
 	slog.Debug("Install ID not found, sending telemetry data")
-	// Create install ID
-	id := uuid.New().String()
 
 	now := time.Now().UTC()
 
@@ -84,18 +116,7 @@ func Send(version string) {
 		return
 	}
 
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
-	if err != nil {
-		slog.Error("Failed to create telemetry request", slog.Any("error", err))
-		return
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{
-		Timeout: 3 * time.Second,
-	}
-	resp, err := client.Do(req)
+	resp, err := sendPayload(endpoint, body)
 	if err != nil {
 		slog.Error("Failed to send telemetry request", slog.Any("error", err))
 		return
@@ -111,7 +132,6 @@ func Send(version string) {
 		return
 	}
 
-	// write out response to log
 	slog.Debug("Telemetry sent successfully")
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
@@ -125,4 +145,70 @@ func Send(version string) {
 		slog.Error("Failed to write install ID", slog.Any("error", err))
 		return
 	}
+}
+
+// SendEvent submits an event telemetry payload. This is opt-in and only sends
+// when TELEMETRY_ENABLED=true.
+func SendEvent(version, eventType string, properties map[string]string) {
+	envTelemetryEnabled, ok := os.LookupEnv("TELEMETRY_ENABLED")
+	if !ok || !strings.EqualFold(envTelemetryEnabled, "true") {
+		slog.Debug("Event telemetry is disabled, skipping", slog.String("event_type", eventType))
+		return
+	}
+
+	installID := cachedInstallID
+	if installID == "" {
+		// Try reading from file if SendBoot hasn't been called yet
+		data, err := os.ReadFile(getInstallIDPath())
+		if err == nil && len(data) > 0 {
+			installID = string(data)
+			cachedInstallID = installID
+		}
+	}
+
+	if installID == "" {
+		slog.Warn("Cannot send event telemetry: no install ID available", slog.String("event_type", eventType))
+		return
+	}
+
+	now := time.Now().UTC()
+
+	eventPayload := EventPayload{
+		Application:   "enlace",
+		InstallID:     installID,
+		EventType:     eventType,
+		Version:       version,
+		Properties:    properties,
+		Timestamp:     now.Format(time.RFC3339),
+		UnixTimestamp: now.Unix(),
+	}
+
+	body, err := json.Marshal(eventPayload)
+	if err != nil {
+		slog.Error("Failed to marshal event telemetry payload", slog.Any("error", err))
+		return
+	}
+
+	resp, err := sendPayload(getEndpoint(), body)
+	if err != nil {
+		slog.Error("Failed to send event telemetry request", slog.Any("error", err))
+		return
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close event telemetry response body", slog.Any("error", err))
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Error("Event telemetry request failed", slog.Int("status", resp.StatusCode))
+		return
+	}
+
+	slog.Debug("Event telemetry sent successfully", slog.String("event_type", eventType))
+}
+
+// GetInstallID returns the cached install ID, if available.
+func GetInstallID() string {
+	return cachedInstallID
 }

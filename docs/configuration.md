@@ -92,14 +92,18 @@ See [Admin SMTP endpoints](api.md#admin-smtp-endpoints) for the API reference.
 
 ## Telemetry
 
-Enlace collects **opt-in, anonymous** telemetry to help improve the project. Telemetry is **disabled by default** and only activates when `TELEMETRY_ENABLED=true` is explicitly set. When enabled, Enlace attempts to send a lightweight telemetry ping on startup; after a successful send, it writes an install ID file in `DATA_DIR` and will not send additional pings for that installation. If the request fails or the install ID file cannot be written, the ping will be retried on subsequent startups. Clearing or changing `DATA_DIR` causes Enlace to generate a new install ID and send telemetry again. The payload contains only: application name, a random install ID, version, OS, architecture, and timestamp — no user data, files, or IP addresses.
+Enlace collects anonymous telemetry at two levels:
+
+**Boot telemetry (mandatory):** On every fresh install, Enlace sends a single lightweight ping containing the application name, a random install ID, version, OS, architecture, and timestamp — no user data, files, or IP addresses. After a successful send, it writes an install ID file in `DATA_DIR` and will not send additional pings for that installation. If the request fails or the install ID file cannot be written, the ping will be retried on subsequent startups. Clearing or changing `DATA_DIR` causes Enlace to generate a new install ID and send telemetry again. Boot telemetry cannot be disabled.
+
+**Event telemetry (opt-in):** When `TELEMETRY_ENABLED=true` is set, Enlace may send additional event-driven telemetry (e.g. feature usage) to the same endpoint. Event telemetry is **disabled by default**.
 
 | Variable | Default | Description |
 |---|---|---|
-| `TELEMETRY_ENABLED` | `false` | Set to `true` to enable anonymous telemetry |
-| `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Endpoint that receives the telemetry ping (override for self-hosted collection) |
+| `TELEMETRY_ENABLED` | `false` | Set to `true` to enable additional event telemetry (boot telemetry is always sent) |
+| `TELEMETRY_ENDPOINT` | `https://telemetry-worker.amalgamated-tools.workers.dev` | Endpoint that receives telemetry (override for self-hosted collection) |
 
-> **Note:** The telemetry install ID is stored in `DATA_DIR` (see [Core](#core)). Changing `DATA_DIR` causes Enlace to generate a new install ID and send telemetry again.
+> **Note:** The telemetry install ID is stored in `DATA_DIR` (see [Core](#core)). Changing `DATA_DIR` causes Enlace to generate a new install ID and send boot telemetry again.
 
 ## API & CORS
 
