@@ -115,14 +115,20 @@ func (rl *RateLimiter) extractIP(r *http.Request) string {
 	// Only examine forwarded headers when the direct peer is a trusted proxy.
 	if remoteIP != nil && rl.isTrustedProxy(remoteIP) {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			// X-Forwarded-For can contain multiple IPs; take the first one (client IP).
-			clientIP := xff
-			if before, _, ok := strings.Cut(xff, ","); ok {
-				clientIP = before
-			}
-			clientIP = strings.TrimSpace(clientIP)
-			if net.ParseIP(clientIP) != nil {
-				return clientIP
+			// Walk X-Forwarded-For from right to left and return the first IP that
+			// is not itself a trusted proxy. This prevents clients from spoofing a
+			// leftmost entry while still supporting chains of trusted proxies.
+			parts := strings.Split(xff, ",")
+			for i := len(parts) - 1; i >= 0; i-- {
+				clientIP := strings.TrimSpace(parts[i])
+				parsedIP := net.ParseIP(clientIP)
+				if parsedIP == nil {
+					continue
+				}
+				if rl.isTrustedProxy(parsedIP) {
+					continue
+				}
+				return parsedIP.String()
 			}
 		}
 
