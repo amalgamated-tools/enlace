@@ -116,10 +116,11 @@ func TestOIDCService_FindOrCreateUser_AutoLinkByEmail(t *testing.T) {
 
 	// FindOrCreateUser should auto-link OIDC to the existing email user
 	found, err := svc.FindOrCreateUser(ctx, &service.OIDCUserInfo{
-		Subject:     "sub-new",
-		Email:       "existing@example.com",
-		DisplayName: "Existing User",
-		Issuer:      "https://issuer.example.com",
+		Subject:       "sub-new",
+		Email:         "existing@example.com",
+		EmailVerified: true,
+		DisplayName:   "Existing User",
+		Issuer:        "https://issuer.example.com",
 	})
 	if err != nil {
 		t.Fatalf("FindOrCreateUser failed: %v", err)
@@ -132,6 +133,52 @@ func TestOIDCService_FindOrCreateUser_AutoLinkByEmail(t *testing.T) {
 	}
 	if found.OIDCIssuer != "https://issuer.example.com" {
 		t.Errorf("expected OIDCIssuer 'https://issuer.example.com', got %s", found.OIDCIssuer)
+	}
+}
+
+func TestOIDCService_FindOrCreateUser_UnverifiedEmailDoesNotAutoLink(t *testing.T) {
+	db, err := database.New(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create test db: %v", err)
+	}
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db.DB())
+	svc := service.NewOIDCServiceForTest(userRepo, "https://issuer.example.com", nil)
+	ctx := context.Background()
+
+	existingUser := &model.User{
+		ID:          "user-email-only",
+		Email:       "existing@example.com",
+		DisplayName: "Existing User",
+	}
+	if err := userRepo.Create(ctx, existingUser); err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	_, err = svc.FindOrCreateUser(ctx, &service.OIDCUserInfo{
+		Subject:       "sub-new",
+		Email:         "existing@example.com",
+		EmailVerified: false,
+		DisplayName:   "Existing User",
+		Issuer:        "https://issuer.example.com",
+	})
+	if err == nil {
+		t.Fatal("expected error for unverified email auto-link")
+	}
+	if err != service.ErrOIDCEmailNotVerified {
+		t.Fatalf("expected ErrOIDCEmailNotVerified, got %v", err)
+	}
+
+	found, err := userRepo.GetByID(ctx, existingUser.ID)
+	if err != nil {
+		t.Fatalf("failed to reload user: %v", err)
+	}
+	if found.OIDCSubject != "" {
+		t.Errorf("expected OIDCSubject to remain empty, got %s", found.OIDCSubject)
+	}
+	if found.OIDCIssuer != "" {
+		t.Errorf("expected OIDCIssuer to remain empty, got %s", found.OIDCIssuer)
 	}
 }
 
@@ -316,10 +363,11 @@ func TestOIDCService_FindOrCreateUser_AutoLinkRemoves2FA(t *testing.T) {
 
 	// Auto-link via email should remove 2FA
 	_, err = svc.FindOrCreateUser(ctx, &service.OIDCUserInfo{
-		Subject:     "sub-new",
-		Email:       "twofa@example.com",
-		DisplayName: "2FA User",
-		Issuer:      "https://issuer.example.com",
+		Subject:       "sub-new",
+		Email:         "twofa@example.com",
+		EmailVerified: true,
+		DisplayName:   "2FA User",
+		Issuer:        "https://issuer.example.com",
 	})
 	if err != nil {
 		t.Fatalf("FindOrCreateUser failed: %v", err)

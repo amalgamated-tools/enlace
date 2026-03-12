@@ -20,18 +20,20 @@ import (
 
 // OIDC errors
 var (
-	ErrOIDCDisabled      = errors.New("OIDC is not enabled")
-	ErrOIDCStateMismatch = errors.New("state mismatch")
-	ErrOIDCNoEmail       = errors.New("OIDC provider did not return email")
-	ErrOIDCAlreadyLinked = errors.New("OIDC account already linked to another user")
+	ErrOIDCDisabled         = errors.New("OIDC is not enabled")
+	ErrOIDCStateMismatch    = errors.New("state mismatch")
+	ErrOIDCNoEmail          = errors.New("OIDC provider did not return email")
+	ErrOIDCAlreadyLinked    = errors.New("OIDC account already linked to another user")
+	ErrOIDCEmailNotVerified = errors.New("OIDC provider email is not verified")
 )
 
 // OIDCUserInfo contains user information from the OIDC provider.
 type OIDCUserInfo struct {
-	Subject     string
-	Email       string
-	DisplayName string
-	Issuer      string
+	Subject       string
+	Email         string
+	EmailVerified bool
+	DisplayName   string
+	Issuer        string
 }
 
 // TOTPDisabler can remove 2FA configuration for a user.
@@ -165,10 +167,11 @@ func (s *OIDCService) ExchangeCode(ctx context.Context, code, codeVerifier strin
 	}
 
 	return &OIDCUserInfo{
-		Subject:     idToken.Subject,
-		Email:       claims.Email,
-		DisplayName: displayName,
-		Issuer:      s.issuerURL,
+		Subject:       idToken.Subject,
+		Email:         claims.Email,
+		EmailVerified: claims.EmailVerified,
+		DisplayName:   displayName,
+		Issuer:        s.issuerURL,
 	}, nil
 }
 
@@ -190,6 +193,9 @@ func (s *OIDCService) FindOrCreateUser(ctx context.Context, info *OIDCUserInfo) 
 	// Try to find by email (auto-link)
 	user, err = s.userRepo.GetByEmail(ctx, info.Email)
 	if err == nil {
+		if !info.EmailVerified {
+			return nil, ErrOIDCEmailNotVerified
+		}
 		// Link OIDC to existing user
 		linkedUser := &model.User{
 			ID:           user.ID,

@@ -27,10 +27,11 @@ const (
 // OIDCUserInfo contains user information from the OIDC provider.
 // This mirrors service.OIDCUserInfo but is exposed for handler interface.
 type OIDCUserInfo struct {
-	Subject     string
-	Email       string
-	DisplayName string
-	Issuer      string
+	Subject       string
+	Email         string
+	EmailVerified bool
+	DisplayName   string
+	Issuer        string
 }
 
 // OIDCUser represents a user for OIDC operations.

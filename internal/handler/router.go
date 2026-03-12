@@ -381,20 +381,22 @@ func (a *oidcServiceAdapter) ExchangeCode(ctx context.Context, code, codeVerifie
 		return nil, err
 	}
 	return &OIDCUserInfo{
-		Subject:     info.Subject,
-		Email:       info.Email,
-		DisplayName: info.DisplayName,
-		Issuer:      info.Issuer,
+		Subject:       info.Subject,
+		Email:         info.Email,
+		EmailVerified: info.EmailVerified,
+		DisplayName:   info.DisplayName,
+		Issuer:        info.Issuer,
 	}, nil
 }
 
 // FindOrCreateUser resolves the OIDC identity to a local user account.
 func (a *oidcServiceAdapter) FindOrCreateUser(ctx context.Context, info *OIDCUserInfo) (*OIDCUser, error) {
 	svcInfo := &service.OIDCUserInfo{
-		Subject:     info.Subject,
-		Email:       info.Email,
-		DisplayName: info.DisplayName,
-		Issuer:      info.Issuer,
+		Subject:       info.Subject,
+		Email:         info.Email,
+		EmailVerified: info.EmailVerified,
+		DisplayName:   info.DisplayName,
+		Issuer:        info.Issuer,
 	}
 	user, err := a.svc.FindOrCreateUser(ctx, svcInfo)
 	if err != nil {
@@ -409,10 +411,11 @@ func (a *oidcServiceAdapter) FindOrCreateUser(ctx context.Context, info *OIDCUse
 // LinkOIDC links an OIDC identity to an existing local user.
 func (a *oidcServiceAdapter) LinkOIDC(ctx context.Context, userID string, info *OIDCUserInfo) error {
 	svcInfo := &service.OIDCUserInfo{
-		Subject:     info.Subject,
-		Email:       info.Email,
-		DisplayName: info.DisplayName,
-		Issuer:      info.Issuer,
+		Subject:       info.Subject,
+		Email:         info.Email,
+		EmailVerified: info.EmailVerified,
+		DisplayName:   info.DisplayName,
+		Issuer:        info.Issuer,
 	}
 	return a.svc.LinkOIDC(ctx, userID, svcInfo)
 }
