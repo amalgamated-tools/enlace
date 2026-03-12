@@ -22,9 +22,9 @@ Enlace supports OpenID Connect (OIDC) for Single Sign-On (SSO). This allows user
 5. If a local user with the same email exists, the OIDC identity is automatically linked.
 6. If no matching user exists, a new account is created.
 
-Existing users can also link/unlink their OIDC identity from the **Settings** page.
+Existing users can also link/unlink their OIDC identity from the **Settings → Security** tab.
 
-> **Important:** You cannot unlink an OIDC identity from an account that has no local password — doing so would lock you out entirely. Before unlinking, make sure your account has a local password set. You can set one via the Settings page or the `PUT /api/v1/me/password` endpoint. The `has_password` field in `GET /api/v1/me` shows whether your account has a password.
+> **Important:** You cannot unlink an OIDC identity from an account that has no local password — doing so would lock you out entirely. Before unlinking, make sure your account has a local password set. You can set one via **Settings → Security** or the `PUT /api/v1/me/password` endpoint. The `has_password` field in `GET /api/v1/me` shows whether your account has a password.
 
 > **Note:** The OIDC provider must return an `email` claim. If it does not, authentication will fail.
 
@@ -129,7 +129,7 @@ volumes:
 
 ## SSO and Two-Factor Authentication
 
-**SSO (OIDC) and 2FA are mutually exclusive.** When you link an OIDC identity to a Enlace account — either by signing in for the first time or by linking via the Settings page — any existing TOTP 2FA configuration on that account is automatically and permanently removed.
+**SSO (OIDC) and 2FA are mutually exclusive.** When you link an OIDC identity to a Enlace account — either by signing in for the first time or by linking via the **Settings → Security** tab — any existing TOTP 2FA configuration on that account is automatically and permanently removed.
 
 ### Why?
 
@@ -143,17 +143,17 @@ When authentication is delegated to an identity provider, the provider is respon
 | SSO user attempts to set up 2FA (`POST /me/2fa/setup`) | **HTTP 403** — `"2FA is not available for SSO accounts"` |
 | SSO user attempts to confirm setup, disable, or regenerate recovery codes | **HTTP 403** — same error |
 | SSO user logs in | 2FA challenge step is skipped entirely |
-| 2FA UI in Settings | Hidden for SSO-linked accounts |
+| 2FA UI in Settings → Security | Hidden for SSO-linked accounts |
 
 ### Migrating from 2FA to SSO
 
-If you have 2FA enabled and want to switch to SSO, simply link your OIDC identity via **Settings → Linked Accounts**. Your 2FA configuration will be removed automatically. You do not need to disable 2FA manually first.
+If you have 2FA enabled and want to switch to SSO, simply link your OIDC identity via **Settings → Security → Linked Accounts**. Your 2FA configuration will be removed automatically. You do not need to disable 2FA manually first.
 
 ### Migrating from SSO to local password + 2FA
 
-1. Ensure your account has a local password set (**Settings → Change Password** or `PUT /api/v1/me/password`).
-2. Unlink your OIDC identity via **Settings → Linked Accounts**.
-3. You can now enroll in 2FA under **Settings → Two-Factor Authentication**.
+1. Ensure your account has a local password set (**Settings → Security → Change Password** or `PUT /api/v1/me/password`).
+2. Unlink your OIDC identity via **Settings → Security → Linked Accounts**.
+3. You can now enroll in 2FA under **Settings → Security → Two-Factor Authentication**.
 
 ## Troubleshooting
 

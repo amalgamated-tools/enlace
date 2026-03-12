@@ -22,7 +22,7 @@ enlace/
 │   └── telemetry/       # Two-level anonymous telemetry: mandatory boot ping + opt-in event telemetry
 ├── frontend/            # Svelte + TypeScript SPA
 │   └── src/
-│       ├── routes/      # Page components (top-level pages and admin sub-pages)
+│       ├── routes/      # Page components (top-level pages, admin sub-pages, settings sub-pages)
 │       ├── lib/
 │       │   ├── api/     # API client functions (one module per resource)
 │       │   ├── components/ # Reusable UI components
