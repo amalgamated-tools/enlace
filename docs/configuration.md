@@ -138,7 +138,7 @@ See [OIDC / SSO guide](oidc.md) for provider-specific setup guides.
 
 ## Networking / Reverse Proxy
 
-When Enlace is deployed behind a reverse proxy (nginx, Caddy, Traefik, etc.) the direct TCP peer is the proxy, not the end user. By default, Enlace uses `RemoteAddr` for all IP-based decisions (rate limiting). Set `TRUSTED_PROXIES` to the CIDR ranges of your proxy so that the real client IP from `X-Forwarded-For` / `X-Real-IP` is used instead.
+When Enlace is deployed behind a reverse proxy (nginx, Caddy, Traefik, etc.) the direct TCP peer is the proxy, not the end user. By default, Enlace uses `RemoteAddr` for all IP-based decisions (rate limiting). Set `TRUSTED_PROXIES` to the CIDR ranges of your proxy so that the real client IP from `X-Forwarded-For` / `X-Real-IP` is used instead. When `X-Forwarded-For` contains multiple entries, Enlace walks the list from right to left and uses the first address that is not itself a trusted proxy.
 
 | Variable | Default | Description |
 |---|---|---|
