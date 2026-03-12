@@ -1,14 +1,11 @@
 package model
 
 import (
-	"fmt"
 	"testing"
 	"time"
 )
 
 func TestShare_IsExpired(t *testing.T) {
-	b := new(time.Now().Add(1 * time.Hour))
-	fmt.Println(b)
 	tests := []struct {
 		name      string
 		expiresAt *time.Time
