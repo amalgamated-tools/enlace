@@ -41,7 +41,7 @@ func TestHealthHandler(t *testing.T) {
 		t.Error("health endpoint response.Success = false, want true")
 	}
 
-	data, ok := response.Data.(map[string]interface{})
+	data, ok := response.Data.(map[string]any)
 	if !ok {
 		t.Fatal("health endpoint response.Data is not a map")
 	}
@@ -80,7 +80,7 @@ func TestHealthHandler_EmailConfigured(t *testing.T) {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	data, ok := response.Data.(map[string]interface{})
+	data, ok := response.Data.(map[string]any)
 	if !ok {
 		t.Fatal("health endpoint response.Data is not a map")
 	}
@@ -160,7 +160,7 @@ func TestRouter_LoginRateLimited(t *testing.T) {
 	// The login rate limiter allows a burst of 5; sending more requests from the
 	// same IP should eventually trigger a 429 Too Many Requests response.
 	var rateLimited bool
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
 		req.RemoteAddr = "192.0.2.1:12345"
 		w := httptest.NewRecorder()
@@ -183,7 +183,7 @@ func TestRouter_RegisterRateLimited(t *testing.T) {
 	// The register rate limiter allows a burst of 3; sending more requests from the
 	// same IP should eventually trigger a 429 Too Many Requests response.
 	var rateLimited bool
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", nil)
 		req.RemoteAddr = "192.0.2.2:12345"
 		w := httptest.NewRecorder()

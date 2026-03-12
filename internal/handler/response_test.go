@@ -13,7 +13,7 @@ func TestJSON(t *testing.T) {
 	tests := []struct {
 		name       string
 		status     int
-		data       interface{}
+		data       any
 		wantStatus int
 		wantBody   string
 	}{
@@ -87,7 +87,7 @@ func TestSuccess(t *testing.T) {
 	}
 
 	// Check data field contains our map
-	dataMap, ok := response.Data.(map[string]interface{})
+	dataMap, ok := response.Data.(map[string]any)
 	if !ok {
 		t.Fatal("Success() response.Data is not a map")
 	}
@@ -199,7 +199,7 @@ func TestDecodeJSON(t *testing.T) {
 	tests := []struct {
 		name    string
 		body    string
-		target  interface{}
+		target  any
 		wantErr bool
 	}{
 		{

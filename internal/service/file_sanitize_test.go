@@ -16,7 +16,6 @@ func TestSanitizeFilename_Invalid(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc, func(t *testing.T) {
 			t.Parallel()
 			if _, err := sanitizeFilename(tc); err != ErrInvalidFilename {
@@ -41,7 +40,6 @@ func TestSanitizeFilename_Valid(t *testing.T) {
 	}
 
 	for input, expected := range cases {
-		input, expected := input, expected
 		t.Run(input, func(t *testing.T) {
 			t.Parallel()
 			got, err := sanitizeFilename(input)

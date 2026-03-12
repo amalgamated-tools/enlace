@@ -12,6 +12,9 @@ import (
 )
 
 func TestLoad_Defaults(t *testing.T) {
+	// unset any env vars that might affect the config
+	os.Unsetenv("PORT")
+	os.Unsetenv("DATABASE_PATH") // this seems to only affect local tests
 	cfg := config.Load()
 
 	if cfg.Port != 8080 {

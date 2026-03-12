@@ -175,8 +175,8 @@ func TestShareHandler_List_EmptyList(t *testing.T) {
 	}
 
 	var response struct {
-		Success bool          `json:"success"`
-		Data    []interface{} `json:"data"`
+		Success bool  `json:"success"`
+		Data    []any `json:"data"`
 	}
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
@@ -1375,8 +1375,8 @@ func TestShareHandler_ListRecipients_NilEmailService(t *testing.T) {
 	}
 
 	var response struct {
-		Success bool          `json:"success"`
-		Data    []interface{} `json:"data"`
+		Success bool  `json:"success"`
+		Data    []any `json:"data"`
 	}
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)

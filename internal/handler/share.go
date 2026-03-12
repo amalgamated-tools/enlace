@@ -244,7 +244,7 @@ func (h *ShareHandler) Create(w http.ResponseWriter, r *http.Request) {
 				CreatorID: creatorID,
 				ActorID:   userID,
 				Resource:  share.ID,
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"share_id": share.ID,
 					"slug":     share.Slug,
 					"name":     share.Name,

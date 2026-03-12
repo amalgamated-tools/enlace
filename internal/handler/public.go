@@ -243,7 +243,7 @@ func (h *PublicHandler) ViewShare(w http.ResponseWriter, r *http.Request) {
 				Type:      "share.viewed",
 				CreatorID: creatorID,
 				Resource:  share.ID,
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"share_id": share.ID,
 					"slug":     share.Slug,
 				},
@@ -549,7 +549,7 @@ func (h *PublicHandler) emitShareDownloadedWebhook(share *model.Share, file *mod
 	}
 
 	creatorID := *share.CreatorID
-	go func(shareID, fileID, fileName string) {
+	go func(shareID, shareSlug, fileID, fileName string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
@@ -557,15 +557,16 @@ func (h *PublicHandler) emitShareDownloadedWebhook(share *model.Share, file *mod
 			Type:      "share.downloaded",
 			CreatorID: creatorID,
 			Resource:  shareID,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"share_id": shareID,
 				"file_id":  fileID,
 				"name":     fileName,
+				"slug":     shareSlug,
 			},
 		}); err != nil {
 			slog.Warn("failed to emit webhook", "event_type", "share.downloaded", "share_id", shareID, "file_id", fileID, "error", err)
 		}
-	}(share.ID, file.ID, file.Name)
+	}(share.ID, share.Slug, file.ID, file.Name)
 }
 
 // isScriptableMimeType returns true for MIME types that can execute scripts or
@@ -698,9 +699,9 @@ func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Requ
 
 	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
 		creatorID := *share.CreatorID
-		uploaded := make([]map[string]interface{}, 0, len(uploadedFiles))
+		uploaded := make([]map[string]any, 0, len(uploadedFiles))
 		for _, item := range uploadedFiles {
-			uploaded = append(uploaded, map[string]interface{}{
+			uploaded = append(uploaded, map[string]any{
 				"id":        item.ID,
 				"name":      item.Name,
 				"size":      item.Size,
@@ -715,7 +716,8 @@ func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Requ
 				Type:      "file.upload.completed",
 				CreatorID: creatorID,
 				Resource:  share.ID,
-				Data: map[string]interface{}{
+				Data: map[string]any{
+					"slug":     share.Slug,
 					"share_id": share.ID,
 					"count":    len(uploadedFiles),
 					"files":    uploaded,
@@ -941,10 +943,11 @@ func (h *PublicHandler) FinalizeReverseShareUpload(w http.ResponseWriter, r *htt
 				Type:      "file.upload.completed",
 				CreatorID: creatorID,
 				Resource:  share.ID,
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"share_id": share.ID,
+					"slug":     share.Slug,
 					"count":    1,
-					"files": []map[string]interface{}{
+					"files": []map[string]any{
 						{
 							"id":        file.ID,
 							"name":      file.Name,
@@ -1002,7 +1005,7 @@ func (h *PublicHandler) validateShareToken(r *http.Request, expectedShareID stri
 		return errors.New("share token required")
 	}
 
-	token, err := jwt.ParseWithClaims(tokenStr, &ShareAccessClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &ShareAccessClaims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("invalid signing method")
 		}
@@ -1039,7 +1042,7 @@ func (h *PublicHandler) extractSessionID(r *http.Request, expectedShareID string
 		return ""
 	}
 
-	token, err := jwt.ParseWithClaims(tokenStr, &ShareAccessClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &ShareAccessClaims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("invalid signing method")
 		}

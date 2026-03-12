@@ -1909,7 +1909,7 @@ func TestPublicHandler_UploadToReverseShare_MultipleFiles(t *testing.T) {
 	// Create multipart form with multiple files
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		part, _ := writer.CreateFormFile("files", "file"+string(rune('1'+i))+".txt")
 		_, _ = part.Write([]byte("content " + string(rune('1'+i))))
 	}
