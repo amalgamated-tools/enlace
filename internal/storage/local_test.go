@@ -508,6 +508,10 @@ func TestLocalStorage_RejectsSymlinkEscapeThroughMissingSubdirectory(t *testing.
 		t.Fatalf("expected ErrInvalidKey when deleting through symlinked subdirectory, got %v", err)
 	}
 
+	if exists, err := store.Exists(ctx, key); err == nil && exists {
+		t.Fatalf("expected Exists to return false or error via symlinked subdirectory escape")
+	}
+
 	if _, err := os.Stat(filepath.Join(outsideDir, "subdir", "escape.txt")); !os.IsNotExist(err) {
 		t.Fatalf("expected no file to be written outside base path, got err %v", err)
 	}
@@ -546,6 +550,10 @@ func TestLocalStorage_RejectsDanglingLeafSymlinkEscape(t *testing.T) {
 
 	if err := store.Delete(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
 		t.Fatalf("expected ErrInvalidKey when deleting via dangling symlink, got %v", err)
+	}
+
+	if exists, err := store.Exists(ctx, key); err == nil && exists {
+		t.Fatalf("expected Exists to return false or error via dangling symlink escape")
 	}
 
 	if _, err := os.Stat(outsideFile); !os.IsNotExist(err) {

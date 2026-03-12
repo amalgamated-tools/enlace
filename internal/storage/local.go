@@ -120,12 +120,15 @@ func (s *LocalStorage) openRoot() (*os.Root, error) {
 	return os.OpenRoot(s.basePath)
 }
 
-func (s *LocalStorage) mapRootPathError(key string, err error) error {
+func (s *LocalStorage) mapRootPathError(err error) error {
 	if err == nil {
 		return nil
 	}
 
-	if _, resolveErr := s.resolveKey(key); errors.Is(resolveErr, ErrInvalidKey) {
+	// Root operations enforce the actual confinement boundary. Map their
+	// permission-denied escape failures directly instead of re-running resolveKey,
+	// which would introduce a TOCTOU window under concurrent filesystem changes.
+	if errors.Is(err, os.ErrPermission) {
 		return ErrInvalidKey
 	}
 
@@ -154,14 +157,14 @@ func (s *LocalStorage) Put(ctx context.Context, key string, reader io.Reader, si
 	dir := filepath.Dir(fullPath)
 
 	if dir != "." {
-		if err := s.mapRootPathError(key, root.MkdirAll(dir, 0755)); err != nil {
+		if err := s.mapRootPathError(root.MkdirAll(dir, 0755)); err != nil {
 			return err
 		}
 	}
 
 	file, err := root.Create(fullPath)
 	if err != nil {
-		return s.mapRootPathError(key, err)
+		return s.mapRootPathError(err)
 	}
 	defer file.Close()
 
@@ -198,7 +201,7 @@ func (s *LocalStorage) Get(ctx context.Context, key string) (io.ReadCloser, erro
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, ErrNotFound
 		}
-		return nil, errors.Join(s.mapRootPathError(key, err), closeErr)
+		return nil, errors.Join(s.mapRootPathError(err), closeErr)
 	}
 
 	return &rootedReadCloser{Root: root, File: file}, nil
@@ -227,7 +230,7 @@ func (s *LocalStorage) Delete(ctx context.Context, key string) error {
 		if errors.Is(err, os.ErrNotExist) {
 			return ErrNotFound
 		}
-		return s.mapRootPathError(key, err)
+		return s.mapRootPathError(err)
 	}
 
 	return nil
@@ -255,7 +258,7 @@ func (s *LocalStorage) Exists(ctx context.Context, key string) (bool, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
 		}
-		return false, s.mapRootPathError(key, err)
+		return false, s.mapRootPathError(err)
 	}
 
 	return true, nil
