@@ -211,7 +211,7 @@ These endpoints let a signed-in user link or unlink an external OIDC identity on
 
 **`GET /api/v1/me/oidc/link`** — initiates the OIDC account-linking flow for the already-authenticated user.
 
-This is a **browser navigation endpoint** (not a JSON API call). The frontend redirects the browser to this URL. The server sets short-lived HttpOnly cookies (`oidc_state`, `oidc_verifier`, `oidc_link`) and immediately redirects the browser to the OIDC provider for authentication. After the provider callback completes (handled by `/api/v1/me/oidc/callback`), the OIDC identity is linked to the user account and the browser is redirected to `/#/settings?oidc=linked`.
+This is a **browser navigation endpoint** (not a JSON API call). The frontend redirects the browser to this URL. The server sets short-lived HttpOnly cookies (`oidc_state`, `oidc_verifier`, `oidc_link`) and immediately redirects the browser to the OIDC provider for authentication. After the provider callback completes (handled by `/api/v1/me/oidc/callback`), the OIDC identity is linked to the user account and the browser is redirected to `/#/settings/security?oidc=linked`.
 
 > **Note:** Linking an OIDC identity automatically and permanently removes any active TOTP 2FA configuration on the account. See [OIDC and 2FA](oidc.md#oidc-and-two-factor-authentication-2fa) for details.
 
@@ -221,7 +221,7 @@ This is a **browser-facing redirect endpoint** — it is called automatically by
 
 | Outcome | Redirect destination |
 |---|---|
-| Success | `/#/settings?oidc=linked` |
+| Success | `/#/settings/security?oidc=linked` |
 | Error (state mismatch, exchange failure, etc.) | `/#/login?error=<encoded-message>` |
 
 **`DELETE /api/v1/me/oidc`** — unlinks the OIDC identity from the current user account.
