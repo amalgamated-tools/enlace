@@ -91,6 +91,41 @@ func Load() *Config {
 	}
 }
 
+// MapValues returns a map of config field names to their values, with secrets masked.
+func (c *Config) MapValues() map[string]any {
+	return map[string]any{
+		"port":                           c.Port,
+		"database_path":                  c.DatabasePath,
+		"jwt_secret":                     maskSecret(c.JWTSecret),
+		"base_url":                       c.BaseURL,
+		"storage_type":                   c.StorageType,
+		"storage_local_path":             c.StorageLocalPath,
+		"s3_endpoint":                    c.S3Endpoint,
+		"s3_bucket":                      c.S3Bucket,
+		"s3_access_key":                  maskSecret(c.S3AccessKey),
+		"s3_secret_key":                  maskSecret(c.S3SecretKey),
+		"s3_region":                      c.S3Region,
+		"s3_path_prefix":                 c.S3PathPrefix,
+		"smtp_host":                      c.SMTPHost,
+		"smtp_port":                      c.SMTPPort,
+		"smtp_user":                      maskSecret(c.SMTPUser),
+		"smtp_pass":                      maskSecret(c.SMTPPass),
+		"smtp_from":                      c.SMTPFrom,
+		"smtp_tls_policy":                c.SMTPTLSPolicy,
+		"oidc_enabled":                   c.OIDCEnabled,
+		"oidc_issuer_url":                c.OIDCIssuerURL,
+		"oidc_client_id":                 c.OIDCClientID,
+		"oidc_client_secret":             maskSecret(c.OIDCClientSecret),
+		"oidc_redirect_url":              c.OIDCRedirectURL,
+		"oidc_scopes":                    c.OIDCScopes,
+		"cors_origins":                   c.CORSOrigins,
+		"direct_transfer_enabled":        c.DirectTransferEnabled,
+		"direct_transfer_expiry_seconds": c.DirectTransferExpiry,
+		"require_2fa":                    c.Require2FA,
+		"trusted_proxy_cidrs":            c.TrustedProxyCIDRs,
+	}
+}
+
 // LogValue implements slog.LogValuer so that logging a *Config never exposes
 // secret fields. All credential-like values are replaced with "***".
 func (c *Config) LogValue() slog.Value {
@@ -123,6 +158,7 @@ func (c *Config) LogValue() slog.Value {
 		slog.Bool("direct_transfer_enabled", c.DirectTransferEnabled),
 		slog.Int("direct_transfer_expiry", c.DirectTransferExpiry),
 		slog.Bool("require_2fa", c.Require2FA),
+		slog.Any("trusted_proxy_cidrs", c.TrustedProxyCIDRs),
 	)
 }
 

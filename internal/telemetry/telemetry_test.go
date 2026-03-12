@@ -41,7 +41,7 @@ func TestSendBoot_AlwaysSends(t *testing.T) {
 	t.Setenv("DATA_DIR", tmpDir)
 	setCachedInstallID("")
 
-	SendBoot("1.0.0")
+	SendBoot(t.Context(), "1.0.0")
 
 	if !called.Load() {
 		t.Error("boot telemetry should be sent even when TELEMETRY_ENABLED is not set")
@@ -63,7 +63,7 @@ func TestSendBoot_AlwaysSendsWhenDisabled(t *testing.T) {
 	t.Setenv("DATA_DIR", tmpDir)
 	setCachedInstallID("")
 
-	SendBoot("1.0.0")
+	SendBoot(t.Context(), "1.0.0")
 
 	if !called.Load() {
 		t.Error("boot telemetry should be sent even when TELEMETRY_ENABLED=false")
@@ -93,7 +93,7 @@ func TestSendBoot_SuccessfulPayload(t *testing.T) {
 	t.Setenv("DATA_DIR", tmpDir)
 	setCachedInstallID("")
 
-	SendBoot("2.5.0")
+	SendBoot(t.Context(), "2.5.0")
 
 	if received.Application != "enlace" {
 		t.Errorf("expected application 'enlace', got %q", received.Application)
@@ -144,13 +144,13 @@ func TestSendBoot_OnlyOnce(t *testing.T) {
 	setCachedInstallID("")
 
 	// First call should send
-	SendBoot("1.0.0")
+	SendBoot(t.Context(), "1.0.0")
 	if callCount.Load() != 1 {
 		t.Fatalf("expected 1 call after first send, got %d", callCount.Load())
 	}
 
 	// Second call should skip because install_id exists
-	SendBoot("1.0.0")
+	SendBoot(t.Context(), "1.0.0")
 	if callCount.Load() != 1 {
 		t.Errorf("expected 1 call after second send (should skip), got %d", callCount.Load())
 	}
@@ -167,7 +167,7 @@ func TestSendBoot_ServerError(t *testing.T) {
 	t.Setenv("DATA_DIR", tmpDir)
 	setCachedInstallID("")
 
-	SendBoot("1.0.0")
+	SendBoot(t.Context(), "1.0.0")
 
 	installIDPath := filepath.Join(tmpDir, "install_id")
 	if _, err := os.Stat(installIDPath); err == nil {
@@ -181,7 +181,7 @@ func TestSendBoot_ConnectionFailure(t *testing.T) {
 	t.Setenv("DATA_DIR", tmpDir)
 	setCachedInstallID("")
 
-	SendBoot("1.0.0")
+	SendBoot(t.Context(), "1.0.0")
 
 	installIDPath := filepath.Join(tmpDir, "install_id")
 	if _, err := os.Stat(installIDPath); err == nil {
@@ -201,7 +201,7 @@ func TestSendBoot_WriteFailure(t *testing.T) {
 	t.Setenv("DATA_DIR", filepath.Join(t.TempDir(), "nonexistent", "subdir"))
 	setCachedInstallID("")
 
-	SendBoot("1.0.0")
+	SendBoot(t.Context(), "1.0.0")
 
 	if callCount.Load() != 1 {
 		t.Errorf("expected 1 HTTP call, got %d", callCount.Load())
@@ -223,7 +223,7 @@ func TestSendEvent_DisabledByDefault(t *testing.T) {
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	setCachedInstallID("test-id")
 
-	SendEvent("1.0.0", "test.event", nil)
+	SendEvent(t.Context(), "1.0.0", "test.event", nil)
 
 	if called.Load() {
 		t.Error("event telemetry should not be sent when TELEMETRY_ENABLED is not set")
@@ -243,7 +243,7 @@ func TestSendEvent_DisabledExplicitly(t *testing.T) {
 	t.Setenv("TELEMETRY_ENDPOINT", srv.URL)
 	setCachedInstallID("test-id")
 
-	SendEvent("1.0.0", "test.event", nil)
+	SendEvent(t.Context(), "1.0.0", "test.event", nil)
 
 	if called.Load() {
 		t.Error("event telemetry should not be sent when TELEMETRY_ENABLED=false")
@@ -268,12 +268,12 @@ func TestSendEvent_Success(t *testing.T) {
 	setCachedInstallID("")
 
 	// Boot first to establish install ID
-	SendBoot("1.0.0")
+	SendBoot(t.Context(), "1.0.0")
 	bootID := getCachedInstallID()
 
 	// Now send event
 	props := map[string]string{"key": "value"}
-	SendEvent("1.0.0", "share.created", props)
+	SendEvent(t.Context(), "1.0.0", "share.created", props)
 
 	if received.Application != "enlace" {
 		t.Errorf("expected application 'enlace', got %q", received.Application)
@@ -306,7 +306,7 @@ func TestSendEvent_NoInstallID(t *testing.T) {
 	t.Setenv("DATA_DIR", t.TempDir()) // empty dir, no install_id file
 	setCachedInstallID("")
 
-	SendEvent("1.0.0", "test.event", nil)
+	SendEvent(t.Context(), "1.0.0", "test.event", nil)
 
 	if called.Load() {
 		t.Error("event telemetry should not be sent when no install ID is available")
@@ -337,7 +337,7 @@ func TestSendEvent_ReadsInstallIDFromFile(t *testing.T) {
 		t.Fatalf("failed to write install_id file: %v", err)
 	}
 
-	SendEvent("1.0.0", "test.event", nil)
+	SendEvent(t.Context(), "1.0.0", "test.event", nil)
 
 	if received.InstallID != expectedID {
 		t.Errorf("expected install_id %q from file, got %q", expectedID, received.InstallID)

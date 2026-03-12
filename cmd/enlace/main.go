@@ -45,9 +45,8 @@ var version = "dev"
 // @name						X-Share-Token
 // @description				Share access token for password-protected shares
 func main() {
-	otel.SetupLogger(version)
 	cancelCtx, cancelAll := context.WithCancel(context.Background())
-
+	otel.SetupLogger(cancelCtx, version)
 	if err := realMain(cancelCtx); err != nil {
 		slog.ErrorContext(cancelCtx, "error occurred", slog.Any("error", err))
 		cancelAll()
@@ -67,6 +66,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 
 	err := flagSet.Parse(os.Args[1:])
 	if err != nil {
+		otel.ReportException(cancelCtx, err, "Failed to parse flags")
 		return err
 	}
 
@@ -81,25 +81,35 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	// Initialize database
 	db, err := database.New(cfg.DatabasePath)
 	if err != nil {
+		otel.ReportExceptionWithMetadata(cancelCtx, err, "Failed to initialize database", cfg.MapValues())
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 	defer func() { _ = db.Close() }()
+	slog.DebugContext(cancelCtx, "database initialized", slog.String("path", cfg.DatabasePath))
 
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db.DB())
 	shareRepo := repository.NewShareRepository(db.DB())
 	fileRepo := repository.NewFileRepository(db.DB())
 	pendingUploadRepo := repository.NewPendingUploadRepository(db.DB())
+	if _, err := pendingUploadRepo.ExpireStale(cancelCtx, time.Now()); err != nil {
+		otel.ReportExceptionWithMetadata(cancelCtx, err, "Failed to expire stale direct uploads", cfg.MapValues())
+	}
+
 	totpRepo := repository.NewTOTPRepository(db.DB())
 	settingsRepo := repository.NewSettingsRepository(db.DB())
 	apiKeyRepo := repository.NewAPIKeyRepository(db.DB())
 	webhookRepo := repository.NewWebhookRepository(db.DB())
+	recipientRepo := repository.NewRecipientRepository(db.DB())
+	slog.DebugContext(cancelCtx, "repositories initialized")
 
 	// Initialize storage
 	store, err := initStorage(cancelCtx, cfg, settingsRepo)
 	if err != nil {
+		otel.ReportExceptionWithMetadata(cancelCtx, err, "Failed to initialize storage", cfg.MapValues())
 		return err
 	}
+	slog.DebugContext(cancelCtx, "storage initialized")
 
 	// Initialize services
 	jwtSecret := []byte(cfg.JWTSecret)
@@ -111,12 +121,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		store,
 		service.WithPendingUploads(pendingUploadRepo, time.Duration(cfg.DirectTransferExpiry)*time.Second),
 	)
-	if _, err := pendingUploadRepo.ExpireStale(cancelCtx, time.Now()); err != nil {
-		slog.WarnContext(cancelCtx, "failed to expire stale direct uploads", slog.Any("error", err))
-	}
 
-	// Initialize recipient repository and email service
-	recipientRepo := repository.NewRecipientRepository(db.DB())
 	smtpCfg := initSMTPConfig(cancelCtx, cfg, settingsRepo)
 	emailService := service.NewEmailService(smtpCfg, recipientRepo, cfg.BaseURL)
 	totpService := service.NewTOTPService(totpRepo, userRepo, jwtSecret)
@@ -129,16 +134,17 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		var err error
 		oidcService, err = service.NewOIDCService(cfg, userRepo, totpService)
 		if err != nil {
-			slog.WarnContext(cancelCtx, "failed to initialize OIDC", slog.Any("error", err))
+			otel.ReportExceptionWithMetadata(cancelCtx, err, "Failed to initialize OIDC", cfg.MapValues())
 		} else {
 			slog.InfoContext(cancelCtx, "OIDC authentication enabled")
 		}
 	}
+	slog.DebugContext(cancelCtx, "services initialized")
 
 	// Get embedded frontend
 	frontendFS, err := enlace.FrontendFS()
 	if err != nil {
-		slog.WarnContext(cancelCtx, "failed to load embedded frontend", slog.Any("error", err))
+		otel.ReportExceptionWithMetadata(cancelCtx, err, "Failed to load embedded frontend", cfg.MapValues())
 	}
 
 	// Parse CORS origins

@@ -1,6 +1,7 @@
 package otel
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"runtime/debug"
@@ -11,7 +12,7 @@ import (
 var Version = "dev"
 
 // SetupLogger configures the default structured logger and starts telemetry.
-func SetupLogger(v string) {
+func SetupLogger(ctx context.Context, v string) {
 	if v != "" {
 		Version = v
 	}
@@ -56,8 +57,8 @@ func SetupLogger(v string) {
 	}
 
 	logger = logger.With(slog.String("version", Version))
-	logger.Debug("Logger initialized", slog.String("format", format), slog.String("level", level.String()))
+	logger.DebugContext(ctx, "Logger initialized", slog.String("format", format), slog.String("level", level.String()))
 	slog.SetDefault(logger)
 
-	go telemetry.SendBoot(Version)
+	go telemetry.SendBoot(ctx, Version)
 }
