@@ -4,7 +4,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 
 ## Features
 
-- **File shares** — upload files and generate a public link
+- **File shares** — upload files and generate a public link; optionally specify a custom URL slug (e.g. `my-project-files`) or let one be auto-generated
 - **Reverse shares** — let others upload files to a link you control
 - **Access controls** — optional password protection, expiry date, and download limit per share; the download limit counts unique visitor sessions so one person downloading multiple files counts as one download
 - **Authentication** — local email/password accounts with JWT; optional OpenID Connect (OIDC/SSO)
