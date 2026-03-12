@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"slices"
 	"strings"
@@ -129,7 +130,11 @@ func RequireAuth(authService *service.AuthService, opts ...RequireAuthOption) fu
 			if !claims.TFA && cfg.totpStatus != nil {
 				user, err := authService.GetUser(r.Context(), claims.UserID)
 				if err != nil {
-					jsonError(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+					if errors.Is(err, service.ErrUserNotFound) {
+						jsonError(w, `{"error":"user not found"}`, http.StatusUnauthorized)
+					} else {
+						jsonError(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+					}
 					return
 				}
 				if user.OIDCSubject == "" {

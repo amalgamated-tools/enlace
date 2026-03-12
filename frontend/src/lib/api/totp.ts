@@ -22,10 +22,14 @@ export const totpApi = {
   getStatus: () => api.get<TOTPStatus>("/me/2fa/status"),
 
   beginSetup: (token?: string) =>
-    api.post<TOTPSetupResponse>("/me/2fa/setup", {}, { token }),
+    api.post<TOTPSetupResponse>("/me/2fa/setup", {}, { overrideToken: token }),
 
   confirmSetup: (code: string, token?: string) =>
-    api.post<TOTPConfirmResponse>("/me/2fa/confirm", { code }, { token }),
+    api.post<TOTPConfirmResponse>(
+      "/me/2fa/confirm",
+      { code },
+      { overrideToken: token },
+    ),
 
   disable: (password: string) =>
     api.post<void>("/me/2fa/disable", { password }),

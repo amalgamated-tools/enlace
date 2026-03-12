@@ -8,7 +8,7 @@ interface ApiResponse<T> {
 }
 
 interface RequestOptions {
-  token?: string;
+  overrideToken?: string;
 }
 
 class ApiError extends Error {
@@ -27,7 +27,8 @@ async function request<T>(
   options: RequestInit = {},
   requestOptions: RequestOptions = {},
 ): Promise<T> {
-  const token = requestOptions.token ?? localStorage.getItem("access_token");
+  const token =
+    requestOptions.overrideToken ?? localStorage.getItem("access_token");
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

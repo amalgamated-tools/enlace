@@ -37,7 +37,7 @@ describe("totpApi", () => {
     expect(mockedApi.post).toHaveBeenCalledWith(
       "/me/2fa/setup",
       {},
-      { token: undefined },
+      { overrideToken: undefined },
     );
   });
 
@@ -54,7 +54,7 @@ describe("totpApi", () => {
       "/me/2fa/setup",
       {},
       {
-        token: "pending-setup-token",
+        overrideToken: "pending-setup-token",
       },
     );
   });
@@ -71,7 +71,7 @@ describe("totpApi", () => {
       {
         code: "123456",
       },
-      { token: undefined },
+      { overrideToken: undefined },
     );
   });
 

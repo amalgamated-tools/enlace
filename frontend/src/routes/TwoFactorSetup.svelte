@@ -14,17 +14,16 @@
   let recoveryCodes: string[] = [];
   let accessToken = "";
   let refreshToken = "";
-
-  $: params = new URLSearchParams($querystring);
-  $: pendingToken =
-    sessionStorage.getItem("pending2FAToken") || params.get("token") || "";
-
-  $: if (!pendingToken) {
-    push("/login");
-  }
+  let pendingToken = "";
 
   onMount(async () => {
+    const params = new URLSearchParams($querystring);
+    pendingToken =
+      sessionStorage.getItem("pending2FAToken") || params.get("token") || "";
+
     if (!pendingToken) {
+      loading = false;
+      push("/login");
       return;
     }
 
@@ -55,7 +54,9 @@
     try {
       const response = await totpApi.confirmSetup(code.trim(), pendingToken);
       if (!response.access_token || !response.refresh_token) {
-        throw new Error("Setup completed but no session tokens were returned");
+        throw new Error(
+          "Mandatory 2FA setup completed, but the server did not return session tokens",
+        );
       }
 
       recoveryCodes = response.recovery_codes;

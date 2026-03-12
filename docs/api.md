@@ -138,21 +138,22 @@ Normal response (no 2FA):
 
 Pass the `pending_token` to `POST /api/v1/auth/2fa/verify` (TOTP code) or `POST /api/v1/auth/2fa/recovery` (recovery code) to complete the login and receive real tokens.
 
-**Enforced enrollment.** When `REQUIRE_2FA=true` and the user has not yet set up 2FA, the response includes real tokens **and** a flag prompting the client to redirect to the 2FA setup flow:
+**Enforced enrollment.** When `REQUIRE_2FA=true` and the user has not yet set up 2FA, the response omits real session tokens and returns a short-lived `pending_token` plus a flag prompting the client to complete the 2FA setup flow first:
 
 ```json
 {
   "success": true,
   "data": {
-    "access_token": "<jwt>",
-    "refresh_token": "<token>",
     "user": { "id": "<uuid>", "email": "user@example.com", "display_name": "Alice" },
-    "requires_2fa_setup": true
+    "requires_2fa_setup": true,
+    "pending_token": "<short-lived-jwt>"
   }
 }
 ```
 
-**`POST /api/v1/auth/refresh`** — returns a new `access_token` and `refresh_token`. The `refresh_token` field must be a refresh token (i.e. the `token_type` claim is `"refresh"`); supplying an access token returns HTTP 401.
+Use the pending token with `POST /api/v1/me/2fa/setup` and `POST /api/v1/me/2fa/confirm` to complete enrollment. Once setup is confirmed, the server returns recovery codes plus a real access/refresh token pair for the now-verified session.
+
+**`POST /api/v1/auth/refresh`** — returns a new `access_token` and `refresh_token`. The `refresh_token` field must be a refresh token (i.e. the `token_type` claim is `"refresh"`); supplying an access token returns HTTP 401. If the user has 2FA enabled (or `REQUIRE_2FA=true`), the refresh token must belong to a session that already satisfied the 2FA requirement.
 
 ```json
 { "refresh_token": "<token>" }
