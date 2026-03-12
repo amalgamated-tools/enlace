@@ -69,29 +69,70 @@ func (s *LocalStorage) resolveKey(key string) (string, error) {
 	fullPath := filepath.Join(s.basePath, cleanOSKey)
 	fullPath = filepath.Clean(fullPath)
 
-	relPath, err := filepath.Rel(s.basePath, fullPath)
-	if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
+	if !isWithinBasePath(s.basePath, fullPath) {
 		return "", ErrInvalidKey
 	}
 
-	dirPath := filepath.Dir(fullPath)
-	if resolvedDir, err := filepath.EvalSymlinks(dirPath); err == nil {
-		fullPath = filepath.Join(resolvedDir, filepath.Base(fullPath))
-		relPath, err = filepath.Rel(s.basePath, fullPath)
-		if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
+	currentPath := s.basePath
+	for _, part := range strings.Split(cleanOSKey, string(os.PathSeparator)) {
+		if part == "" || part == "." {
+			continue
+		}
+
+		currentPath = filepath.Join(currentPath, part)
+		info, err := os.Lstat(currentPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				if !isWithinBasePath(s.basePath, currentPath) {
+					return "", ErrInvalidKey
+				}
+				continue
+			}
+			return "", err
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			resolvedPath, err := filepath.EvalSymlinks(currentPath)
+			if err != nil {
+				return "", ErrInvalidKey
+			}
+			currentPath = resolvedPath
+		}
+
+		if !isWithinBasePath(s.basePath, currentPath) {
 			return "", ErrInvalidKey
 		}
 	}
 
-	if resolvedPath, err := filepath.EvalSymlinks(fullPath); err == nil {
-		fullPath = resolvedPath
-		relPath, err = filepath.Rel(s.basePath, fullPath)
-		if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
-			return "", ErrInvalidKey
-		}
+	return cleanOSKey, nil
+}
+
+func isWithinBasePath(basePath, candidate string) bool {
+	relPath, err := filepath.Rel(basePath, candidate)
+	if err != nil {
+		return false
 	}
 
-	return fullPath, nil
+	return !strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) && relPath != ".."
+}
+
+func (s *LocalStorage) openRoot() (*os.Root, error) {
+	return os.OpenRoot(s.basePath)
+}
+
+func (s *LocalStorage) mapRootPathError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Root operations enforce the actual confinement boundary. Map their
+	// permission-denied escape failures directly instead of re-running resolveKey,
+	// which would introduce a TOCTOU window under concurrent filesystem changes.
+	if errors.Is(err, os.ErrPermission) {
+		return ErrInvalidKey
+	}
+
+	return err
 }
 
 // Put stores data from reader at {basePath}/{key}.
@@ -106,23 +147,31 @@ func (s *LocalStorage) Put(ctx context.Context, key string, reader io.Reader, si
 	if err != nil {
 		return err
 	}
-	dir := filepath.Dir(fullPath)
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	file, err := os.Create(fullPath)
+	root, err := s.openRoot()
 	if err != nil {
 		return err
+	}
+	defer root.Close()
+
+	dir := filepath.Dir(fullPath)
+
+	if dir != "." {
+		if err := s.mapRootPathError(root.MkdirAll(dir, 0755)); err != nil {
+			return err
+		}
+	}
+
+	file, err := root.Create(fullPath)
+	if err != nil {
+		return s.mapRootPathError(err)
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, reader)
 	if err != nil {
 		// Clean up the partial file on error
-		os.Remove(fullPath)
-		return err
+		return errors.Join(err, root.Remove(fullPath))
 	}
 
 	return nil
@@ -141,15 +190,21 @@ func (s *LocalStorage) Get(ctx context.Context, key string) (io.ReadCloser, erro
 		return nil, err
 	}
 
-	file, err := os.Open(fullPath)
+	root, err := s.openRoot()
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, ErrNotFound
-		}
 		return nil, err
 	}
 
-	return file, nil
+	file, err := root.Open(fullPath)
+	if err != nil {
+		closeErr := root.Close()
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, ErrNotFound
+		}
+		return nil, errors.Join(s.mapRootPathError(err), closeErr)
+	}
+
+	return &rootedReadCloser{Root: root, File: file}, nil
 }
 
 // Delete removes the file at {basePath}/{key}.
@@ -164,12 +219,18 @@ func (s *LocalStorage) Delete(ctx context.Context, key string) error {
 		return err
 	}
 
-	err = os.Remove(fullPath)
+	root, err := s.openRoot()
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+
+	err = root.Remove(fullPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return ErrNotFound
 		}
-		return err
+		return s.mapRootPathError(err)
 	}
 
 	return nil
@@ -186,13 +247,32 @@ func (s *LocalStorage) Exists(ctx context.Context, key string) (bool, error) {
 		return false, err
 	}
 
-	_, err = os.Stat(fullPath)
+	root, err := s.openRoot()
+	if err != nil {
+		return false, err
+	}
+	defer root.Close()
+
+	_, err = root.Stat(fullPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
 		}
-		return false, err
+		return false, s.mapRootPathError(err)
 	}
 
 	return true, nil
+}
+
+// rootedReadCloser keeps the root handle alive until the opened file is closed,
+// then closes both resources together.
+type rootedReadCloser struct {
+	*os.Root
+	*os.File
+}
+
+func (r *rootedReadCloser) Close() error {
+	fileErr := r.File.Close()
+	rootErr := r.Root.Close()
+	return errors.Join(fileErr, rootErr)
 }

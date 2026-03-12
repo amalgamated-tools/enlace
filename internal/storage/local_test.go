@@ -473,3 +473,90 @@ func TestLocalStorage_RejectsSymlinkEscape(t *testing.T) {
 		t.Fatalf("expected no file to be written outside base path, got err %v", err)
 	}
 }
+
+func TestLocalStorage_RejectsSymlinkEscapeThroughMissingSubdirectory(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "storage-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	outsideDir, err := os.MkdirTemp("", "outside-dir")
+	if err != nil {
+		t.Fatalf("failed to create outside dir: %v", err)
+	}
+	defer os.RemoveAll(outsideDir)
+
+	linkPath := filepath.Join(tmpDir, "link")
+	if err := os.Symlink(outsideDir, linkPath); err != nil {
+		t.Fatalf("failed to create symlink: %v", err)
+	}
+
+	store := newLocalStore(t, tmpDir)
+	ctx := context.Background()
+
+	key := "link/subdir/escape.txt"
+	if err := store.Put(ctx, key, bytes.NewReader([]byte("data")), 4, "text/plain"); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when writing through symlinked subdirectory, got %v", err)
+	}
+
+	if _, err := store.Get(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when reading through symlinked subdirectory, got %v", err)
+	}
+
+	if err := store.Delete(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when deleting through symlinked subdirectory, got %v", err)
+	}
+
+	if exists, err := store.Exists(ctx, key); err == nil && exists {
+		t.Fatalf("expected Exists to return false or error via symlinked subdirectory escape")
+	}
+
+	if _, err := os.Stat(filepath.Join(outsideDir, "subdir", "escape.txt")); !os.IsNotExist(err) {
+		t.Fatalf("expected no file to be written outside base path, got err %v", err)
+	}
+}
+
+func TestLocalStorage_RejectsDanglingLeafSymlinkEscape(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "storage-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	outsideDir, err := os.MkdirTemp("", "outside-dir")
+	if err != nil {
+		t.Fatalf("failed to create outside dir: %v", err)
+	}
+	defer os.RemoveAll(outsideDir)
+
+	outsideFile := filepath.Join(outsideDir, "outside-leaf-escape.txt")
+	linkPath := filepath.Join(tmpDir, "link")
+	if err := os.Symlink(outsideFile, linkPath); err != nil {
+		t.Fatalf("failed to create dangling symlink: %v", err)
+	}
+
+	store := newLocalStore(t, tmpDir)
+	ctx := context.Background()
+
+	key := "link"
+	if err := store.Put(ctx, key, bytes.NewReader([]byte("data")), 4, "text/plain"); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when writing via dangling symlink, got %v", err)
+	}
+
+	if _, err := store.Get(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when reading via dangling symlink, got %v", err)
+	}
+
+	if err := store.Delete(ctx, key); !errors.Is(err, storage.ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey when deleting via dangling symlink, got %v", err)
+	}
+
+	if exists, err := store.Exists(ctx, key); err == nil && exists {
+		t.Fatalf("expected Exists to return false or error via dangling symlink escape")
+	}
+
+	if _, err := os.Stat(outsideFile); !os.IsNotExist(err) {
+		t.Fatalf("expected no file to be written outside base path, got err %v", err)
+	}
+}
