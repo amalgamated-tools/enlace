@@ -254,7 +254,7 @@ func TestRateLimiter_ExtractsIPFromXRealIP(t *testing.T) {
 	}
 }
 
-func TestRateLimiter_IgnoresTrustedProxyXRealIPFallback(t *testing.T) {
+func TestRateLimiter_UsesXRealIPWhenXForwardedForContainsOnlyTrustedProxies(t *testing.T) {
 	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1, "127.0.0.1/32", "10.0.0.0/8")
 	defer rl.Stop()
 
@@ -278,11 +278,17 @@ func TestRateLimiter_IgnoresTrustedProxyXRealIPFallback(t *testing.T) {
 		t.Errorf("first request: expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 
-	// Rotating a trusted-proxy X-Real-IP value must not create a fresh bucket when
-	// X-Forwarded-For contains only trusted hops and the limiter falls back to
-	// RemoteAddr.
-	if rec := makeRequest("10.1.2.4"); rec.Code != http.StatusTooManyRequests {
+	// A second request with the same X-Real-IP must be blocked, which proves the
+	// limiter still honours X-Real-IP when X-Forwarded-For contains only trusted
+	// proxy hops.
+	if rec := makeRequest("10.1.2.3"); rec.Code != http.StatusTooManyRequests {
 		t.Errorf("second request: expected status %d, got %d", http.StatusTooManyRequests, rec.Code)
+	}
+
+	// A different X-Real-IP should receive a different bucket even when it falls
+	// inside the trusted proxy CIDR range.
+	if rec := makeRequest("10.1.2.4"); rec.Code != http.StatusOK {
+		t.Errorf("third request: expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 }
 

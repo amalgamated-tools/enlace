@@ -133,7 +133,7 @@ func (rl *RateLimiter) extractIP(r *http.Request) string {
 		}
 
 		if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
-			if parsedIP := net.ParseIP(xri); parsedIP != nil && !rl.isTrustedProxy(parsedIP) {
+			if parsedIP := net.ParseIP(xri); parsedIP != nil {
 				return parsedIP.String()
 			}
 		}
