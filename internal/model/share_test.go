@@ -1,11 +1,14 @@
 package model
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
 
 func TestShare_IsExpired(t *testing.T) {
+	b := new(time.Now().Add(1 * time.Hour))
+	fmt.Println(b)
 	tests := []struct {
 		name      string
 		expiresAt *time.Time
@@ -138,14 +141,3 @@ func TestShare_HasPassword(t *testing.T) {
 		})
 	}
 }
-
-// Helper functions for creating pointers to primitives
-//
-//go:fix inline
-func timePtr(t time.Time) *time.Time { return new(t) }
-
-//go:fix inline
-func intPtr(i int) *int { return new(i) }
-
-//go:fix inline
-func strPtr(s string) *string { return new(s) }

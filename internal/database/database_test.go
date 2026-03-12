@@ -398,9 +398,6 @@ func TestMigration_MaxViewsCoalesced(t *testing.T) {
 	}
 }
 
-//go:fix inline
-func intPtr(v int) *int { return new(v) }
-
 func TestMigration_OIDCColumns(t *testing.T) {
 	db, err := database.New(":memory:")
 	if err != nil {
