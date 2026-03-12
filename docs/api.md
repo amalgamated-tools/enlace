@@ -473,7 +473,7 @@ Returns the current SMTP configuration after the update (same shape as `GET`).
 |---|---|---|---|
 | `name` | string | ✔ | Display name (max 255 chars) |
 | `description` | string | | Optional description |
-| `slug` | string | | Custom URL slug (3–50 chars, `[a-z0-9-]`); auto-generated if omitted |
+| `slug` | string | | Custom URL slug (3–50 chars, `[a-z0-9-]`, cannot start or end with a hyphen); auto-generated if omitted |
 | `password` | string | | Password-protect the share |
 | `expires_at` | string (RFC3339) | | Expiry timestamp |
 | `max_downloads` | int | | Maximum number of unique download sessions (≥ 0). Each visitor counts as one session regardless of how many files they download. |
