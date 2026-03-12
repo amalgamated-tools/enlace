@@ -394,16 +394,23 @@ func contentTypesMatch(expected, actual string) bool {
 		return false
 	}
 
-	expectedType, _, err := mime.ParseMediaType(expected)
-	if err != nil {
-		expectedType = expected
-	}
-	actualType, _, err := mime.ParseMediaType(actual)
-	if err != nil {
-		actualType = actual
-	}
+	expectedType := normalizeMimeType(expected)
+	actualType := normalizeMimeType(actual)
 
 	return strings.EqualFold(expectedType, actualType)
+}
+
+func normalizeMimeType(mimeType string) string {
+	baseType, _, err := mime.ParseMediaType(mimeType)
+	if err != nil {
+		baseType = mimeType
+	}
+
+	if strings.EqualFold(baseType, "application/javascript") {
+		return "text/javascript"
+	}
+
+	return baseType
 }
 
 func sanitizeFilename(name string) (string, error) {
@@ -456,7 +463,7 @@ func detectMimeType(filename string) string {
 		".html": "text/html",
 		".htm":  "text/html",
 		".css":  "text/css",
-		".js":   "application/javascript",
+		".js":   "text/javascript",
 		".json": "application/json",
 		".xml":  "application/xml",
 		".csv":  "text/csv",
@@ -511,5 +518,5 @@ func isPreviewableMimeType(mimeType string) bool {
 		"text/csv":        true,
 	}
 
-	return previewable[mimeType]
+	return previewable[normalizeMimeType(mimeType)]
 }
