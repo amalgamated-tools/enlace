@@ -486,7 +486,7 @@ func (h *OIDCHandler) LinkCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, h.baseURL+"/#/settings?oidc=linked", http.StatusFound)
+	http.Redirect(w, r, h.baseURL+"/#/settings/security?oidc=linked", http.StatusFound)
 }
 
 // Unlink removes OIDC from the user's account.
