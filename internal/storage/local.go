@@ -69,29 +69,51 @@ func (s *LocalStorage) resolveKey(key string) (string, error) {
 	fullPath := filepath.Join(s.basePath, cleanOSKey)
 	fullPath = filepath.Clean(fullPath)
 
-	relPath, err := filepath.Rel(s.basePath, fullPath)
-	if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
+	if !isWithinBasePath(s.basePath, fullPath) {
 		return "", ErrInvalidKey
 	}
 
-	dirPath := filepath.Dir(fullPath)
-	if resolvedDir, err := filepath.EvalSymlinks(dirPath); err == nil {
-		fullPath = filepath.Join(resolvedDir, filepath.Base(fullPath))
-		relPath, err = filepath.Rel(s.basePath, fullPath)
-		if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
+	currentPath := s.basePath
+	for _, part := range strings.Split(cleanOSKey, string(os.PathSeparator)) {
+		if part == "" || part == "." {
+			continue
+		}
+
+		currentPath = filepath.Join(currentPath, part)
+		info, err := os.Lstat(currentPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				if !isWithinBasePath(s.basePath, currentPath) {
+					return "", ErrInvalidKey
+				}
+				continue
+			}
+			return "", err
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			resolvedPath, err := filepath.EvalSymlinks(currentPath)
+			if err != nil {
+				return "", ErrInvalidKey
+			}
+			currentPath = resolvedPath
+		}
+
+		if !isWithinBasePath(s.basePath, currentPath) {
 			return "", ErrInvalidKey
 		}
 	}
 
-	if resolvedPath, err := filepath.EvalSymlinks(fullPath); err == nil {
-		fullPath = resolvedPath
-		relPath, err = filepath.Rel(s.basePath, fullPath)
-		if err != nil || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) || relPath == ".." {
-			return "", ErrInvalidKey
-		}
+	return currentPath, nil
+}
+
+func isWithinBasePath(basePath, candidate string) bool {
+	relPath, err := filepath.Rel(basePath, candidate)
+	if err != nil {
+		return false
 	}
 
-	return fullPath, nil
+	return !strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) && relPath != ".."
 }
 
 // Put stores data from reader at {basePath}/{key}.
