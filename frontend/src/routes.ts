@@ -25,7 +25,7 @@ export default {
   "/shares": Shares,
   "/shares/new": NewShare,
   "/shares/:id": ShareDetail,
-  "/settings": "/settings/profile",
+  "/settings": SettingsProfile,
   "/settings/profile": SettingsProfile,
   "/settings/security": SettingsSecurity,
   "/settings/api-keys": SettingsApiKeys,
