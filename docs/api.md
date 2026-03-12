@@ -549,7 +549,7 @@ File responses (e.g., from `GET /api/v1/shares/{id}/files`) include:
 | `id` | string | File UUID |
 | `name` | string | Original filename |
 | `size` | int | File size in bytes |
-| `mime_type` | string | Detected MIME type |
+| `mime_type` | string | Detected MIME type. JavaScript MIME type variants (e.g., `application/javascript`) are normalized to `text/javascript`. |
 
 **`DELETE /api/v1/files/{id}`** — delete a file from a share you own. Returns HTTP 200 on success. Only the share owner can delete files.
 
@@ -598,7 +598,7 @@ Request body:
 { "token": "<finalize_token>" }
 ```
 
-The server verifies the token signature, confirms the object exists in storage with the expected size and MIME type, then commits the file record. Returns HTTP 201 with the [File object](#file-object) on success.
+The server verifies the token signature, confirms the object exists in storage with the expected size and MIME type (JavaScript variants such as `application/javascript` are normalized to `text/javascript` before comparison), then commits the file record. Returns HTTP 201 with the [File object](#file-object) on success.
 
 | Status | Meaning |
 |---|---|
@@ -691,7 +691,7 @@ The token is valid for **1 hour**. The server also sets an HttpOnly `share_token
 
 For password-protected shares, include the access token via `X-Share-Token: <token>` header, `?token=<token>` query parameter, or the `share_token` cookie (set automatically by `POST /s/{slug}/verify` for browser clients).
 
-**`GET /s/{slug}/files/{fileId}/preview`** — preview a file inline. Serves the file with `Content-Disposition: inline` for safe MIME types (images, PDFs, plain text, etc.), suitable for in-browser preview. **Scriptable MIME types** — `text/html`, `application/xhtml+xml`, `image/svg+xml`, `application/javascript`, `text/javascript`, `text/css`, and `application/xml` — are always forced to `Content-Disposition: attachment` regardless of the endpoint used, to prevent cross-site scripting via inline script execution. All served files also include a `Content-Security-Policy: default-src 'none'` header as defense-in-depth.
+**`GET /s/{slug}/files/{fileId}/preview`** — preview a file inline. Serves the file with `Content-Disposition: inline` for safe MIME types (images, PDFs, plain text, etc.), suitable for in-browser preview. **Scriptable MIME types** — `text/html`, `application/xhtml+xml`, `image/svg+xml`, `text/javascript` (including the legacy alias `application/javascript`), `text/css`, and `application/xml` — are always forced to `Content-Disposition: attachment` regardless of the endpoint used, to prevent cross-site scripting via inline script execution. All served files also include a `Content-Security-Policy: default-src 'none'` header as defense-in-depth.
 
 ---
 
@@ -738,7 +738,7 @@ Request body:
 { "token": "<finalize_token>" }
 ```
 
-The server verifies the token, confirms the object exists in storage with the expected size and MIME type, then commits the file record. Returns HTTP 201 on success with a file object:
+The server verifies the token, confirms the object exists in storage with the expected size and MIME type (JavaScript variants such as `application/javascript` are normalized to `text/javascript` before comparison), then commits the file record. Returns HTTP 201 on success with a file object:
 
 | Field | Type | Description |
 |---|---|---|
