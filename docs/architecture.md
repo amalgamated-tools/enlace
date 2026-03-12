@@ -56,6 +56,11 @@ Model          →  Domain types and methods
 
 The **Storage** layer sits alongside this stack, providing an interface for file operations (Put, Get, Delete, Exists) with local filesystem and S3-compatible implementations.
 
+The local storage backend (`internal/storage/local.go`) enforces strict confinement of all file operations to the configured `STORAGE_LOCAL_PATH`:
+- Each key component is checked with `os.Lstat` as the path is built; symlinks are resolved via `filepath.EvalSymlinks` and must remain inside the storage root.
+- Non-existent path components (e.g., new subdirectories) are validated against `basePath` before any write occurs.
+- All I/O goes through an `os.Root` handle (OS-level rooted filesystem), which prevents TOCTOU races between validation and actual file access. Escape attempts detected at the OS level are mapped to `ErrInvalidKey`.
+
 ### Key Technologies
 
 - **Router**: [chi](https://github.com/go-chi/chi) with middleware for CORS, request ID, recovery, and timeouts
