@@ -1,5 +1,7 @@
 # Enlace Documentation
 
+Enlace is a self-hosted link shortener and bookmark manager. This documentation covers setup, configuration, and all available features.
+
 | Document | Description |
 |---|---|
 | [Configuration](configuration.md) | Environment variables, CLI flags, reverse proxy setup |
