@@ -481,6 +481,11 @@ func TestIsExtensionBlocked(t *testing.T) {
 		{"image.png", false},
 		{"noextension", false},
 		{"", false},
+		{"malware.exe ", true},   // trailing space bypass
+		{" malware.exe", true},   // leading space bypass
+		{" malware.exe ", true},  // both sides
+		{"malware.exe\t", true},  // trailing tab bypass
+		{"safe.pdf ", false},     // trailing space on allowed ext
 	}
 
 	for _, tt := range tests {
