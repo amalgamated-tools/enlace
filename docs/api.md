@@ -685,15 +685,15 @@ On success, returns:
 { "token": "<share-access-token>" }
 ```
 
-The token is valid for **1 hour**. The server also sets an HttpOnly `share_token` cookie (path: `/s/{slug}`, MaxAge: 1 hour) so browser clients receive it automatically. API clients must pass it in subsequent requests to the same share as either:
-- `X-Share-Token: <token>` header, or
-- `?token=<token>` query parameter.
+The token is valid for **1 hour**. The server also sets an HttpOnly `share_token` cookie (path: `/s/{slug}`, MaxAge: 1 hour) so browser clients receive it automatically. API clients must pass it in subsequent requests to the same share via the `X-Share-Token: <token>` header.
+
+> **Note:** The `?token=<token>` query parameter is **not** accepted. Token transport via URL query parameters was removed to prevent token leakage through browser history and `Referer` headers.
 
 ---
 
 **`GET /s/{slug}/files/{fileId}`** — download a file. Returns the raw file content with `Content-Disposition: attachment`.
 
-For password-protected shares, include the access token via `X-Share-Token: <token>` header, `?token=<token>` query parameter, or the `share_token` cookie (set automatically by `POST /s/{slug}/verify` for browser clients).
+For password-protected shares, include the access token via the `X-Share-Token: <token>` header or the `share_token` cookie (set automatically by `POST /s/{slug}/verify` for browser clients).
 
 **`GET /s/{slug}/files/{fileId}/preview`** — preview a file inline. Serves the file with `Content-Disposition: inline` for safe MIME types (images, PDFs, plain text, etc.), suitable for in-browser preview. **Scriptable MIME types** — `text/html`, `application/xhtml+xml`, `image/svg+xml`, `text/javascript` (including the legacy alias `application/javascript`), `text/css`, and `application/xml` — are always forced to `Content-Disposition: attachment` regardless of the endpoint used, to prevent cross-site scripting via inline script execution. All served files also include a `Content-Security-Policy: default-src 'none'` header as defense-in-depth.
 
