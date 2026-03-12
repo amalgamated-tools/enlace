@@ -187,7 +187,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Check admin enforcement
-		if h.require2FA && !has2FA {
+		if h.require2FA {
 			pendingToken, err := h.totpService.GeneratePendingToken(user.ID, user.IsAdmin)
 			if err != nil {
 				Error(w, http.StatusInternalServerError, "internal server error")
