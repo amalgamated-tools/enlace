@@ -17,6 +17,7 @@ type AuthServiceInterface interface {
 	Register(ctx context.Context, email, password, displayName string) (*model.User, error)
 	Login(ctx context.Context, email, password string) (*service.TokenPair, error)
 	RefreshTokens(ctx context.Context, refreshToken string) (*service.TokenPair, error)
+	ValidateToken(token string) (*service.Claims, error)
 	GetUser(ctx context.Context, userID string) (*model.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 }
@@ -187,15 +188,19 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 		// Check admin enforcement
 		if h.require2FA && !has2FA {
+			pendingToken, err := h.totpService.GeneratePendingToken(user.ID, user.IsAdmin)
+			if err != nil {
+				Error(w, http.StatusInternalServerError, "internal server error")
+				return
+			}
 			Success(w, http.StatusOK, loginResponse{
-				AccessToken:  tokens.AccessToken,
-				RefreshToken: tokens.RefreshToken,
 				User: &userResponse{
 					ID:          user.ID,
 					Email:       user.Email,
 					DisplayName: user.DisplayName,
 				},
 				Requires2FASetup: true,
+				PendingToken:     pendingToken,
 			})
 			return
 		}
@@ -237,6 +242,34 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if len(fieldErrors) > 0 {
 		ValidationError(w, fieldErrors)
 		return
+	}
+
+	claims, err := h.authService.ValidateToken(req.RefreshToken)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	user, err := h.authService.GetUser(r.Context(), claims.UserID)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	if h.totpService != nil && user.OIDCSubject == "" {
+		has2FA, err := h.totpService.GetStatus(r.Context(), user.ID)
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+		if h.require2FA && !has2FA {
+			Error(w, http.StatusForbidden, "2FA setup required")
+			return
+		}
+		if has2FA && !claims.TFAVerified {
+			Error(w, http.StatusUnauthorized, "2FA verification required")
+			return
+		}
 	}
 
 	// Refresh tokens

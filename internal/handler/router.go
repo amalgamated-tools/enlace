@@ -148,6 +148,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	loginRateLimiter := intMiddleware.LoginRateLimiter(cfg.TrustedProxyCIDRs...)
 	registerRateLimiter := intMiddleware.RegisterRateLimiter(cfg.TrustedProxyCIDRs...)
 
+	protectedAuthOpts := []intMiddleware.RequireAuthOption{}
+	if cfg.TOTPService != nil {
+		protectedAuthOpts = append(protectedAuthOpts, intMiddleware.WithTOTPEnforcement(cfg.TOTPService, cfg.Require2FA))
+	}
+
 	// API v1 routes
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth routes (public)
@@ -177,7 +182,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 		// Share routes - require authentication
 		r.Route("/shares", func(r chi.Router) {
-			authOpts := []intMiddleware.RequireAuthOption{}
+			authOpts := append([]intMiddleware.RequireAuthOption{}, protectedAuthOpts...)
 			if cfg.APIKeyService != nil {
 				authOpts = append(authOpts, intMiddleware.WithAPIKeyAuth(cfg.APIKeyService))
 			}
@@ -201,7 +206,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 		// File routes - require authentication
 		r.Route("/files", func(r chi.Router) {
-			authOpts := []intMiddleware.RequireAuthOption{}
+			authOpts := append([]intMiddleware.RequireAuthOption{}, protectedAuthOpts...)
 			if cfg.APIKeyService != nil {
 				authOpts = append(authOpts, intMiddleware.WithAPIKeyAuth(cfg.APIKeyService))
 			}
@@ -212,42 +217,42 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 		// User profile routes - require authentication
 		r.Route("/me", func(r chi.Router) {
-			r.Use(intMiddleware.RequireAuth(cfg.AuthService))
-			r.Get("/", userHandler.GetProfile)
-			r.Patch("/", userHandler.UpdateProfile)
-			r.Put("/password", userHandler.UpdatePassword)
+			r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Get("/", userHandler.GetProfile)
+			r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Patch("/", userHandler.UpdateProfile)
+			r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Put("/password", userHandler.UpdatePassword)
 
 			// OIDC linking routes
 			r.Route("/oidc", func(r chi.Router) {
-				r.Get("/link", oidcHandler.Link)
-				r.Get("/callback", oidcHandler.LinkCallback)
-				r.Delete("/", oidcHandler.Unlink)
+				r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Get("/link", oidcHandler.Link)
+				r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Get("/callback", oidcHandler.LinkCallback)
+				r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Delete("/", oidcHandler.Unlink)
 			})
 
 			// 2FA management routes
 			if totpHandler != nil {
+				setupAuthOpts := []intMiddleware.RequireAuthOption{intMiddleware.WithPending2FA()}
 				r.Route("/2fa", func(r chi.Router) {
-					r.Get("/status", totpHandler.GetStatus)
-					r.Post("/setup", totpHandler.BeginSetup)
-					r.Post("/confirm", totpHandler.ConfirmSetup)
-					r.Post("/disable", totpHandler.Disable)
-					r.Post("/recovery-codes", totpHandler.RegenerateRecoveryCodes)
+					r.With(intMiddleware.RequireAuth(cfg.AuthService, setupAuthOpts...)).Get("/status", totpHandler.GetStatus)
+					r.With(intMiddleware.RequireAuth(cfg.AuthService, setupAuthOpts...)).Post("/setup", totpHandler.BeginSetup)
+					r.With(intMiddleware.RequireAuth(cfg.AuthService, setupAuthOpts...)).Post("/confirm", totpHandler.ConfirmSetup)
+					r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Post("/disable", totpHandler.Disable)
+					r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Post("/recovery-codes", totpHandler.RegenerateRecoveryCodes)
 				})
 			}
 
 			// API key management routes
 			if apiKeyHandler != nil {
 				r.Route("/api-keys", func(r chi.Router) {
-					r.Get("/", apiKeyHandler.List)
-					r.Post("/", apiKeyHandler.Create)
-					r.Delete("/{id}", apiKeyHandler.Revoke)
+					r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Get("/", apiKeyHandler.List)
+					r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Post("/", apiKeyHandler.Create)
+					r.With(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...)).Delete("/{id}", apiKeyHandler.Revoke)
 				})
 			}
 		})
 
 		// Admin routes - require authentication and admin role
 		r.Route("/admin", func(r chi.Router) {
-			r.Use(intMiddleware.RequireAuth(cfg.AuthService))
+			r.Use(intMiddleware.RequireAuth(cfg.AuthService, protectedAuthOpts...))
 			r.Use(intMiddleware.RequireAdmin)
 			r.Route("/users", func(r chi.Router) {
 				r.Get("/", adminHandler.ListUsers)
@@ -437,6 +442,18 @@ func newAuthTokenAdapter(svc *service.AuthService) AuthTokenServiceInterface {
 // GenerateTokensForUser creates an access and refresh token pair for a user.
 func (a *authTokenAdapter) GenerateTokensForUser(userID string, isAdmin bool) (*TokenPair, error) {
 	tokens, err := a.svc.GenerateTokensForUser(userID, isAdmin)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenPair{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+	}, nil
+}
+
+// GenerateVerifiedTokensForUser creates a 2FA-verified access and refresh token pair for a user.
+func (a *authTokenAdapter) GenerateVerifiedTokensForUser(userID string, isAdmin bool) (*TokenPair, error) {
+	tokens, err := a.svc.GenerateVerifiedTokensForUser(userID, isAdmin)
 	if err != nil {
 		return nil, err
 	}

@@ -161,7 +161,7 @@ describe("auth store", () => {
       expect(get(auth).loading).toBe(false);
     });
 
-    it("returns requires2FASetup flag on success when user needs 2FA setup", async () => {
+    it("returns pending token and does not store tokens when user needs 2FA setup", async () => {
       const mockUser = {
         id: "1",
         email: "test@test.com",
@@ -169,17 +169,19 @@ describe("auth store", () => {
         is_admin: false,
       };
       mockedAuthApi.login.mockResolvedValueOnce({
-        access_token: "access-123",
-        refresh_token: "refresh-123",
         user: mockUser,
         requires_2fa_setup: true,
+        pending_token: "pending-setup-123",
       });
 
       const result = await auth.login("test@test.com", "password");
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
       expect(result.requires2FASetup).toBe(true);
+      expect(result.pendingToken).toBe("pending-setup-123");
       expect(result.user).toEqual(mockUser);
-      expect(localStorage.getItem("access_token")).toBe("access-123");
+      expect(localStorage.getItem("access_token")).toBeNull();
+      expect(localStorage.getItem("refresh_token")).toBeNull();
+      expect(get(auth).user).toBeNull();
     });
 
     it("throws on failed login", async () => {

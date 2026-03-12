@@ -15,6 +15,7 @@ import AdminFileRestrictions from "./routes/admin/FileRestrictions.svelte";
 import PublicShare from "./routes/PublicShare.svelte";
 import AuthCallback from "./routes/AuthCallback.svelte";
 import TwoFactorVerify from "./routes/TwoFactorVerify.svelte";
+import TwoFactorSetup from "./routes/TwoFactorSetup.svelte";
 
 export default {
   "/": Dashboard,
@@ -22,6 +23,7 @@ export default {
   "/register": Register,
   "/auth/callback": AuthCallback,
   "/auth/2fa": TwoFactorVerify,
+  "/auth/2fa/setup": TwoFactorSetup,
   "/shares": Shares,
   "/shares/new": NewShare,
   "/shares/:id": ShareDetail,

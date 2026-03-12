@@ -14,15 +14,18 @@ export interface TOTPSetupResponse {
 
 export interface TOTPConfirmResponse {
   recovery_codes: string[];
+  access_token?: string;
+  refresh_token?: string;
 }
 
 export const totpApi = {
   getStatus: () => api.get<TOTPStatus>("/me/2fa/status"),
 
-  beginSetup: () => api.post<TOTPSetupResponse>("/me/2fa/setup", {}),
+  beginSetup: (token?: string) =>
+    api.post<TOTPSetupResponse>("/me/2fa/setup", {}, { token }),
 
-  confirmSetup: (code: string) =>
-    api.post<TOTPConfirmResponse>("/me/2fa/confirm", { code }),
+  confirmSetup: (code: string, token?: string) =>
+    api.post<TOTPConfirmResponse>("/me/2fa/confirm", { code }, { token }),
 
   disable: (password: string) =>
     api.post<void>("/me/2fa/disable", { password }),

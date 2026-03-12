@@ -86,6 +86,16 @@ const createAuthStore = () => {
           };
         }
 
+        if (response.requires_2fa_setup && response.pending_token) {
+          update((s) => ({ ...s, loading: false }));
+          return {
+            success: false,
+            requires2FASetup: true,
+            pendingToken: response.pending_token,
+            user: response.user,
+          };
+        }
+
         if (response.access_token) {
           if (!response.refresh_token) {
             throw new Error("Login failed: no refresh token received");

@@ -44,10 +44,11 @@ const (
 
 // Claims represents the JWT claims used for all token types (access, refresh, and pending 2FA).
 type Claims struct {
-	UserID    string `json:"uid"`
-	IsAdmin   bool   `json:"adm"`
-	TFA       bool   `json:"tfa,omitempty"`        // true for pending 2FA tokens
-	TokenType string `json:"token_type,omitempty"` // "access" or "refresh"
+	UserID      string `json:"uid"`
+	IsAdmin     bool   `json:"adm"`
+	TFA         bool   `json:"tfa,omitempty"`          // true for pending 2FA tokens
+	TFAVerified bool   `json:"tfa_verified,omitempty"` // true when the session completed 2FA
+	TokenType   string `json:"token_type,omitempty"`   // "access" or "refresh"
 	jwt.RegisteredClaims
 }
 
@@ -118,7 +119,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*Token
 		return nil, ErrInvalidCredentials
 	}
 
-	return s.generateTokenPair(user.ID, user.IsAdmin)
+	return s.generateTokenPair(user.ID, user.IsAdmin, false)
 }
 
 // ValidateToken validates an access token and returns the claims.
@@ -150,6 +151,10 @@ func (s *AuthService) RefreshTokens(ctx context.Context, refreshToken string) (*
 		return nil, ErrInvalidToken
 	}
 
+	if claims.TFA {
+		return nil, ErrInvalidToken
+	}
+
 	// Only allow refresh tokens; reject access tokens and tokens without a valid type
 	if claims.TokenType != TokenTypeRefresh {
 		return nil, ErrInvalidToken
@@ -164,7 +169,7 @@ func (s *AuthService) RefreshTokens(ctx context.Context, refreshToken string) (*
 		return nil, err
 	}
 
-	return s.generateTokenPair(user.ID, user.IsAdmin)
+	return s.generateTokenPair(user.ID, user.IsAdmin, claims.TFAVerified)
 }
 
 // GetUser retrieves a user by their ID.
@@ -283,7 +288,12 @@ func (s *AuthService) UpdatePassword(ctx context.Context, userID, oldPassword, n
 // GenerateTokensForUser creates a token pair for a given user ID.
 // Used by OIDC flow where we already have verified user identity.
 func (s *AuthService) GenerateTokensForUser(userID string, isAdmin bool) (*TokenPair, error) {
-	return s.generateTokenPair(userID, isAdmin)
+	return s.generateTokenPair(userID, isAdmin, false)
+}
+
+// GenerateVerifiedTokensForUser creates a token pair for a user who has satisfied 2FA.
+func (s *AuthService) GenerateVerifiedTokensForUser(userID string, isAdmin bool) (*TokenPair, error) {
+	return s.generateTokenPair(userID, isAdmin, true)
 }
 
 // VerifyPassword verifies a user's password by their user ID.
@@ -304,13 +314,13 @@ func (s *AuthService) VerifyPassword(ctx context.Context, userID, password strin
 }
 
 // generateTokenPair creates a new access and refresh token pair.
-func (s *AuthService) generateTokenPair(userID string, isAdmin bool) (*TokenPair, error) {
-	accessToken, err := s.generateAccessToken(userID, isAdmin)
+func (s *AuthService) generateTokenPair(userID string, isAdmin, tfaVerified bool) (*TokenPair, error) {
+	accessToken, err := s.generateAccessToken(userID, isAdmin, tfaVerified)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := s.generateRefreshToken(userID, isAdmin)
+	refreshToken, err := s.generateRefreshToken(userID, isAdmin, tfaVerified)
 	if err != nil {
 		return nil, err
 	}
@@ -322,18 +332,23 @@ func (s *AuthService) generateTokenPair(userID string, isAdmin bool) (*TokenPair
 }
 
 // generateAccessToken creates a new JWT access token.
-func (s *AuthService) generateAccessToken(userID string, isAdmin bool) (string, error) {
-	return s.GenerateAccessTokenWithExpiry(userID, isAdmin, accessTokenExpiry)
+func (s *AuthService) generateAccessToken(userID string, isAdmin, tfaVerified bool) (string, error) {
+	return s.generateAccessTokenWithExpiry(userID, isAdmin, tfaVerified, accessTokenExpiry)
 }
 
 // GenerateAccessTokenWithExpiry creates a JWT access token with a custom expiry duration.
 // This is exposed for testing expired token scenarios.
 func (s *AuthService) GenerateAccessTokenWithExpiry(userID string, isAdmin bool, expiry time.Duration) (string, error) {
+	return s.generateAccessTokenWithExpiry(userID, isAdmin, false, expiry)
+}
+
+func (s *AuthService) generateAccessTokenWithExpiry(userID string, isAdmin, tfaVerified bool, expiry time.Duration) (string, error) {
 	now := time.Now()
 	claims := &Claims{
-		UserID:    userID,
-		IsAdmin:   isAdmin,
-		TokenType: TokenTypeAccess,
+		UserID:      userID,
+		IsAdmin:     isAdmin,
+		TFAVerified: tfaVerified,
+		TokenType:   TokenTypeAccess,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -347,12 +362,13 @@ func (s *AuthService) GenerateAccessTokenWithExpiry(userID string, isAdmin bool,
 }
 
 // generateRefreshToken creates a new JWT refresh token with longer expiry.
-func (s *AuthService) generateRefreshToken(userID string, isAdmin bool) (string, error) {
+func (s *AuthService) generateRefreshToken(userID string, isAdmin, tfaVerified bool) (string, error) {
 	now := time.Now()
 	claims := &Claims{
-		UserID:    userID,
-		IsAdmin:   isAdmin,
-		TokenType: TokenTypeRefresh,
+		UserID:      userID,
+		IsAdmin:     isAdmin,
+		TFAVerified: tfaVerified,
+		TokenType:   TokenTypeRefresh,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(refreshTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(now),
