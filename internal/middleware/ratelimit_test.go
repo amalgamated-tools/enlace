@@ -194,6 +194,18 @@ func TestRateLimiter_SkipsTrustedProxiesInXForwardedForChain(t *testing.T) {
 		t.Errorf("first request: expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 
+	// The same client IP through the same trusted proxy chain must be blocked on
+	// a second request.
+	reqRepeat := httptest.NewRequest(http.MethodGet, "/test", nil)
+	reqRepeat.RemoteAddr = "127.0.0.1:12345"
+	reqRepeat.Header.Set("X-Forwarded-For", "203.0.113.195, 10.1.2.3")
+	recRepeat := httptest.NewRecorder()
+	handler.ServeHTTP(recRepeat, reqRepeat)
+
+	if recRepeat.Code != http.StatusTooManyRequests {
+		t.Errorf("repeat request: expected status %d, got %d", http.StatusTooManyRequests, recRepeat.Code)
+	}
+
 	// A different client behind the same trusted upstream proxy should receive a
 	// different bucket. If the limiter incorrectly used the last entry, this would
 	// be blocked as 10.1.2.3.
@@ -239,6 +251,38 @@ func TestRateLimiter_ExtractsIPFromXRealIP(t *testing.T) {
 
 	if rec2.Code != http.StatusTooManyRequests {
 		t.Errorf("expected status %d, got %d", http.StatusTooManyRequests, rec2.Code)
+	}
+}
+
+func TestRateLimiter_IgnoresTrustedProxyXRealIPFallback(t *testing.T) {
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1, "127.0.0.1/32", "10.0.0.0/8")
+	defer rl.Stop()
+
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := rl.Limit(testHandler)
+
+	makeRequest := func(xri string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		req.Header.Set("X-Forwarded-For", "10.1.2.3")
+		req.Header.Set("X-Real-IP", xri)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := makeRequest("10.1.2.3"); rec.Code != http.StatusOK {
+		t.Errorf("first request: expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	// Rotating a trusted-proxy X-Real-IP value must not create a fresh bucket when
+	// X-Forwarded-For contains only trusted hops and the limiter falls back to
+	// RemoteAddr.
+	if rec := makeRequest("10.1.2.4"); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("second request: expected status %d, got %d", http.StatusTooManyRequests, rec.Code)
 	}
 }
 
