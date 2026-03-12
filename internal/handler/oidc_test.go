@@ -707,6 +707,10 @@ func (m *mockAuthTokenService) GenerateTokensForUser(userID string, isAdmin bool
 	return nil, nil
 }
 
+func (m *mockAuthTokenService) GenerateVerifiedTokensForUser(userID string, isAdmin bool) (*handler.TokenPair, error) {
+	return m.GenerateTokensForUser(userID, isAdmin)
+}
+
 // mockOIDCService implements OIDCServiceInterface for testing.
 type mockOIDCService struct {
 	isEnabledFn            func() bool

@@ -89,6 +89,8 @@ type totpConfirmRequest struct {
 // totpConfirmResponse represents the response after confirming 2FA setup.
 type totpConfirmResponse struct {
 	RecoveryCodes []string `json:"recovery_codes"`
+	AccessToken   string   `json:"access_token,omitempty"`
+	RefreshToken  string   `json:"refresh_token,omitempty"`
 }
 
 // totpDisableRequest represents the request body for disabling 2FA.
@@ -233,9 +235,18 @@ func (h *TOTPHandler) ConfirmSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Success(w, http.StatusOK, totpConfirmResponse{
-		RecoveryCodes: codes,
-	})
+	resp := totpConfirmResponse{RecoveryCodes: codes}
+	if middleware.GetPending2FA(r.Context()) {
+		tokens, err := h.authTokenService.GenerateVerifiedTokensForUser(userID, middleware.GetIsAdmin(r.Context()))
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+		resp.AccessToken = tokens.AccessToken
+		resp.RefreshToken = tokens.RefreshToken
+	}
+
+	Success(w, http.StatusOK, resp)
 }
 
 // Disable handles POST /api/v1/me/2fa/disable - disables 2FA for the user.
@@ -406,7 +417,7 @@ func (h *TOTPHandler) Verify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate real tokens
-	tokens, err := h.authTokenService.GenerateTokensForUser(claims.UserID, claims.IsAdmin)
+	tokens, err := h.authTokenService.GenerateVerifiedTokensForUser(claims.UserID, claims.IsAdmin)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -470,7 +481,7 @@ func (h *TOTPHandler) Recovery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate real tokens
-	tokens, err := h.authTokenService.GenerateTokensForUser(claims.UserID, claims.IsAdmin)
+	tokens, err := h.authTokenService.GenerateVerifiedTokensForUser(claims.UserID, claims.IsAdmin)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return

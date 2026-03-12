@@ -119,7 +119,7 @@ Enlace supports TOTP-based 2FA. Users enable it in their account settings; admin
 
 | Variable | Default | Description |
 |---|---|---|
-| `REQUIRE_2FA` | `false` | Set to `true` to enforce 2FA enrollment for all users. Users who have not yet set up 2FA will receive `requires_2fa_setup: true` on login and must complete TOTP setup before proceeding. |
+| `REQUIRE_2FA` | `false` | Set to `true` to enforce 2FA enrollment for all users. Users who have not yet set up 2FA receive `requires_2fa_setup: true` plus a short-lived `pending_token` on login and must complete TOTP setup before the server issues usable session tokens. |
 
 > **Note:** 2FA and SSO/OIDC are mutually exclusive. When a user links an OIDC identity, any existing 2FA configuration is automatically removed. SSO-linked accounts cannot set up or use 2FA — the identity provider is trusted to handle second-factor concerns. All 2FA mutation endpoints (`/me/2fa/setup`, `/me/2fa/confirm`, `/me/2fa/disable`, `/me/2fa/recovery-codes`) return HTTP 403 for OIDC users, and the 2FA section is hidden in the UI for those accounts. See [OIDC / SSO guide](oidc.md) for details.
 

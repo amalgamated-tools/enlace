@@ -67,6 +67,15 @@
       }
 
       if (result.requires2FASetup) {
+        if (result.pendingToken) {
+          try {
+            sessionStorage.setItem("pending2FAToken", result.pendingToken);
+          } catch {
+            // Ignore storage failures and rely on in-memory navigation only.
+          }
+          push("/auth/2fa/setup");
+          return;
+        }
         toast.info(
           "Your administrator requires two-factor authentication. Please set it up now.",
         );

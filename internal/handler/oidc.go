@@ -58,6 +58,7 @@ type OIDCServiceInterface interface {
 // This is a subset of AuthService operations needed for OIDC.
 type AuthTokenServiceInterface interface {
 	GenerateTokensForUser(userID string, isAdmin bool) (*TokenPair, error)
+	GenerateVerifiedTokensForUser(userID string, isAdmin bool) (*TokenPair, error)
 }
 
 // TokenPair represents an access and refresh token pair.

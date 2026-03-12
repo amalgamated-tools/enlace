@@ -22,6 +22,7 @@ type AuthServiceInterface interface {
 	Register(ctx context.Context, email, password, displayName string) (*model.User, error)
 	Login(ctx context.Context, email, password string) (*service.TokenPair, error)
 	RefreshTokens(ctx context.Context, refreshToken string) (*service.TokenPair, error)
+	ValidateToken(token string) (*service.Claims, error)
 	GetUser(ctx context.Context, userID string) (*model.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 }
@@ -31,6 +32,7 @@ type mockAuthService struct {
 	registerFn       func(ctx context.Context, email, password, displayName string) (*model.User, error)
 	loginFn          func(ctx context.Context, email, password string) (*service.TokenPair, error)
 	refreshTokensFn  func(ctx context.Context, refreshToken string) (*service.TokenPair, error)
+	validateTokenFn  func(token string) (*service.Claims, error)
 	getUserFn        func(ctx context.Context, userID string) (*model.User, error)
 	getUserByEmailFn func(ctx context.Context, email string) (*model.User, error)
 }
@@ -52,6 +54,13 @@ func (m *mockAuthService) Login(ctx context.Context, email, password string) (*s
 func (m *mockAuthService) RefreshTokens(ctx context.Context, refreshToken string) (*service.TokenPair, error) {
 	if m.refreshTokensFn != nil {
 		return m.refreshTokensFn(ctx, refreshToken)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockAuthService) ValidateToken(token string) (*service.Claims, error) {
+	if m.validateTokenFn != nil {
+		return m.validateTokenFn(token)
 	}
 	return nil, errors.New("not implemented")
 }
@@ -309,6 +318,71 @@ func TestAuthHandler_Login_Success(t *testing.T) {
 	}
 }
 
+func TestAuthHandler_Login_Require2FASetupReturnsPendingToken(t *testing.T) {
+	mock := &mockAuthService{
+		loginFn: func(ctx context.Context, email, password string) (*service.TokenPair, error) {
+			return &service.TokenPair{
+				AccessToken:  "access-token-123",
+				RefreshToken: "refresh-token-456",
+			}, nil
+		},
+		getUserByEmailFn: func(ctx context.Context, email string) (*model.User, error) {
+			return &model.User{
+				ID:          "user-123",
+				Email:       email,
+				DisplayName: "Test User",
+			}, nil
+		},
+	}
+	totp := &mockTOTPService{
+		getStatusFn: func(ctx context.Context, userID string) (bool, error) {
+			return false, nil
+		},
+		generatePendingTokenFn: func(userID string, isAdmin bool) (string, error) {
+			return "pending-token-123", nil
+		},
+	}
+
+	h := handler.NewAuthHandler(mock, totp, true)
+	router := setupAuthRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewBufferString(`{"email":"user@example.com","password":"password123"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var response struct {
+		Success bool `json:"success"`
+		Data    struct {
+			AccessToken      string `json:"access_token"`
+			RefreshToken     string `json:"refresh_token"`
+			PendingToken     string `json:"pending_token"`
+			Requires2FASetup bool   `json:"requires_2fa_setup"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !response.Success {
+		t.Fatal("expected success to be true")
+	}
+	if response.Data.AccessToken != "" || response.Data.RefreshToken != "" {
+		t.Fatalf("expected login to withhold functional tokens, got access=%q refresh=%q", response.Data.AccessToken, response.Data.RefreshToken)
+	}
+	if response.Data.PendingToken != "pending-token-123" {
+		t.Fatalf("expected pending token, got %q", response.Data.PendingToken)
+	}
+	if !response.Data.Requires2FASetup {
+		t.Fatal("expected requires_2fa_setup to be true")
+	}
+}
+
 func TestAuthHandler_Login_ValidationErrors(t *testing.T) {
 	mock := &mockAuthService{}
 	h := handler.NewAuthHandler(mock, nil, false)
@@ -367,6 +441,84 @@ func TestAuthHandler_Login_ValidationErrors(t *testing.T) {
 	}
 }
 
+func TestAuthHandler_Refresh_RejectsTokenWithoutRequired2FASetup(t *testing.T) {
+	refreshCalled := false
+	mock := &mockAuthService{
+		validateTokenFn: func(token string) (*service.Claims, error) {
+			return &service.Claims{UserID: "user-123", TokenType: service.TokenTypeRefresh}, nil
+		},
+		getUserFn: func(ctx context.Context, userID string) (*model.User, error) {
+			return &model.User{ID: userID, Email: "user@example.com"}, nil
+		},
+		refreshTokensFn: func(ctx context.Context, refreshToken string) (*service.TokenPair, error) {
+			refreshCalled = true
+			return &service.TokenPair{AccessToken: "new-access", RefreshToken: "new-refresh"}, nil
+		},
+	}
+	totp := &mockTOTPService{
+		getStatusFn: func(ctx context.Context, userID string) (bool, error) {
+			return false, nil
+		},
+	}
+
+	h := handler.NewAuthHandler(mock, totp, true)
+	router := setupAuthRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", bytes.NewBufferString(`{"refresh_token":"refresh-token-123"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, w.Code)
+	}
+	if refreshCalled {
+		t.Fatal("expected refresh token exchange to be blocked before service refresh")
+	}
+}
+
+func TestAuthHandler_Refresh_RejectsUnverified2FASession(t *testing.T) {
+	refreshCalled := false
+	mock := &mockAuthService{
+		validateTokenFn: func(token string) (*service.Claims, error) {
+			return &service.Claims{
+				UserID:      "user-123",
+				TokenType:   service.TokenTypeRefresh,
+				TFAVerified: false,
+			}, nil
+		},
+		getUserFn: func(ctx context.Context, userID string) (*model.User, error) {
+			return &model.User{ID: userID, Email: "user@example.com"}, nil
+		},
+		refreshTokensFn: func(ctx context.Context, refreshToken string) (*service.TokenPair, error) {
+			refreshCalled = true
+			return &service.TokenPair{AccessToken: "new-access", RefreshToken: "new-refresh"}, nil
+		},
+	}
+	totp := &mockTOTPService{
+		getStatusFn: func(ctx context.Context, userID string) (bool, error) {
+			return true, nil
+		},
+	}
+
+	h := handler.NewAuthHandler(mock, totp, false)
+	router := setupAuthRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", bytes.NewBufferString(`{"refresh_token":"refresh-token-123"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, w.Code)
+	}
+	if refreshCalled {
+		t.Fatal("expected refresh token exchange to be blocked before service refresh")
+	}
+}
+
 func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 	mock := &mockAuthService{
 		loginFn: func(ctx context.Context, email, password string) (*service.TokenPair, error) {
@@ -403,6 +555,12 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 
 func TestAuthHandler_Refresh_Success(t *testing.T) {
 	mock := &mockAuthService{
+		validateTokenFn: func(token string) (*service.Claims, error) {
+			return &service.Claims{UserID: "user-123", TokenType: service.TokenTypeRefresh}, nil
+		},
+		getUserFn: func(ctx context.Context, userID string) (*model.User, error) {
+			return &model.User{ID: userID, Email: "user@example.com"}, nil
+		},
 		refreshTokensFn: func(ctx context.Context, refreshToken string) (*service.TokenPair, error) {
 			return &service.TokenPair{
 				AccessToken:  "new-access-token",
@@ -482,6 +640,9 @@ func TestAuthHandler_Refresh_ValidationErrors(t *testing.T) {
 
 func TestAuthHandler_Refresh_InvalidToken(t *testing.T) {
 	mock := &mockAuthService{
+		validateTokenFn: func(token string) (*service.Claims, error) {
+			return nil, service.ErrInvalidToken
+		},
 		refreshTokensFn: func(ctx context.Context, refreshToken string) (*service.TokenPair, error) {
 			return nil, service.ErrInvalidToken
 		},

@@ -7,6 +7,10 @@ interface ApiResponse<T> {
   fields?: Record<string, string>;
 }
 
+interface RequestOptions {
+  overrideToken?: string;
+}
+
 class ApiError extends Error {
   constructor(
     message: string,
@@ -21,8 +25,10 @@ class ApiError extends Error {
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
+  requestOptions: RequestOptions = {},
 ): Promise<T> {
-  const token = localStorage.getItem("access_token");
+  const token =
+    requestOptions.overrideToken ?? localStorage.getItem("access_token");
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -52,14 +58,32 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(endpoint: string) => request<T>(endpoint),
-  post: <T>(endpoint: string, body: unknown) =>
-    request<T>(endpoint, { method: "POST", body: JSON.stringify(body) }),
-  patch: <T>(endpoint: string, body: unknown) =>
-    request<T>(endpoint, { method: "PATCH", body: JSON.stringify(body) }),
-  put: <T>(endpoint: string, body: unknown) =>
-    request<T>(endpoint, { method: "PUT", body: JSON.stringify(body) }),
-  delete: <T>(endpoint: string) => request<T>(endpoint, { method: "DELETE" }),
+  get: <T>(endpoint: string, requestOptions?: RequestOptions) =>
+    request<T>(endpoint, {}, requestOptions),
+  post: <T>(endpoint: string, body: unknown, requestOptions?: RequestOptions) =>
+    request<T>(
+      endpoint,
+      { method: "POST", body: JSON.stringify(body) },
+      requestOptions,
+    ),
+  patch: <T>(
+    endpoint: string,
+    body: unknown,
+    requestOptions?: RequestOptions,
+  ) =>
+    request<T>(
+      endpoint,
+      { method: "PATCH", body: JSON.stringify(body) },
+      requestOptions,
+    ),
+  put: <T>(endpoint: string, body: unknown, requestOptions?: RequestOptions) =>
+    request<T>(
+      endpoint,
+      { method: "PUT", body: JSON.stringify(body) },
+      requestOptions,
+    ),
+  delete: <T>(endpoint: string, requestOptions?: RequestOptions) =>
+    request<T>(endpoint, { method: "DELETE" }, requestOptions),
 };
 
 export { ApiError };

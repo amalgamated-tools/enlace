@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"slices"
 	"strings"
@@ -12,10 +13,11 @@ import (
 type contextKey string
 
 const (
-	UserIDKey   contextKey = "userID"
-	IsAdminKey  contextKey = "isAdmin"
-	ScopesKey   contextKey = "scopes"
-	AuthTypeKey contextKey = "authType"
+	UserIDKey     contextKey = "userID"
+	IsAdminKey    contextKey = "isAdmin"
+	ScopesKey     contextKey = "scopes"
+	AuthTypeKey   contextKey = "authType"
+	Pending2FAKey contextKey = "pending2FA"
 )
 
 // jsonError writes a JSON error response with the correct Content-Type header.
@@ -30,8 +32,16 @@ type APIKeyAuthenticator interface {
 	Authenticate(ctx context.Context, token string) (*service.APIKeyIdentity, error)
 }
 
+// TOTPStatusChecker reports whether a user has TOTP enabled.
+type TOTPStatusChecker interface {
+	GetStatus(ctx context.Context, userID string) (bool, error)
+}
+
 type requireAuthConfig struct {
-	apiKeyAuth APIKeyAuthenticator
+	apiKeyAuth      APIKeyAuthenticator
+	totpStatus      TOTPStatusChecker
+	require2FA      bool
+	allowPending2FA bool
 }
 
 // RequireAuthOption configures RequireAuth middleware behavior.
@@ -41,6 +51,21 @@ type RequireAuthOption func(*requireAuthConfig)
 func WithAPIKeyAuth(auth APIKeyAuthenticator) RequireAuthOption {
 	return func(cfg *requireAuthConfig) {
 		cfg.apiKeyAuth = auth
+	}
+}
+
+// WithTOTPEnforcement enables request-time 2FA enforcement for JWT-authenticated users.
+func WithTOTPEnforcement(checker TOTPStatusChecker, require2FA bool) RequireAuthOption {
+	return func(cfg *requireAuthConfig) {
+		cfg.totpStatus = checker
+		cfg.require2FA = require2FA
+	}
+}
+
+// WithPending2FA allows pending 2FA tokens to pass through authentication.
+func WithPending2FA() RequireAuthOption {
+	return func(cfg *requireAuthConfig) {
+		cfg.allowPending2FA = true
 	}
 }
 
@@ -90,8 +115,8 @@ func RequireAuth(authService *service.AuthService, opts ...RequireAuthOption) fu
 				return
 			}
 
-			// Reject pending 2FA tokens
-			if claims.TFA {
+			// Reject pending 2FA tokens unless explicitly allowed for setup flows.
+			if claims.TFA && !cfg.allowPending2FA {
 				jsonError(w, `{"error":"2FA verification required"}`, http.StatusUnauthorized)
 				return
 			}
@@ -102,10 +127,38 @@ func RequireAuth(authService *service.AuthService, opts ...RequireAuthOption) fu
 				return
 			}
 
+			if !claims.TFA && cfg.totpStatus != nil {
+				user, err := authService.GetUser(r.Context(), claims.UserID)
+				if err != nil {
+					if errors.Is(err, service.ErrUserNotFound) {
+						jsonError(w, `{"error":"user not found"}`, http.StatusUnauthorized)
+					} else {
+						jsonError(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+					}
+					return
+				}
+				if user.OIDCSubject == "" {
+					has2FA, err := cfg.totpStatus.GetStatus(r.Context(), claims.UserID)
+					if err != nil {
+						jsonError(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+						return
+					}
+					if cfg.require2FA && !has2FA {
+						jsonError(w, `{"error":"2FA setup required"}`, http.StatusForbidden)
+						return
+					}
+					if has2FA && !claims.TFAVerified {
+						jsonError(w, `{"error":"2FA verification required"}`, http.StatusUnauthorized)
+						return
+					}
+				}
+			}
+
 			// Add user info to context
 			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 			ctx = context.WithValue(ctx, IsAdminKey, claims.IsAdmin)
 			ctx = context.WithValue(ctx, AuthTypeKey, "jwt")
+			ctx = context.WithValue(ctx, Pending2FAKey, claims.TFA)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -153,6 +206,14 @@ func GetAuthType(ctx context.Context) string {
 		return v
 	}
 	return ""
+}
+
+// GetPending2FA reports whether the current request is authenticated with a pending 2FA token.
+func GetPending2FA(ctx context.Context) bool {
+	if v, ok := ctx.Value(Pending2FAKey).(bool); ok {
+		return v
+	}
+	return false
 }
 
 // RequireScope enforces scope presence for API-key-authenticated requests.

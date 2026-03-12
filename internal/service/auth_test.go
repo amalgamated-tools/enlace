@@ -263,6 +263,36 @@ func TestAuthService_RefreshTokens(t *testing.T) {
 	}
 }
 
+func TestAuthService_RefreshTokens_PreservesTFAVerifiedClaim(t *testing.T) {
+	svc, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	user, err := svc.Register(ctx, "verified@example.com", "password123", "Verified User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	tokens, err := svc.GenerateVerifiedTokensForUser(user.ID, user.IsAdmin)
+	if err != nil {
+		t.Fatalf("failed to generate verified tokens: %v", err)
+	}
+
+	newTokens, err := svc.RefreshTokens(ctx, tokens.RefreshToken)
+	if err != nil {
+		t.Fatalf("failed to refresh verified tokens: %v", err)
+	}
+
+	claims, err := svc.ValidateToken(newTokens.AccessToken)
+	if err != nil {
+		t.Fatalf("failed to validate refreshed access token: %v", err)
+	}
+	if !claims.TFAVerified {
+		t.Fatal("expected refreshed token to preserve 2FA verified state")
+	}
+}
+
 func TestAuthService_RefreshTokens_InvalidToken(t *testing.T) {
 	svc, cleanup := setupAuthService(t)
 	defer cleanup()

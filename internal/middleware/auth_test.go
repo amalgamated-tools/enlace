@@ -13,6 +13,14 @@ import (
 	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
+type stubTOTPStatusChecker struct {
+	getStatusFn func(ctx context.Context, userID string) (bool, error)
+}
+
+func (s stubTOTPStatusChecker) GetStatus(ctx context.Context, userID string) (bool, error) {
+	return s.getStatusFn(ctx, userID)
+}
+
 func setupAuthService(t *testing.T) (*service.AuthService, func()) {
 	t.Helper()
 	db, err := database.New(":memory:")
@@ -205,6 +213,49 @@ func TestRequireAuth_ExpiredToken(t *testing.T) {
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+}
+
+func TestRequireAuth_EnforcesRequired2FASetup(t *testing.T) {
+	authService, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	user, err := authService.Register(ctx, "test@example.com", "password123", "Test User")
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	tokens, err := authService.Login(ctx, "test@example.com", "password123")
+	if err != nil {
+		t.Fatalf("failed to login: %v", err)
+	}
+
+	handler := middleware.RequireAuth(
+		authService,
+		middleware.WithTOTPEnforcement(stubTOTPStatusChecker{
+			getStatusFn: func(ctx context.Context, userID string) (bool, error) {
+				if userID != user.ID {
+					t.Fatalf("unexpected userID %q", userID)
+				}
+				return false, nil
+			},
+		}, true),
+	)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
+	}
+	if rec.Body.String() != `{"error":"2FA setup required"}` {
+		t.Fatalf("unexpected body: %q", rec.Body.String())
 	}
 }
 

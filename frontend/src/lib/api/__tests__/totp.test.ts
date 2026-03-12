@@ -34,7 +34,29 @@ describe("totpApi", () => {
     const result = await totpApi.beginSetup();
 
     expect(result).toEqual(setup);
-    expect(mockedApi.post).toHaveBeenCalledWith("/me/2fa/setup", {});
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      "/me/2fa/setup",
+      {},
+      { overrideToken: undefined },
+    );
+  });
+
+  it("beginSetup supports a pending 2FA token", async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      secret: "abc",
+      qr_code: "data",
+      provisioning_uri: "uri",
+    });
+
+    await totpApi.beginSetup("pending-setup-token");
+
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      "/me/2fa/setup",
+      {},
+      {
+        overrideToken: "pending-setup-token",
+      },
+    );
   });
 
   it("confirmSetup posts the verification code", async () => {
@@ -44,9 +66,13 @@ describe("totpApi", () => {
     const result = await totpApi.confirmSetup("123456");
 
     expect(result).toEqual(confirm);
-    expect(mockedApi.post).toHaveBeenCalledWith("/me/2fa/confirm", {
-      code: "123456",
-    });
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      "/me/2fa/confirm",
+      {
+        code: "123456",
+      },
+      { overrideToken: undefined },
+    );
   });
 
   it("disable posts the password", async () => {
