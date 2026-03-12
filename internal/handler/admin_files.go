@@ -215,7 +215,7 @@ func IsExtensionBlocked(filename string, blockedExtensions []string) bool {
 	if len(blockedExtensions) == 0 {
 		return false
 	}
-	lower := strings.ToLower(filename)
+	lower := strings.ToLower(strings.TrimSpace(filename))
 	for _, ext := range blockedExtensions {
 		if strings.HasSuffix(lower, ext) {
 			return true
