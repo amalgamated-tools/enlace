@@ -988,6 +988,7 @@ Fired when one or more files are successfully uploaded to a share (both authenti
 | Field | Type | Description |
 |---|---|---|
 | `share_id` | string | Share UUID the files were uploaded to |
+| `slug` | string | Public URL slug of the share. Present only for reverse-share uploads; omitted for authenticated uploads to owned shares. |
 | `count` | int | Number of files uploaded in this batch |
 | `files` | array of objects | Each item: `{ "id": "<uuid>", "name": "<filename>", "size": <bytes>, "mime_type": "<type>" }` |
 
