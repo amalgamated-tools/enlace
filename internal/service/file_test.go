@@ -291,7 +291,7 @@ func TestFileService_Upload_DetectsMimeType(t *testing.T) {
 		{"image.gif", "image/gif"},
 		{"image.svg", "image/svg+xml"},
 		{"image.webp", "image/webp"},
-		{"script.js", "application/javascript"},
+		{"script.js", "text/javascript"},
 		{"styles.css", "text/css"},
 		{"page.html", "text/html"},
 		{"data.json", "application/json"},
@@ -538,6 +538,33 @@ func TestFileService_FinalizeDirectUpload_IntegrityFailure(t *testing.T) {
 	// Verify orphaned object was cleaned up from storage
 	if _, ok := store.files[initiated.StorageKey]; ok {
 		t.Error("expected orphaned object to be deleted from storage on integrity failure")
+	}
+}
+
+func TestFileService_FinalizeDirectUpload_AllowsJavaScriptContentTypeVariant(t *testing.T) {
+	svc, store, _, share, cleanup := setupDirectFileServiceWithUserAndShare(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	initiated, err := svc.InitiateDirectUpload(ctx, service.DirectUploadInput{
+		ShareID:    share.ID,
+		UploaderID: *share.CreatorID,
+		Filename:   "script.js",
+		Size:       17,
+	})
+	if err != nil {
+		t.Fatalf("InitiateDirectUpload() error = %v", err)
+	}
+
+	store.files[initiated.StorageKey] = []byte("console.log('hi')")
+	store.headType = "text/javascript; charset=utf-8"
+
+	file, err := svc.FinalizeDirectUpload(ctx, initiated.UploadID)
+	if err != nil {
+		t.Fatalf("FinalizeDirectUpload() error = %v", err)
+	}
+	if file.MimeType != "text/javascript" {
+		t.Fatalf("expected finalized mime type text/javascript, got %s", file.MimeType)
 	}
 }
 
@@ -974,7 +1001,9 @@ func TestFileService_IsPreviewable(t *testing.T) {
 		{"text/html", true},
 		{"text/css", true},
 		{"text/javascript", true},
+		{"text/javascript; charset=utf-8", true},
 		// Non-previewable
+		{"application/javascript", false},
 		{"application/zip", false},
 		{"application/octet-stream", false},
 		{"video/mp4", false},

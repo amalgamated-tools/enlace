@@ -456,7 +456,7 @@ func detectMimeType(filename string) string {
 		".html": "text/html",
 		".htm":  "text/html",
 		".css":  "text/css",
-		".js":   "application/javascript",
+		".js":   "text/javascript",
 		".json": "application/json",
 		".xml":  "application/xml",
 		".csv":  "text/csv",
@@ -491,6 +491,11 @@ func detectMimeType(filename string) string {
 
 // isPreviewableMimeType checks if a MIME type supports preview.
 func isPreviewableMimeType(mimeType string) bool {
+	baseType, _, err := mime.ParseMediaType(mimeType)
+	if err != nil {
+		baseType = mimeType
+	}
+
 	previewable := map[string]bool{
 		// Images
 		"image/jpeg":    true,
@@ -511,5 +516,5 @@ func isPreviewableMimeType(mimeType string) bool {
 		"text/csv":        true,
 	}
 
-	return previewable[mimeType]
+	return previewable[baseType]
 }
