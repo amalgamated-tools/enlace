@@ -557,7 +557,7 @@ func TestFileService_FinalizeDirectUpload_AllowsJavaScriptContentTypeVariant(t *
 	}
 
 	store.files[initiated.StorageKey] = []byte("console.log('hi')")
-	store.headType = "text/javascript; charset=utf-8"
+	store.headType = "application/javascript; charset=utf-8"
 
 	file, err := svc.FinalizeDirectUpload(ctx, initiated.UploadID)
 	if err != nil {
@@ -1002,8 +1002,9 @@ func TestFileService_IsPreviewable(t *testing.T) {
 		{"text/css", true},
 		{"text/javascript", true},
 		{"text/javascript; charset=utf-8", true},
+		{"application/javascript", true},
+		{"application/javascript; charset=utf-8", true},
 		// Non-previewable
-		{"application/javascript", false},
 		{"application/zip", false},
 		{"application/octet-stream", false},
 		{"video/mp4", false},
