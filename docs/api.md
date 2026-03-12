@@ -1009,6 +1009,7 @@ Fired when a file is downloaded from a public share.
 | Field | Type | Description |
 |---|---|---|
 | `share_id` | string | Share UUID |
+| `slug` | string | Public URL slug of the share |
 | `file_id` | string | File UUID that was downloaded |
 | `name` | string | Filename |
 
