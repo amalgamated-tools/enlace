@@ -7,12 +7,14 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/amalgamated-tools/enlace/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
 const (
@@ -27,10 +29,11 @@ const (
 // OIDCUserInfo contains user information from the OIDC provider.
 // This mirrors service.OIDCUserInfo but is exposed for handler interface.
 type OIDCUserInfo struct {
-	Subject     string
-	Email       string
-	DisplayName string
-	Issuer      string
+	Subject       string
+	Email         string
+	EmailVerified bool
+	DisplayName   string
+	Issuer        string
 }
 
 // OIDCUser represents a user for OIDC operations.
@@ -255,7 +258,11 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.oidcService.FindOrCreateUser(r.Context(), userInfo)
 	if err != nil {
-		h.redirectWithError(w, r, "failed to create user: "+err.Error())
+		msg := "failed to sign in: " + err.Error()
+		if errors.Is(err, service.ErrOIDCEmailNotVerified) {
+			msg = "sign-in rejected: your identity provider has not verified your email address"
+		}
+		h.redirectWithError(w, r, msg)
 		return
 	}
 
