@@ -149,7 +149,7 @@ func TestRateLimiter_ExtractsIPFromXForwardedFor(t *testing.T) {
 	handler := rl.Limit(testHandler)
 
 	// Requests arrive from a trusted proxy with a spoofed leftmost entry prepended
-	// by the client. The limiter must use the last untrusted IP in the chain
+	// by the client. The limiter must use the rightmost untrusted IP in the chain
 	// (203.0.113.195), not the spoofed first value.
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.RemoteAddr = "127.0.0.1:12345" // trusted proxy
