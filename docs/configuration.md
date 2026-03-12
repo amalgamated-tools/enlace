@@ -138,13 +138,21 @@ See [OIDC / SSO guide](oidc.md) for provider-specific setup guides.
 
 ## Networking / Reverse Proxy
 
-When Enlace is deployed behind a reverse proxy (nginx, Caddy, Traefik, etc.) the direct TCP peer is the proxy, not the end user. By default, Enlace uses `RemoteAddr` for all IP-based decisions (rate limiting). Set `TRUSTED_PROXIES` to the CIDR ranges of your proxy so that the real client IP from `X-Forwarded-For` / `X-Real-IP` is used instead. When `X-Forwarded-For` contains multiple entries, Enlace walks the list from right to left and uses the first address that is not itself a trusted proxy.
+When Enlace is deployed behind a reverse proxy (nginx, Caddy, Traefik, etc.) the direct TCP peer is the proxy, not the end user. By default, Enlace uses `RemoteAddr` for all IP-based decisions (rate limiting). Set `TRUSTED_PROXIES` to the CIDR ranges of your proxy so that the real client IP from `X-Forwarded-For` / `X-Real-IP` is used instead.
+
+**How IP extraction works when `TRUSTED_PROXIES` is set:**
+
+1. Enlace inspects the direct TCP peer (`RemoteAddr`) of every request.
+2. Only if that peer IP falls within a trusted-proxy CIDR does Enlace read forwarded headers.
+3. When `X-Forwarded-For` is present, the list is walked **right-to-left** and the first IP that is not itself a trusted proxy is used as the client IP.
+4. When `X-Forwarded-For` is absent (or every entry is a trusted proxy), `X-Real-IP` is used as a fallback.
+5. Requests whose direct peer is **outside** `TRUSTED_PROXIES` always use `RemoteAddr`, and any `X-Forwarded-For` / `X-Real-IP` headers they include are ignored entirely.
 
 | Variable | Default | Description |
 |---|---|---|
 | `TRUSTED_PROXIES` | *(unset — use `RemoteAddr`)* | Comma-separated list of CIDR ranges whose `X-Forwarded-For` / `X-Real-IP` headers are trusted for client-IP extraction (e.g. rate limiting). Leave unset when not running behind a proxy. |
 
-> **Security note:** Only list IP ranges you control. Any host in a trusted CIDR can spoof arbitrary client IPs by setting `X-Forwarded-For`. Overly broad ranges (e.g. `0.0.0.0/0`) defeat IP-based rate limiting entirely.
+> **Security note:** Only list IP ranges you control. Any host in a trusted CIDR can influence client-IP detection via `X-Forwarded-For`. Hosts **outside** `TRUSTED_PROXIES` cannot affect IP detection regardless of what headers they send — their `RemoteAddr` is always used. Overly broad ranges (e.g. `0.0.0.0/0`) defeat IP-based rate limiting entirely because every host would be treated as a trusted proxy.
 
 **Example — single local proxy:**
 
