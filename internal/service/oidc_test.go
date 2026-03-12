@@ -166,7 +166,7 @@ func TestOIDCService_FindOrCreateUser_UnverifiedEmailDoesNotAutoLink(t *testing.
 	if err == nil {
 		t.Fatal("expected error for unverified email auto-link")
 	}
-	if err != service.ErrOIDCEmailNotVerified {
+	if !errors.Is(err, service.ErrOIDCEmailNotVerified) {
 		t.Fatalf("expected ErrOIDCEmailNotVerified, got %v", err)
 	}
 
