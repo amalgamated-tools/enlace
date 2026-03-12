@@ -1,6 +1,6 @@
 # Enlace Documentation
 
-Enlace is a self-hosted link shortener and bookmark manager. This documentation covers setup, configuration, and all available features.
+Enlace is a self-hosted file-sharing application. This documentation covers setup, configuration, and all available features.
 
 | Document | Description |
 |---|---|
