@@ -67,7 +67,7 @@ Create and manage outbound webhook subscriptions. Enlace POSTs a signed JSON pay
 Configure file upload restrictions that apply to all uploads (authenticated and public reverse shares). Changes take effect immediately — no restart required.
 
 - **Max File Size (MB)** — sets the maximum allowed upload size. Leave empty to use the server default (100 MB).
-- **Blocked Extensions** — comma-separated list of file extensions to reject (e.g. `.exe, .bat, .sh`). Leading dots and case are normalised automatically.
+- **Blocked Extensions** — comma-separated list of file extensions to reject (e.g. `.exe, .bat, .sh`). Leading dots and case are normalised automatically. Uploaded filenames are whitespace-trimmed before the check, so a filename like `malware.exe ` (trailing space) is correctly blocked.
 - **Reset to Defaults** — removes all overrides and reverts to the server defaults (100 MB limit, no blocked extensions).
 
 > **Note:** The nginx `client_max_body_size` directive must be at least as large as the configured max file size. See [Reverse Proxy](#reverse-proxy) for an example.

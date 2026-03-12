@@ -425,6 +425,8 @@ Returns the current file restriction configuration after the update (same shape 
 
 > **Extension normalization:** extensions sent to `PUT` are lowercased, deduplicated, and given a leading dot if one is missing (e.g. `"EXE"` becomes `".exe"`). The same normalization is applied when reading from the database, so manually inserted values are always returned in a consistent form.
 
+> **Filename whitespace trimming:** leading and trailing whitespace is stripped from uploaded filenames before the extension check is performed. This prevents bypass attempts using filenames such as `"malware.exe "` (trailing space), which would otherwise evade the block and then be silently trimmed by the storage layer.
+
 ## Admin SMTP endpoints
 
 All admin SMTP endpoints require authentication with an account that has `is_admin: true`. Changes take effect after restart.
