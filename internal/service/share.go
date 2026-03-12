@@ -303,7 +303,7 @@ func (s *ShareService) TrackSessionDownload(ctx context.Context, shareID, sessio
 
 // generateUniqueSlug generates a random 8-character slug that doesn't exist in the database.
 func (s *ShareService) generateUniqueSlug(ctx context.Context) (string, error) {
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		slug, err := generateRandomSlug()
 		if err != nil {
 			return "", err

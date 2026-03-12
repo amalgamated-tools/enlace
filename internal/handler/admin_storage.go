@@ -319,9 +319,7 @@ func (h *StorageConfigHandler) TestStorageConnection(w http.ResponseWriter, r *h
 	}
 
 	effective := make(map[string]string)
-	for k, v := range existing {
-		effective[k] = v
-	}
+	maps.Copy(effective, existing)
 	if req.S3Endpoint != nil {
 		effective["s3_endpoint"] = strings.TrimSpace(*req.S3Endpoint)
 	}

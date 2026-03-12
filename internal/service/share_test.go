@@ -618,7 +618,7 @@ func TestShareService_ListByCreator(t *testing.T) {
 	ctx := context.Background()
 
 	// Create multiple shares
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		input := service.CreateShareInput{
 			CreatorID: userID,
 			Name:      "Test Share",
@@ -880,7 +880,7 @@ func TestShareService_GeneratedSlugIsUnique(t *testing.T) {
 
 	// Create multiple shares and verify slugs are unique
 	slugs := make(map[string]bool)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		input := service.CreateShareInput{
 			CreatorID: userID,
 			Name:      "Test Share",

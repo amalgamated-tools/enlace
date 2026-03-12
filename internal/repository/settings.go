@@ -50,7 +50,7 @@ func (r *SettingsRepository) GetMultiple(ctx context.Context, keys []string) (ma
 
 	// Build WHERE key IN (?, ?, ...) with placeholders
 	placeholders := make([]string, len(keys))
-	args := make([]interface{}, len(keys))
+	args := make([]any, len(keys))
 	for i, key := range keys {
 		placeholders[i] = "?"
 		args[i] = key

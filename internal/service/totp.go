@@ -299,7 +299,7 @@ func (s *TOTPService) generateRecoveryCodes(userID string) ([]*model.RecoveryCod
 	var codes []*model.RecoveryCode
 	var plainCodes []string
 
-	for i := 0; i < recoveryCodeCount; i++ {
+	for range recoveryCodeCount {
 		raw := make([]byte, recoveryCodeBytes)
 		if _, err := rand.Read(raw); err != nil {
 			return nil, nil, err
@@ -379,8 +379,8 @@ func (s *TOTPService) encryptSecret(plaintext string) (string, error) {
 // returned as errors. Untagged secrets are tried as old-format encrypted
 // values first; if that fails they are returned as legacy plaintext.
 func (s *TOTPService) decryptSecret(encoded string) (string, error) {
-	if strings.HasPrefix(encoded, encryptedSecretPrefix) {
-		return s.decryptAESGCM(strings.TrimPrefix(encoded, encryptedSecretPrefix))
+	if after, ok := strings.CutPrefix(encoded, encryptedSecretPrefix); ok {
+		return s.decryptAESGCM(after)
 	}
 
 	// Untagged: try old-format (bare base64) decrypt, fall back to plaintext

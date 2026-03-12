@@ -220,9 +220,9 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	if h.webhooks != nil && share.CreatorID != nil && *share.CreatorID != "" {
 		creatorID := *share.CreatorID
-		uploaded := make([]map[string]interface{}, 0, len(uploadedFiles))
+		uploaded := make([]map[string]any, 0, len(uploadedFiles))
 		for _, item := range uploadedFiles {
-			uploaded = append(uploaded, map[string]interface{}{
+			uploaded = append(uploaded, map[string]any{
 				"id":        item.ID,
 				"name":      item.Name,
 				"size":      item.Size,
@@ -238,7 +238,7 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 				CreatorID: creatorID,
 				ActorID:   userID,
 				Resource:  shareID,
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"share_id": shareID,
 					"count":    len(uploadedFiles),
 					"files":    uploaded,
@@ -457,10 +457,10 @@ func (h *FileHandler) FinalizeUpload(w http.ResponseWriter, r *http.Request) {
 				CreatorID: userID,
 				ActorID:   userID,
 				Resource:  file.ShareID,
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"share_id": file.ShareID,
 					"count":    1,
-					"files": []map[string]interface{}{
+					"files": []map[string]any{
 						{
 							"id":        file.ID,
 							"name":      file.Name,

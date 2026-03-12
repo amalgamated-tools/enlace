@@ -330,7 +330,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 func healthHandler(emailService *service.EmailService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		emailConfigured := emailService != nil && emailService.IsConfigured()
-		Success(w, http.StatusOK, map[string]interface{}{
+		Success(w, http.StatusOK, map[string]any{
 			"status":           "ok",
 			"email_configured": emailConfigured,
 		})

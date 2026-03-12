@@ -37,7 +37,7 @@ func TestRateLimiter_AllowsRequestsWithinLimit(t *testing.T) {
 	handler := rl.Limit(testHandler)
 
 	// First 5 requests should succeed (burst)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.RemoteAddr = "192.168.1.1:12345"
 		rec := httptest.NewRecorder()
@@ -69,7 +69,7 @@ func TestRateLimiter_BlocksExcessiveRequests(t *testing.T) {
 	ip := "192.168.1.1:12345"
 
 	// First 2 requests should succeed
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.RemoteAddr = ip
 		rec := httptest.NewRecorder()
@@ -308,7 +308,7 @@ func TestRateLimiter_ConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 	numRequests := 50
 
-	for i := 0; i < numRequests; i++ {
+	for i := range numRequests {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
@@ -368,7 +368,7 @@ func TestLoginRateLimiter(t *testing.T) {
 	ip := "192.168.1.1:12345"
 
 	// Should allow 5 requests (burst)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		req := httptest.NewRequest(http.MethodPost, "/login", nil)
 		req.RemoteAddr = ip
 		rec := httptest.NewRecorder()
@@ -402,7 +402,7 @@ func TestRegisterRateLimiter(t *testing.T) {
 	ip := "192.168.1.1:12345"
 
 	// Should allow 3 requests (burst)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		req := httptest.NewRequest(http.MethodPost, "/register", nil)
 		req.RemoteAddr = ip
 		rec := httptest.NewRecorder()
@@ -436,7 +436,7 @@ func TestAPIRateLimiter(t *testing.T) {
 	ip := "192.168.1.1:12345"
 
 	// Should allow 60 requests (burst)
-	for i := 0; i < 60; i++ {
+	for i := range 60 {
 		req := httptest.NewRequest(http.MethodGet, "/api/resource", nil)
 		req.RemoteAddr = ip
 		rec := httptest.NewRecorder()
@@ -546,7 +546,7 @@ func TestRateLimiter_ChainWithOtherMiddleware(t *testing.T) {
 	handler := loggingMiddleware(rl.Limit(finalHandler))
 
 	// Make requests
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.RemoteAddr = "192.168.1.1:12345"
 		rec := httptest.NewRecorder()
@@ -580,7 +580,7 @@ func TestRateLimiter_IgnoresSpoofedHeadersFromUntrustedProxy(t *testing.T) {
 	// Client spoofs X-Forwarded-For to appear as a different IP on each request.
 	// Without trusted-proxy validation the rate limiter would use the spoofed IP,
 	// allowing the client to bypass the limit. With the fix it must use RemoteAddr.
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.RemoteAddr = "203.0.113.50:9000" // same real client every time
 		// Rotate the spoofed IP to try to get a fresh bucket each request.
@@ -718,7 +718,7 @@ func TestRateLimiter_RealIPMiddlewareUnderminesProtection(t *testing.T) {
 	defer rlDangerous.Stop()
 	dangerousChain := chiMiddleware.RealIP(rlDangerous.Limit(handler))
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.RemoteAddr = "203.0.113.50:9000"
 		req.Header.Set("X-Forwarded-For", fmt.Sprintf("10.0.0.%d", i+1))
@@ -738,7 +738,7 @@ func TestRateLimiter_RealIPMiddlewareUnderminesProtection(t *testing.T) {
 	defer rlSafe.Stop()
 	safeChain := rlSafe.Limit(handler)
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.RemoteAddr = "203.0.113.50:9000"
 		req.Header.Set("X-Forwarded-For", fmt.Sprintf("10.0.0.%d", i+1))

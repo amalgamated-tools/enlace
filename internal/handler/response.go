@@ -7,16 +7,16 @@ import (
 
 // APIResponse represents a standardized API response envelope.
 type APIResponse struct {
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
+	Success bool   `json:"success"`
+	Data    any    `json:"data,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // PaginatedResponse represents a paginated API response.
 type PaginatedResponse struct {
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data"`
-	Meta    *PageMeta   `json:"meta,omitempty"`
+	Success bool      `json:"success"`
+	Data    any       `json:"data"`
+	Meta    *PageMeta `json:"meta,omitempty"`
 }
 
 // PageMeta contains pagination metadata.
@@ -28,7 +28,7 @@ type PageMeta struct {
 
 // JSON writes a JSON response with the given status code.
 // It follows the immutable pattern by not modifying any input data.
-func JSON(w http.ResponseWriter, status int, data interface{}) {
+func JSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
@@ -39,7 +39,7 @@ func JSON(w http.ResponseWriter, status int, data interface{}) {
 }
 
 // Success writes a successful JSON response.
-func Success(w http.ResponseWriter, status int, data interface{}) {
+func Success(w http.ResponseWriter, status int, data any) {
 	response := APIResponse{
 		Success: true,
 		Data:    data,
@@ -57,7 +57,7 @@ func Error(w http.ResponseWriter, status int, message string) {
 }
 
 // Paginated writes a paginated JSON response.
-func Paginated(w http.ResponseWriter, status int, data interface{}, meta *PageMeta) {
+func Paginated(w http.ResponseWriter, status int, data any, meta *PageMeta) {
 	response := PaginatedResponse{
 		Success: true,
 		Data:    data,
@@ -68,7 +68,7 @@ func Paginated(w http.ResponseWriter, status int, data interface{}, meta *PageMe
 
 // DecodeJSON decodes the request body into the given interface.
 // Returns an error if decoding fails.
-func DecodeJSON(r *http.Request, v interface{}) error {
+func DecodeJSON(r *http.Request, v any) error {
 	if r.Body == nil {
 		return ErrEmptyBody
 	}

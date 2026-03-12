@@ -87,7 +87,7 @@ func TestWebhookService_DeliverySignatureAndHeaders(t *testing.T) {
 		CreatorID: "user-1",
 		ActorID:   "user-1",
 		Resource:  "share-1",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"share_id": "share-1",
 			"count":    1,
 		},
@@ -200,7 +200,7 @@ func TestWebhookService_RetryKeepsIdempotencyKey(t *testing.T) {
 		Type:      "share.viewed",
 		CreatorID: "user-2",
 		Resource:  "share-2",
-		Data:      map[string]interface{}{"share_id": "share-2"},
+		Data:      map[string]any{"share_id": "share-2"},
 	})
 	if err != nil {
 		t.Fatalf("emit failed: %v", err)
@@ -429,7 +429,7 @@ func TestWebhookDelivery_SSRFBlocked(t *testing.T) {
 		Type:      "share.created",
 		CreatorID: "user-ssrf",
 		Resource:  "share-ssrf",
-		Data:      map[string]interface{}{"share_id": "share-ssrf"},
+		Data:      map[string]any{"share_id": "share-ssrf"},
 	})
 	if err != nil {
 		t.Fatalf("emit returned error: %v", err)

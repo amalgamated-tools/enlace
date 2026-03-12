@@ -117,8 +117,8 @@ func (rl *RateLimiter) extractIP(r *http.Request) string {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 			// X-Forwarded-For can contain multiple IPs; take the first one (client IP).
 			clientIP := xff
-			if i := strings.IndexByte(xff, ','); i >= 0 {
-				clientIP = xff[:i]
+			if before, _, ok := strings.Cut(xff, ","); ok {
+				clientIP = before
 			}
 			clientIP = strings.TrimSpace(clientIP)
 			if net.ParseIP(clientIP) != nil {

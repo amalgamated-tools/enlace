@@ -300,7 +300,7 @@ func (r *WebhookRepository) ListDeliveries(ctx context.Context, filter WebhookDe
 		filter.Limit = 100
 	}
 
-	args := make([]interface{}, 0, 5)
+	args := make([]any, 0, 5)
 	where := make([]string, 0, 4)
 	join := ""
 

@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -89,7 +90,7 @@ type WebhookEvent struct {
 	CreatorID string
 	ActorID   string
 	Resource  string
-	Data      interface{}
+	Data      any
 }
 
 // WebhookService manages subscriptions and deliveries.
@@ -365,7 +366,7 @@ func (s *WebhookService) Emit(ctx context.Context, event WebhookEvent) error {
 
 	now := s.now().UTC()
 	eventID := uuid.NewString()
-	envelope := map[string]interface{}{
+	envelope := map[string]any{
 		"id":          eventID,
 		"type":        eventType,
 		"occurred_at": now.Format(time.RFC3339Nano),
@@ -599,12 +600,7 @@ func normalizeWebhookEvents(events []string) ([]string, error) {
 }
 
 func isAllowedEvent(eventType string) bool {
-	for _, allowed := range AllowedWebhookEvents() {
-		if allowed == eventType {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(AllowedWebhookEvents(), eventType)
 }
 
 func generateWebhookSecret() (string, error) {

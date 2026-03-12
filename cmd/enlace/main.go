@@ -144,7 +144,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	// Parse CORS origins
 	var corsOrigins []string
 	if cfg.CORSOrigins != "" {
-		for _, o := range strings.Split(cfg.CORSOrigins, ",") {
+		for o := range strings.SplitSeq(cfg.CORSOrigins, ",") {
 			if trimmed := strings.TrimSpace(o); trimmed != "" {
 				corsOrigins = append(corsOrigins, trimmed)
 			}

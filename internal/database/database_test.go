@@ -353,7 +353,7 @@ func TestMigration_MaxViewsCoalesced(t *testing.T) {
 		var cid int
 		var name, ctype string
 		var notnull int
-		var dfltValue interface{}
+		var dfltValue any
 		var pk int
 		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
 			t.Fatalf("failed to scan column: %v", err)
@@ -372,10 +372,10 @@ func TestMigration_MaxViewsCoalesced(t *testing.T) {
 		downloadCount int
 	}
 	expected := map[string]row{
-		"s1": {nil, 0},        // both NULL → NULL, MAX(0,0)=0
-		"s2": {intPtr(5), 3},  // COALESCE(5,NULL)=5, MAX(1,3)=3
-		"s3": {intPtr(10), 4}, // COALESCE(NULL,10)=10, MAX(4,2)=4
-		"s4": {intPtr(5), 7},  // COALESCE(5,10)=5, MAX(1,7)=7
+		"s1": {nil, 0},     // both NULL → NULL, MAX(0,0)=0
+		"s2": {new(5), 3},  // COALESCE(5,NULL)=5, MAX(1,3)=3
+		"s3": {new(10), 4}, // COALESCE(NULL,10)=10, MAX(4,2)=4
+		"s4": {new(5), 7},  // COALESCE(5,10)=5, MAX(1,7)=7
 	}
 
 	for id, want := range expected {
@@ -398,7 +398,8 @@ func TestMigration_MaxViewsCoalesced(t *testing.T) {
 	}
 }
 
-func intPtr(v int) *int { return &v }
+//go:fix inline
+func intPtr(v int) *int { return new(v) }
 
 func TestMigration_OIDCColumns(t *testing.T) {
 	db, err := database.New(":memory:")

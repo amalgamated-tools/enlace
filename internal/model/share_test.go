@@ -18,22 +18,22 @@ func TestShare_IsExpired(t *testing.T) {
 		},
 		{
 			name:      "future expiry - not expired",
-			expiresAt: timePtr(time.Now().Add(1 * time.Hour)),
+			expiresAt: new(time.Now().Add(1 * time.Hour)),
 			want:      false,
 		},
 		{
 			name:      "past expiry - expired",
-			expiresAt: timePtr(time.Now().Add(-1 * time.Hour)),
+			expiresAt: new(time.Now().Add(-1 * time.Hour)),
 			want:      true,
 		},
 		{
 			name:      "far future expiry - not expired",
-			expiresAt: timePtr(time.Now().Add(365 * 24 * time.Hour)),
+			expiresAt: new(time.Now().Add(365 * 24 * time.Hour)),
 			want:      false,
 		},
 		{
 			name:      "just expired",
-			expiresAt: timePtr(time.Now().Add(-1 * time.Second)),
+			expiresAt: new(time.Now().Add(-1 * time.Second)),
 			want:      true,
 		},
 	}
@@ -63,31 +63,31 @@ func TestShare_IsDownloadLimitReached(t *testing.T) {
 		},
 		{
 			name:          "under limit",
-			maxDownloads:  intPtr(10),
+			maxDownloads:  new(10),
 			downloadCount: 5,
 			want:          false,
 		},
 		{
 			name:          "at limit",
-			maxDownloads:  intPtr(10),
+			maxDownloads:  new(10),
 			downloadCount: 10,
 			want:          true,
 		},
 		{
 			name:          "over limit",
-			maxDownloads:  intPtr(10),
+			maxDownloads:  new(10),
 			downloadCount: 15,
 			want:          true,
 		},
 		{
 			name:          "zero limit zero downloads",
-			maxDownloads:  intPtr(0),
+			maxDownloads:  new(0),
 			downloadCount: 0,
 			want:          true,
 		},
 		{
 			name:          "zero downloads under limit",
-			maxDownloads:  intPtr(5),
+			maxDownloads:  new(5),
 			downloadCount: 0,
 			want:          false,
 		},
@@ -119,12 +119,12 @@ func TestShare_HasPassword(t *testing.T) {
 		},
 		{
 			name:         "has password hash",
-			passwordHash: strPtr("$2a$12$somehash"),
+			passwordHash: new("$2a$12$somehash"),
 			want:         true,
 		},
 		{
 			name:         "empty string password hash",
-			passwordHash: strPtr(""),
+			passwordHash: new(""),
 			want:         true,
 		},
 	}
@@ -140,6 +140,12 @@ func TestShare_HasPassword(t *testing.T) {
 }
 
 // Helper functions for creating pointers to primitives
-func timePtr(t time.Time) *time.Time { return &t }
-func intPtr(i int) *int              { return &i }
-func strPtr(s string) *string        { return &s }
+//
+//go:fix inline
+func timePtr(t time.Time) *time.Time { return new(t) }
+
+//go:fix inline
+func intPtr(i int) *int { return new(i) }
+
+//go:fix inline
+func strPtr(s string) *string { return new(s) }
