@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -104,7 +105,7 @@ func (s *LocalStorage) resolveKey(key string) (string, error) {
 		}
 	}
 
-	return currentPath, nil
+	return cleanOSKey, nil
 }
 
 func isWithinBasePath(basePath, candidate string) bool {
@@ -114,6 +115,23 @@ func isWithinBasePath(basePath, candidate string) bool {
 	}
 
 	return !strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) && relPath != ".."
+}
+
+func (s *LocalStorage) openRoot() (*os.Root, error) {
+	return os.OpenRoot(s.basePath)
+}
+
+func mapRootPathError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	var pathErr *fs.PathError
+	if errors.As(err, &pathErr) && pathErr.Err != nil && pathErr.Err.Error() == "path escapes from parent" {
+		return ErrInvalidKey
+	}
+
+	return err
 }
 
 // Put stores data from reader at {basePath}/{key}.
@@ -128,22 +146,31 @@ func (s *LocalStorage) Put(ctx context.Context, key string, reader io.Reader, si
 	if err != nil {
 		return err
 	}
-	dir := filepath.Dir(fullPath)
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	file, err := os.Create(fullPath)
+	root, err := s.openRoot()
 	if err != nil {
 		return err
+	}
+	defer root.Close()
+
+	dir := filepath.Dir(fullPath)
+
+	if dir != "." {
+		if err := mapRootPathError(root.MkdirAll(dir, 0755)); err != nil {
+			return err
+		}
+	}
+
+	file, err := root.Create(fullPath)
+	if err != nil {
+		return mapRootPathError(err)
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, reader)
 	if err != nil {
 		// Clean up the partial file on error
-		os.Remove(fullPath)
+		_ = root.Remove(fullPath)
 		return err
 	}
 
@@ -163,15 +190,21 @@ func (s *LocalStorage) Get(ctx context.Context, key string) (io.ReadCloser, erro
 		return nil, err
 	}
 
-	file, err := os.Open(fullPath)
+	root, err := s.openRoot()
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, ErrNotFound
-		}
 		return nil, err
 	}
 
-	return file, nil
+	file, err := root.Open(fullPath)
+	if err != nil {
+		root.Close()
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, ErrNotFound
+		}
+		return nil, mapRootPathError(err)
+	}
+
+	return &rootedReadCloser{Root: root, File: file}, nil
 }
 
 // Delete removes the file at {basePath}/{key}.
@@ -186,12 +219,18 @@ func (s *LocalStorage) Delete(ctx context.Context, key string) error {
 		return err
 	}
 
-	err = os.Remove(fullPath)
+	root, err := s.openRoot()
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+
+	err = root.Remove(fullPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return ErrNotFound
 		}
-		return err
+		return mapRootPathError(err)
 	}
 
 	return nil
@@ -208,13 +247,33 @@ func (s *LocalStorage) Exists(ctx context.Context, key string) (bool, error) {
 		return false, err
 	}
 
-	_, err = os.Stat(fullPath)
+	root, err := s.openRoot()
+	if err != nil {
+		return false, err
+	}
+	defer root.Close()
+
+	_, err = root.Stat(fullPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
 		}
-		return false, err
+		return false, mapRootPathError(err)
 	}
 
 	return true, nil
+}
+
+type rootedReadCloser struct {
+	*os.Root
+	*os.File
+}
+
+func (r *rootedReadCloser) Close() error {
+	fileErr := r.File.Close()
+	rootErr := r.Root.Close()
+	if fileErr != nil {
+		return fileErr
+	}
+	return rootErr
 }
