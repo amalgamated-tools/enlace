@@ -148,10 +148,12 @@ func TestRateLimiter_ExtractsIPFromXForwardedFor(t *testing.T) {
 
 	handler := rl.Limit(testHandler)
 
-	// Request with X-Forwarded-For header from a trusted proxy
+	// Requests arrive from a trusted proxy with a spoofed leftmost entry prepended
+	// by the client. The limiter must use the rightmost untrusted IP in the chain
+	// (203.0.113.195), not the spoofed first value.
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.RemoteAddr = "127.0.0.1:12345" // trusted proxy
-	req.Header.Set("X-Forwarded-For", "203.0.113.195, 70.41.3.18, 150.172.238.178")
+	req.Header.Set("X-Forwarded-For", "198.51.100.10, 203.0.113.195")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -159,15 +161,62 @@ func TestRateLimiter_ExtractsIPFromXForwardedFor(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 
-	// Second request with same X-Forwarded-For should be blocked
+	// The spoofed first value changes, but the real client IP at the end stays the
+	// same, so this request must still be blocked.
 	req2 := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req2.RemoteAddr = "127.0.0.1:12345"
-	req2.Header.Set("X-Forwarded-For", "203.0.113.195, 70.41.3.18, 150.172.238.178")
+	req2.Header.Set("X-Forwarded-For", "198.51.100.11, 203.0.113.195")
 	rec2 := httptest.NewRecorder()
 	handler.ServeHTTP(rec2, req2)
 
 	if rec2.Code != http.StatusTooManyRequests {
 		t.Errorf("expected status %d, got %d", http.StatusTooManyRequests, rec2.Code)
+	}
+}
+
+func TestRateLimiter_SkipsTrustedProxiesInXForwardedForChain(t *testing.T) {
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1, "127.0.0.1/32", "10.0.0.0/8")
+	defer rl.Stop()
+
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := rl.Limit(testHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "127.0.0.1:12345"
+	req.Header.Set("X-Forwarded-For", "203.0.113.195, 10.1.2.3")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("first request: expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	// The same client IP through the same trusted proxy chain must be blocked on
+	// a second request.
+	reqRepeat := httptest.NewRequest(http.MethodGet, "/test", nil)
+	reqRepeat.RemoteAddr = "127.0.0.1:12345"
+	reqRepeat.Header.Set("X-Forwarded-For", "203.0.113.195, 10.1.2.3")
+	recRepeat := httptest.NewRecorder()
+	handler.ServeHTTP(recRepeat, reqRepeat)
+
+	if recRepeat.Code != http.StatusTooManyRequests {
+		t.Errorf("repeat request: expected status %d, got %d", http.StatusTooManyRequests, recRepeat.Code)
+	}
+
+	// A different client behind the same trusted upstream proxy should receive a
+	// different bucket. If the limiter incorrectly used the last entry, this would
+	// be blocked as 10.1.2.3.
+	req2 := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req2.RemoteAddr = "127.0.0.1:12345"
+	req2.Header.Set("X-Forwarded-For", "198.51.100.44, 10.1.2.3")
+	rec2 := httptest.NewRecorder()
+	handler.ServeHTTP(rec2, req2)
+
+	if rec2.Code != http.StatusOK {
+		t.Errorf("second request: expected status %d, got %d", http.StatusOK, rec2.Code)
 	}
 }
 
@@ -202,6 +251,44 @@ func TestRateLimiter_ExtractsIPFromXRealIP(t *testing.T) {
 
 	if rec2.Code != http.StatusTooManyRequests {
 		t.Errorf("expected status %d, got %d", http.StatusTooManyRequests, rec2.Code)
+	}
+}
+
+func TestRateLimiter_UsesXRealIPWhenXForwardedForContainsOnlyTrustedProxies(t *testing.T) {
+	rl := middleware.NewRateLimiter(rate.Every(time.Second), 1, "127.0.0.1/32", "10.0.0.0/8")
+	defer rl.Stop()
+
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := rl.Limit(testHandler)
+
+	makeRequest := func(xri string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		req.Header.Set("X-Forwarded-For", "10.1.2.3")
+		req.Header.Set("X-Real-IP", xri)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := makeRequest("10.1.2.3"); rec.Code != http.StatusOK {
+		t.Errorf("first request: expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	// A second request with the same X-Real-IP must be blocked, which proves the
+	// limiter still honours X-Real-IP when X-Forwarded-For contains only trusted
+	// proxy hops.
+	if rec := makeRequest("10.1.2.3"); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("second request: expected status %d, got %d", http.StatusTooManyRequests, rec.Code)
+	}
+
+	// A different X-Real-IP should receive a different bucket even when it falls
+	// inside the trusted proxy CIDR range.
+	if rec := makeRequest("10.1.2.4"); rec.Code != http.StatusOK {
+		t.Errorf("third request: expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 }
 
