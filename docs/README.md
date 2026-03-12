@@ -1,5 +1,7 @@
 # Enlace Documentation
 
+> This documentation is also published at **<https://amalgamated-tools.github.io/enlace/docs/>** via GitHub Pages and is updated automatically on every push to `main`.
+
 | Document | Description |
 |---|---|
 | [Configuration](configuration.md) | Environment variables, CLI flags, reverse proxy setup |

@@ -66,6 +66,20 @@ The `.github/workflows/screenshots.yml` workflow runs automatically on every pus
 
 Only one screenshot workflow runs at a time — the `concurrency: screenshots` group cancels any in-progress run when a new push arrives.
 
+## Documentation site (GitHub Pages)
+
+The `.github/workflows/static.yml` workflow deploys the repository contents to **GitHub Pages** on every push to `main`. The published site is available at:
+
+```
+https://amalgamated-tools.github.io/enlace/
+```
+
+The workflow uploads the entire repository tree as the Pages artifact; GitHub Pages serves the `docs/` Markdown files alongside the project source. No build step is required — Markdown is rendered directly by GitHub Pages.
+
+Only one Pages deployment runs at a time — the `concurrency: pages` group skips any queued runs but never cancels an in-progress deployment.
+
+> **Note:** You cannot trigger this workflow manually from the command line. Use the **Actions → Deploy static content to Pages → Run workflow** button in the GitHub UI, or push a commit to `main`.
+
 ## S3-compatible storage (local dev)
 
 The dev compose file ships [RustFS](https://rustfs.com/), an S3-compatible server:
