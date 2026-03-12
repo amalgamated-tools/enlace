@@ -498,6 +498,8 @@ Returns HTTP 201 on success. Returns HTTP 409 if the specified `slug` is already
 | `is_reverse_share` | bool | Enable or disable reverse-share uploads |
 
 > **Note:** `slug` cannot be changed after creation. To notify new recipients, use `POST /api/v1/shares/{id}/notify`.
+>
+> **`download_count` is read-only.** It is always preserved on update and can only be incremented by the server when a visitor downloads a file. Sending this field in a `PATCH` request has no effect.
 
 **`DELETE /api/v1/shares/{id}`** — permanently delete a share and all its files. Returns HTTP 200 on success.
 
