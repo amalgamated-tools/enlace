@@ -7,12 +7,14 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/amalgamated-tools/enlace/internal/middleware"
+	"github.com/amalgamated-tools/enlace/internal/service"
 )
 
 const (
@@ -255,12 +257,12 @@ func (h *OIDCHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.oidcService.FindOrCreateUser(r.Context(), userInfo)
 	if err != nil {
-	    msg := "failed to sign in: " + err.Error()
-	    if errors.Is(err, service.ErrOIDCEmailNotVerified) {
-	        msg = "sign-in rejected: your identity provider has not verified your email address"
-	    }
-	    h.redirectWithError(w, r, msg)
-	    return
+		msg := "failed to sign in: " + err.Error()
+		if errors.Is(err, service.ErrOIDCEmailNotVerified) {
+			msg = "sign-in rejected: your identity provider has not verified your email address"
+		}
+		h.redirectWithError(w, r, msg)
+		return
 	}
 
 	tokens, err := h.authService.GenerateTokensForUser(user.ID, user.IsAdmin)
