@@ -75,11 +75,10 @@ func (r *ShareRepository) GetBySlug(ctx context.Context, slug string) (*model.Sh
 func (r *ShareRepository) Update(ctx context.Context, share *model.Share) error {
 	share.UpdatedAt = time.Now()
 	result, err := r.db.ExecContext(ctx,
-		`UPDATE shares SET creator_id = ?, slug = ?, name = ?, description = ?, password_hash = ?, expires_at = ?, max_downloads = ?, download_count = ?, is_reverse_share = ?, updated_at = ?
+		`UPDATE shares SET creator_id = ?, slug = ?, name = ?, description = ?, password_hash = ?, expires_at = ?, max_downloads = ?, is_reverse_share = ?, updated_at = ?
 		 WHERE id = ?`,
 		share.CreatorID, share.Slug, share.Name, share.Description, share.PasswordHash,
-		share.ExpiresAt, share.MaxDownloads, share.DownloadCount,
-		share.IsReverseShare, share.UpdatedAt, share.ID,
+		share.ExpiresAt, share.MaxDownloads, share.IsReverseShare, share.UpdatedAt, share.ID,
 	)
 	if err != nil {
 		return err

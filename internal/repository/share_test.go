@@ -226,6 +226,48 @@ func TestShareRepository_Update_NotFound(t *testing.T) {
 	}
 }
 
+func TestShareRepository_Update_PreservesDownloadCount(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := repository.NewShareRepository(db.DB())
+	ctx := context.Background()
+
+	share := &model.Share{
+		ID:   "share-123",
+		Slug: "my-share",
+		Name: "Test Share",
+	}
+	if err := repo.Create(ctx, share); err != nil {
+		t.Fatalf("failed to create share: %v", err)
+	}
+
+	staleShare, err := repo.GetByID(ctx, share.ID)
+	if err != nil {
+		t.Fatalf("failed to load share: %v", err)
+	}
+
+	if err := repo.IncrementDownloadCount(ctx, share.ID); err != nil {
+		t.Fatalf("failed to increment download count: %v", err)
+	}
+
+	staleShare.Name = "Updated Share"
+	if err := repo.Update(ctx, staleShare); err != nil {
+		t.Fatalf("failed to update share: %v", err)
+	}
+
+	found, err := repo.GetByID(ctx, share.ID)
+	if err != nil {
+		t.Fatalf("failed to reload share: %v", err)
+	}
+	if found.Name != "Updated Share" {
+		t.Errorf("expected name %s, got %s", "Updated Share", found.Name)
+	}
+	if found.DownloadCount != 1 {
+		t.Errorf("expected download_count 1, got %d", found.DownloadCount)
+	}
+}
+
 func TestShareRepository_Delete(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
