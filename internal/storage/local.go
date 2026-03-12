@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -121,13 +120,12 @@ func (s *LocalStorage) openRoot() (*os.Root, error) {
 	return os.OpenRoot(s.basePath)
 }
 
-func mapRootPathError(err error) error {
+func (s *LocalStorage) mapRootPathError(key string, err error) error {
 	if err == nil {
 		return nil
 	}
 
-	var pathErr *fs.PathError
-	if errors.As(err, &pathErr) && pathErr.Err != nil && pathErr.Err.Error() == "path escapes from parent" {
+	if _, resolveErr := s.resolveKey(key); errors.Is(resolveErr, ErrInvalidKey) {
 		return ErrInvalidKey
 	}
 
@@ -156,22 +154,21 @@ func (s *LocalStorage) Put(ctx context.Context, key string, reader io.Reader, si
 	dir := filepath.Dir(fullPath)
 
 	if dir != "." {
-		if err := mapRootPathError(root.MkdirAll(dir, 0755)); err != nil {
+		if err := s.mapRootPathError(key, root.MkdirAll(dir, 0755)); err != nil {
 			return err
 		}
 	}
 
 	file, err := root.Create(fullPath)
 	if err != nil {
-		return mapRootPathError(err)
+		return s.mapRootPathError(key, err)
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, reader)
 	if err != nil {
 		// Clean up the partial file on error
-		_ = root.Remove(fullPath)
-		return err
+		return errors.Join(err, root.Remove(fullPath))
 	}
 
 	return nil
@@ -197,11 +194,11 @@ func (s *LocalStorage) Get(ctx context.Context, key string) (io.ReadCloser, erro
 
 	file, err := root.Open(fullPath)
 	if err != nil {
-		root.Close()
+		closeErr := root.Close()
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, ErrNotFound
 		}
-		return nil, mapRootPathError(err)
+		return nil, errors.Join(s.mapRootPathError(key, err), closeErr)
 	}
 
 	return &rootedReadCloser{Root: root, File: file}, nil
@@ -230,7 +227,7 @@ func (s *LocalStorage) Delete(ctx context.Context, key string) error {
 		if errors.Is(err, os.ErrNotExist) {
 			return ErrNotFound
 		}
-		return mapRootPathError(err)
+		return s.mapRootPathError(key, err)
 	}
 
 	return nil
@@ -258,12 +255,14 @@ func (s *LocalStorage) Exists(ctx context.Context, key string) (bool, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
 		}
-		return false, mapRootPathError(err)
+		return false, s.mapRootPathError(key, err)
 	}
 
 	return true, nil
 }
 
+// rootedReadCloser keeps the root handle alive until the opened file is closed,
+// then closes both resources together.
 type rootedReadCloser struct {
 	*os.Root
 	*os.File
@@ -272,8 +271,5 @@ type rootedReadCloser struct {
 func (r *rootedReadCloser) Close() error {
 	fileErr := r.File.Close()
 	rootErr := r.Root.Close()
-	if fileErr != nil {
-		return fileErr
-	}
-	return rootErr
+	return errors.Join(fileErr, rootErr)
 }
