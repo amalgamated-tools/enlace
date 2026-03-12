@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { push, querystring } from "svelte-spa-router";
+  import { push } from "svelte-spa-router";
   import { Button, Input } from "../lib/components";
   import { auth, toast } from "../lib/stores";
   import { totpApi } from "../lib/api";
@@ -17,9 +17,7 @@
   let pendingToken = "";
 
   onMount(async () => {
-    const params = new URLSearchParams($querystring);
-    pendingToken =
-      sessionStorage.getItem("pending2FAToken") || params.get("token") || "";
+    pendingToken = sessionStorage.getItem("pending2FAToken") || "";
 
     if (!pendingToken) {
       loading = false;
