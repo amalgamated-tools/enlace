@@ -24,6 +24,7 @@ import (
 	"github.com/amalgamated-tools/enlace/internal/repository"
 	"github.com/amalgamated-tools/enlace/internal/service"
 	"github.com/amalgamated-tools/enlace/internal/storage"
+	"github.com/amalgamated-tools/enlace/internal/telemetry"
 )
 
 var version = "dev"
@@ -66,7 +67,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 
 	err := flagSet.Parse(os.Args[1:])
 	if err != nil {
-		otel.ReportException(cancelCtx, err, "Failed to parse flags")
+		telemetry.ReportException(cancelCtx, err, "Failed to parse flags")
 		return err
 	}
 
@@ -81,7 +82,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	// Initialize database
 	db, err := database.New(cfg.DatabasePath)
 	if err != nil {
-		otel.ReportExceptionWithMetadata(cancelCtx, err, "Failed to initialize database", cfg.MapValues())
+		telemetry.ReportExceptionWithMetadata(cancelCtx, err, "Failed to initialize database", cfg.MapValues())
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 	defer func() { _ = db.Close() }()
@@ -93,7 +94,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	fileRepo := repository.NewFileRepository(db.DB())
 	pendingUploadRepo := repository.NewPendingUploadRepository(db.DB())
 	if _, err := pendingUploadRepo.ExpireStale(cancelCtx, time.Now()); err != nil {
-		otel.ReportExceptionWithMetadata(cancelCtx, err, "Failed to expire stale direct uploads", cfg.MapValues())
+		telemetry.ReportExceptionWithMetadata(cancelCtx, err, "Failed to expire stale direct uploads", cfg.MapValues())
 	}
 
 	totpRepo := repository.NewTOTPRepository(db.DB())
@@ -106,7 +107,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	// Initialize storage
 	store, err := initStorage(cancelCtx, cfg, settingsRepo)
 	if err != nil {
-		otel.ReportExceptionWithMetadata(cancelCtx, err, "Failed to initialize storage", cfg.MapValues())
+		telemetry.ReportExceptionWithMetadata(cancelCtx, err, "Failed to initialize storage", cfg.MapValues())
 		return err
 	}
 	slog.DebugContext(cancelCtx, "storage initialized")
@@ -134,7 +135,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 		var err error
 		oidcService, err = service.NewOIDCService(cfg, userRepo, totpService)
 		if err != nil {
-			otel.ReportExceptionWithMetadata(cancelCtx, err, "Failed to initialize OIDC", cfg.MapValues())
+			telemetry.ReportExceptionWithMetadata(cancelCtx, err, "Failed to initialize OIDC", cfg.MapValues())
 		} else {
 			slog.InfoContext(cancelCtx, "OIDC authentication enabled")
 		}
@@ -144,7 +145,7 @@ func realMain(cancelCtx context.Context) error { //nolint:contextcheck // The ne
 	// Get embedded frontend
 	frontendFS, err := enlace.FrontendFS()
 	if err != nil {
-		otel.ReportExceptionWithMetadata(cancelCtx, err, "Failed to load embedded frontend", cfg.MapValues())
+		telemetry.ReportExceptionWithMetadata(cancelCtx, err, "Failed to load embedded frontend", cfg.MapValues())
 	}
 
 	// Parse CORS origins
