@@ -19,7 +19,7 @@ Enlace supports OpenID Connect (OIDC) for Single Sign-On (SSO). This allows user
 2. Clicking it redirects the user to the OIDC provider for authentication.
 3. After successful authentication, the provider redirects back to Enlace's callback URL.
 4. Enlace extracts the user's email, name, and subject from the ID token.
-5. If a local user with the same email exists, the OIDC identity is automatically linked.
+5. If a local user with the same email exists **and the provider has verified that email address**, the OIDC identity is automatically linked. If the provider reports the email as unverified, sign-in is rejected to prevent account takeover.
 6. If no matching user exists, a new account is created.
 
 Existing users can also link/unlink their OIDC identity from the **Settings → Security** tab.
@@ -171,6 +171,12 @@ If you have 2FA enabled and want to switch to SSO, simply link your OIDC identit
 - The provider must include an `email` claim in the ID token.
 - Ensure the `openid` and `email` scopes are included in `OIDC_SCOPES`.
 - In Pocket ID, make sure the user has an email address configured.
+
+### "sign-in rejected: your identity provider has not verified your email address"
+
+- Enlace only auto-links an OIDC identity to an existing local account when the provider's ID token includes `email_verified: true`.
+- Check your OIDC provider's settings to ensure it marks user emails as verified (e.g., by requiring email confirmation during registration).
+- If the provider never sets `email_verified`, contact the provider's administrators — Enlace cannot override this check because doing so would allow an attacker with control of an unverified email address to hijack an existing account.
 
 ### State mismatch errors
 - This usually indicates a cookie issue. Ensure cookies are not being stripped by a reverse proxy.
