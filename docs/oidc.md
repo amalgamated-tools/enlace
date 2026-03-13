@@ -19,7 +19,7 @@ Enlace supports OpenID Connect (OIDC) for Single Sign-On (SSO). This allows user
 2. Clicking it redirects the user to the OIDC provider for authentication.
 3. After successful authentication, the provider redirects back to Enlace's callback URL.
 4. Enlace extracts the user's email, name, and subject from the ID token.
-5. If a local user with the same email exists **and the provider has verified that email address**, the OIDC identity is automatically linked. If the provider reports the email as unverified, sign-in is rejected to prevent account takeover.
+5. If a local user with the same email exists **and the provider reports `email_verified: true`**, the OIDC identity is automatically linked to that account. If the provider has **not** verified the email, sign-in is rejected with `"sign-in rejected: your identity provider has not verified your email address"` — this prevents an unverified email from silently hijacking an existing account.
 6. If no matching user exists, a new account is created.
 
 Existing users can also link/unlink their OIDC identity from the **Settings → Security** tab.
@@ -173,10 +173,12 @@ If you have 2FA enabled and want to switch to SSO, simply link your OIDC identit
 - In Pocket ID, make sure the user has an email address configured.
 
 ### "sign-in rejected: your identity provider has not verified your email address"
-
-- Enlace only auto-links an OIDC identity to an existing local account when the provider's ID token includes `email_verified: true`.
-- Check your OIDC provider's settings to ensure it marks user emails as verified (e.g., by requiring email confirmation during registration).
-- If the provider never sets `email_verified`, contact the provider's administrators — Enlace cannot override this check because doing so would allow an attacker with control of an unverified email address to hijack an existing account.
+- Enlace only auto-links an OIDC identity to an existing local account when the provider includes `"email_verified": true` in the ID token. This prevents an unverified email address from silently taking over a pre-existing account.
+- Check whether your provider sets `email_verified`. Some providers (e.g. certain Keycloak realm settings) do not mark emails as verified by default.
+- Options to resolve this:
+  - Enable email verification in the provider (preferred).
+  - Configure the provider to include `"email_verified": true` in the ID token (some providers let you set this unconditionally for trusted internal users).
+  - If no matching local account exists, Enlace will create a new account regardless of `email_verified` — the restriction applies only to **auto-linking** to an account that already exists.
 
 ### State mismatch errors
 - This usually indicates a cookie issue. Ensure cookies are not being stripped by a reverse proxy.
