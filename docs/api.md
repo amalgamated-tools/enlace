@@ -153,7 +153,7 @@ Pass the `pending_token` to `POST /api/v1/auth/2fa/verify` (TOTP code) or `POST 
 
 Use the pending token with `POST /api/v1/me/2fa/setup` and `POST /api/v1/me/2fa/confirm` to complete enrollment. Once setup is confirmed, the server returns recovery codes plus a real access/refresh token pair for the now-verified session.
 
-**`POST /api/v1/auth/refresh`** — returns a new `access_token` and `refresh_token`. The `refresh_token` field must be a refresh token (i.e. the `token_type` claim is `"refresh"`); supplying an access token returns HTTP 401. If the user has 2FA enabled (or `REQUIRE_2FA=true`), the refresh token must belong to a session that already satisfied the 2FA requirement.
+**`POST /api/v1/auth/refresh`** — returns a new `access_token` and `refresh_token`. The `refresh_token` field must be a refresh token (i.e. the `token_type` claim is `"refresh"`); supplying an access token returns HTTP 401. If the user has 2FA enabled, the refresh token must belong to a session that already completed 2FA verification — otherwise HTTP 401 is returned. If `REQUIRE_2FA=true` and the user has not yet enrolled in 2FA, HTTP 403 (`"2FA setup required"`) is returned.
 
 ```json
 { "refresh_token": "<token>" }
@@ -243,8 +243,11 @@ Returns HTTP 200 on success. Returns HTTP 400 if the account has no local passwo
 
 > **Note:** OIDC (SSO) and 2FA are mutually exclusive. Accounts with a linked OIDC identity cannot set up or use 2FA — the setup, confirm, disable, and recovery-code endpoints return HTTP 403 for those accounts. OIDC logins also bypass the 2FA verification step. See [OIDC / SSO guide](oidc.md#oidc-and-two-factor-authentication-2fa) for details.
 
-All `/me/2fa/*` endpoints require a valid `Authorization: Bearer <access_token>` header.
+The `/me/2fa/status`, `/me/2fa/setup`, and `/me/2fa/confirm` endpoints accept either a fully verified `Authorization: Bearer <access_token>` **or** a short-lived pending token (the `pending_token` returned by `POST /auth/login`). Use a pending token to complete enrollment when `REQUIRE_2FA=true` enforces 2FA on first login. The `/me/2fa/disable` and `/me/2fa/recovery-codes` endpoints require a fully verified access token only.
+
 The `/auth/2fa/*` endpoints are **unauthenticated** — the `pending_token` (returned by `POST /auth/login` when 2FA is enabled) is passed in the **request body**, not in an `Authorization` header.
+
+> **Runtime enforcement on protected routes.** All protected routes (those requiring `Authorization: Bearer`) enforce the 2FA requirement at the middleware level on every request. If a user's access token does not carry a verified 2FA claim (`tfa_verified`) but the user has 2FA enabled, the request is rejected with HTTP 401 (`"2FA verification required"`). If `REQUIRE_2FA=true` and the user has not enrolled in 2FA, the request is rejected with HTTP 403 (`"2FA setup required"`). OIDC-linked accounts are exempt — their identity provider is trusted to handle second-factor requirements.
 
 **`GET /api/v1/me/2fa/status`** — returns the current user's 2FA status.
 
@@ -275,6 +278,16 @@ Response `data`:
 
 ```json
 { "recovery_codes": ["abcd-efgh-ijkl-mnop-qrst", "..."] }
+```
+
+When this endpoint is called using a **pending token** (the enforced-enrollment setup flow triggered by `REQUIRE_2FA=true`), the response also includes a verified `access_token` and `refresh_token` so the client can proceed directly without a separate login step:
+
+```json
+{
+  "recovery_codes": ["abcd-efgh-ijkl-mnop-qrst", "..."],
+  "access_token": "<jwt>",
+  "refresh_token": "<token>"
+}
 ```
 
 Recovery codes are 80-bit random values in `xxxx-xxxx-xxxx-xxxx-xxxx` format. Store them securely — they are not shown again.

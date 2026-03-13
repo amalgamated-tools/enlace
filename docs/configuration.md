@@ -16,13 +16,23 @@ All settings are read from environment variables (or a `.env` file when running 
 | Variable | Default | Description |
 |---|---|---|
 | `STORAGE_TYPE` | `local` | `local` or `s3` |
-| `STORAGE_LOCAL_PATH` | `./uploads` | Directory for local file storage |
+| `STORAGE_LOCAL_PATH` | `./uploads` | Directory for local file storage. All file operations are strictly confined to this directory — see [Local storage security](#local-storage-security) below. |
 | `S3_ENDPOINT` | — | S3-compatible endpoint URL |
 | `S3_BUCKET` | — | Bucket name |
 | `S3_ACCESS_KEY` | — | Access key ID |
 | `S3_SECRET_KEY` | — | Secret access key |
 | `S3_REGION` | — | AWS/compatible region |
 | `S3_PATH_PREFIX` | — | Optional key prefix inside the bucket |
+
+### Local storage security
+
+When `STORAGE_TYPE=local`, Enlace applies multiple layers of protection to ensure uploaded files cannot escape `STORAGE_LOCAL_PATH`:
+
+- **Symlink traversal prevention** — every component of a storage key path is resolved with `os.Lstat`. If a component is a symbolic link, its target is resolved with `filepath.EvalSymlinks` and verified to remain within `STORAGE_LOCAL_PATH`. Symlinks that point outside the storage root are rejected with an `ErrInvalidKey` error.
+- **Missing-path safety** — components that do not yet exist (e.g., subdirectories created during an upload) are validated against `STORAGE_LOCAL_PATH` before any file is written, preventing speculative traversal via not-yet-created paths.
+- **OS-level root confinement** — all file I/O (create, read, delete, stat) is performed through `os.Root` (Go's rooted filesystem handle). This provides an OS-enforced confinement boundary that prevents TOCTOU (time-of-check/time-of-use) races between the validation step and the I/O step. Any escape attempt detected by the OS is mapped to `ErrInvalidKey`.
+
+> **Recommendation:** Set `STORAGE_LOCAL_PATH` to a dedicated directory owned by the Enlace process user, with no symbolic links pointing outside it. Avoid reusing system directories (e.g., `/tmp`, `/var`).
 
 ### Direct object-storage transfer (optional)
 
@@ -138,13 +148,21 @@ See [OIDC / SSO guide](oidc.md) for provider-specific setup guides.
 
 ## Networking / Reverse Proxy
 
-When Enlace is deployed behind a reverse proxy (nginx, Caddy, Traefik, etc.) the direct TCP peer is the proxy, not the end user. By default, Enlace uses `RemoteAddr` for all IP-based decisions (rate limiting). Set `TRUSTED_PROXIES` to the CIDR ranges of your proxy so that the real client IP from `X-Forwarded-For` / `X-Real-IP` is used instead. When `X-Forwarded-For` contains multiple entries, Enlace walks the list from right to left and uses the first address that is not itself a trusted proxy.
+When Enlace is deployed behind a reverse proxy (nginx, Caddy, Traefik, etc.) the direct TCP peer is the proxy, not the end user. By default, Enlace uses `RemoteAddr` for all IP-based decisions (rate limiting). Set `TRUSTED_PROXIES` to the CIDR ranges of your proxy so that the real client IP from `X-Forwarded-For` / `X-Real-IP` is used instead.
+
+**How IP extraction works when `TRUSTED_PROXIES` is set:**
+
+1. Enlace inspects the direct TCP peer (`RemoteAddr`) of every request.
+2. Only if that peer IP falls within a trusted-proxy CIDR does Enlace read forwarded headers.
+3. When `X-Forwarded-For` is present, the list is walked **right-to-left** and the first IP that is not itself a trusted proxy is used as the client IP.
+4. When `X-Forwarded-For` is absent (or every entry is a trusted proxy), `X-Real-IP` is used as a fallback.
+5. Requests whose direct peer is **outside** `TRUSTED_PROXIES` always use `RemoteAddr`, and any `X-Forwarded-For` / `X-Real-IP` headers they include are ignored entirely.
 
 | Variable | Default | Description |
 |---|---|---|
 | `TRUSTED_PROXIES` | *(unset — use `RemoteAddr`)* | Comma-separated list of CIDR ranges whose `X-Forwarded-For` / `X-Real-IP` headers are trusted for client-IP extraction (e.g. rate limiting). Leave unset when not running behind a proxy. |
 
-> **Security note:** Only list IP ranges you control. Any host in a trusted CIDR can spoof arbitrary client IPs by setting `X-Forwarded-For`. Overly broad ranges (e.g. `0.0.0.0/0`) defeat IP-based rate limiting entirely.
+> **Security note:** Only list IP ranges you control. Any host in a trusted CIDR can influence client-IP detection via `X-Forwarded-For`. Hosts **outside** `TRUSTED_PROXIES` cannot affect IP detection regardless of what headers they send — their `RemoteAddr` is always used. Overly broad ranges (e.g. `0.0.0.0/0`) defeat IP-based rate limiting entirely because every host would be treated as a trusted proxy.
 
 **Example — single local proxy:**
 

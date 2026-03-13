@@ -209,7 +209,7 @@ server {
 ```
 
 Set `TRUSTED_PROXIES=127.0.0.1/32` in your Enlace environment when running nginx on the same host.
-With `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`, Enlace will walk the forwarded chain from right to left and use the rightmost untrusted address as the client IP for rate limiting.
+With `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`, Enlace will walk the forwarded chain from right to left and use the first untrusted address as the client IP for rate limiting. Direct connections that do not originate from a trusted-proxy IP are never allowed to influence this lookup — their forwarded headers are ignored.
 
 ### Traefik (Docker Compose)
 
