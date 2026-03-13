@@ -16,13 +16,23 @@ All settings are read from environment variables (or a `.env` file when running 
 | Variable | Default | Description |
 |---|---|---|
 | `STORAGE_TYPE` | `local` | `local` or `s3` |
-| `STORAGE_LOCAL_PATH` | `./uploads` | Directory for local file storage |
+| `STORAGE_LOCAL_PATH` | `./uploads` | Directory for local file storage. All file operations are strictly confined to this directory — see [Local storage security](#local-storage-security) below. |
 | `S3_ENDPOINT` | — | S3-compatible endpoint URL |
 | `S3_BUCKET` | — | Bucket name |
 | `S3_ACCESS_KEY` | — | Access key ID |
 | `S3_SECRET_KEY` | — | Secret access key |
 | `S3_REGION` | — | AWS/compatible region |
 | `S3_PATH_PREFIX` | — | Optional key prefix inside the bucket |
+
+### Local storage security
+
+When `STORAGE_TYPE=local`, Enlace applies multiple layers of protection to ensure uploaded files cannot escape `STORAGE_LOCAL_PATH`:
+
+- **Symlink traversal prevention** — every component of a storage key path is resolved with `os.Lstat`. If a component is a symbolic link, its target is resolved with `filepath.EvalSymlinks` and verified to remain within `STORAGE_LOCAL_PATH`. Symlinks that point outside the storage root are rejected with an `ErrInvalidKey` error.
+- **Missing-path safety** — components that do not yet exist (e.g., subdirectories created during an upload) are validated against `STORAGE_LOCAL_PATH` before any file is written, preventing speculative traversal via not-yet-created paths.
+- **OS-level root confinement** — all file I/O (create, read, delete, stat) is performed through `os.Root` (Go's rooted filesystem handle). This provides an OS-enforced confinement boundary that prevents TOCTOU (time-of-check/time-of-use) races between the validation step and the I/O step. Any escape attempt detected by the OS is mapped to `ErrInvalidKey`.
+
+> **Recommendation:** Set `STORAGE_LOCAL_PATH` to a dedicated directory owned by the Enlace process user, with no symbolic links pointing outside it. Avoid reusing system directories (e.g., `/tmp`, `/var`).
 
 ### Direct object-storage transfer (optional)
 
