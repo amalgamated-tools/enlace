@@ -18,7 +18,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/wneessen/go-mail v0.7.2
 	golang.org/x/crypto v0.49.0
-	golang.org/x/oauth2 v0.35.0
+	golang.org/x/oauth2 v0.36.0
 	golang.org/x/time v0.14.0
 	modernc.org/sqlite v1.46.1
 )
