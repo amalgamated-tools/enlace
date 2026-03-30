@@ -62,6 +62,36 @@ cd frontend && pnpm test
 - Run TypeScript + Svelte type checks with `cd frontend && pnpm check`.
 - Use Svelte 5 syntax and Tailwind CSS utility classes.
 
+## CI pipeline
+
+GitHub Actions runs four main automated workflows for this repository:
+
+- **Test** (`.github/workflows/test.yml`) runs on pushes and pull requests targeting `main` and `develop`.
+  - **Frontend Build & Check** installs frontend dependencies, runs `pnpm check`, `pnpm format --check`, `pnpm test`, and `pnpm build`, then uploads the built `frontend/dist` artifact.
+  - **Go Tests** downloads the frontend artifact, runs `golangci-lint`, executes `go test -v ./...`, and checks `gofmt` output.
+  - **Integration Tests** downloads the frontend artifact and runs `go test -tags integration -v -count=1 ./internal/integration/...`.
+- **E2E Tests** (`.github/workflows/e2etest.yml`) runs on pushes and pull requests targeting `main` and `develop`. It builds the frontend and Go binary, then runs the Playwright suite and uploads the test report.
+- **Build Container** (`.github/workflows/docker-build.yml`) runs on pushes to `main`, on published GitHub releases, and on manual dispatch. It builds and publishes the multi-architecture container image to GHCR.
+- **Deploy documentation to Pages** (`.github/workflows/static.yml`) runs on pushes to `main` and on manual dispatch. It builds the MkDocs site and deploys it to GitHub Pages.
+
+## Creating a release
+
+Use the helper script to create and push a version tag:
+
+```bash
+./scripts/release.sh v1.2.3
+```
+
+The script:
+
+1. Validates that the version matches the `vX.Y.Z` format.
+2. Verifies that the tag does not already exist.
+3. Requires a clean working tree (including no untracked files).
+4. Creates an annotated git tag.
+5. Pushes the tag to `origin`.
+
+After pushing the tag, publish the corresponding GitHub release to run the release automation in `.github/workflows/docker-build.yml`, which builds and publishes the container image.
+
 ## Adding a feature
 
 1. **Fork** the repository and create a descriptive branch (e.g., `feat/share-notifications`).
