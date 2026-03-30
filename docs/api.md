@@ -713,13 +713,23 @@ For password-protected shares, include the access token via the `X-Share-Token: 
 
 ---
 
-**`POST /s/{slug}/upload`** — upload files to a reverse share (no authentication required). The default maximum size per file is **100 MB**; the same admin-configured restrictions apply here as for authenticated uploads.
+**`POST /s/{slug}/upload`** — upload files to a reverse share. No user account is required. **If the share is password-protected**, you must first obtain a share access token from `POST /s/{slug}/verify` and pass it via the `X-Share-Token: <token>` header or the `share_token` cookie; omitting or supplying an invalid token returns HTTP 401. The default maximum size per file is **100 MB**; the same admin-configured restrictions apply here as for authenticated uploads.
 
 Uses the same `multipart/form-data` format as the authenticated upload endpoint — attach files under the `files` field. Returns HTTP 201 on success with an array of uploaded file objects.
 
+| Status | Meaning |
+|---|---|
+| `201 Created` | Files uploaded successfully |
+| `400 Bad Request` | No files provided, blocked extension, or file too large |
+| `401 Unauthorized` | Share is password-protected and the share token is missing or invalid |
+| `403 Forbidden` | Share does not accept uploads (`is_reverse_share: false`) |
+| `404 Not Found` | Share not found |
+| `410 Gone` | Share has expired or been deleted |
+| `500 Internal Server Error` | Upload failed |
+
 ---
 
-**`POST /s/{slug}/upload/initiate`** — initiate a direct upload to a reverse share (no authentication required). Requires `DIRECT_TRANSFER_ENABLED=true` and `STORAGE_TYPE=s3`. Returns HTTP 409 when direct transfer is disabled.
+**`POST /s/{slug}/upload/initiate`** — initiate a direct upload to a reverse share. No user account is required. **If the share is password-protected**, include the `X-Share-Token: <token>` header or the `share_token` cookie obtained from `POST /s/{slug}/verify`; omitting or supplying an invalid token returns HTTP 401. Requires `DIRECT_TRANSFER_ENABLED=true` and `STORAGE_TYPE=s3`. Returns HTTP 409 when direct transfer is disabled.
 
 Request body:
 
@@ -742,11 +752,11 @@ Response `data` fields mirror the authenticated initiate endpoint:
 | `expires_at` | string (RFC3339) | Expiry time of the presigned URL |
 | `finalize_token` | string | Short-lived JWT to pass to the finalize endpoint |
 
-Returns HTTP 403 if the share does not accept uploads (`is_reverse_share: false`). For password-protected reverse shares, include `X-Share-Token: <token>` obtained from `POST /s/{slug}/verify`.
+Returns HTTP 403 if the share does not accept uploads (`is_reverse_share: false`), or HTTP 401 if the share is password-protected and the share token is missing or invalid.
 
 ---
 
-**`POST /s/{slug}/upload/{uploadId}/finalize`** — finalize a reverse-share direct upload after the file has been PUT to object storage (no authentication required). Requires `DIRECT_TRANSFER_ENABLED=true`.
+**`POST /s/{slug}/upload/{uploadId}/finalize`** — finalize a reverse-share direct upload after the file has been PUT to object storage. No user account is required. **If the share is password-protected**, include the `X-Share-Token: <token>` header or the `share_token` cookie. Requires `DIRECT_TRANSFER_ENABLED=true`.
 
 Path parameter: `uploadId` — the `upload_id` returned by the initiate endpoint.
 
@@ -769,7 +779,7 @@ The server verifies the token, confirms the object exists in storage with the ex
 |---|---|
 | `201 Created` | Upload finalized; file record created |
 | `400 Bad Request` | Missing or malformed token |
-| `401 Unauthorized` | Invalid finalize token |
+| `401 Unauthorized` | Share token missing or invalid (password-protected share), or invalid finalize token |
 | `403 Forbidden` | Share does not accept uploads |
 | `404 Not Found` | Pending upload not found or already consumed |
 | `409 Conflict` | Direct transfer disabled, or storage does not support presigned URLs |
