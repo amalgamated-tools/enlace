@@ -517,6 +517,78 @@ func TestPublicHandler_InitiateReverseShareUpload_Unsupported(t *testing.T) {
 	}
 }
 
+func TestPublicHandler_InitiateReverseShareUpload_PasswordProtected_WithoutToken(t *testing.T) {
+	share := newPublicTestShare("share-123", "reverse-share")
+	share.IsReverseShare = true
+	passwordHash := "hash"
+	share.PasswordHash = &passwordHash
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn:      func(ctx context.Context, slug string) (*model.Share, error) { return share, nil },
+		validateAccessFn: func(ctx context.Context, share *model.Share) error { return nil },
+	}
+	mockFile := &mockPublicFileService{
+		initiateFn: func(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error) {
+			t.Fatal("InitiateDirectUpload should not be called without a share token")
+			return nil, nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret, handler.WithPublicDirectTransfer(true, time.Minute))
+	router := setupPublicRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/s/reverse-share/upload/initiate", strings.NewReader(`{"filename":"test.txt","size":1}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusUnauthorized, w.Code, w.Body.String())
+	}
+}
+
+func TestPublicHandler_InitiateReverseShareUpload_PasswordProtected_WithValidToken(t *testing.T) {
+	shareID := "share-123"
+	share := newPublicTestShare(shareID, "reverse-share")
+	share.IsReverseShare = true
+	passwordHash := "hash"
+	share.PasswordHash = &passwordHash
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn:      func(ctx context.Context, slug string) (*model.Share, error) { return share, nil },
+		validateAccessFn: func(ctx context.Context, share *model.Share) error { return nil },
+	}
+	mockFile := &mockPublicFileService{
+		initiateFn: func(ctx context.Context, input service.DirectUploadInput) (*service.DirectUploadResponse, error) {
+			return &service.DirectUploadResponse{
+				UploadID: "upload-123",
+				FileID:   "file-123",
+				ShareID:  shareID,
+				Filename: input.Filename,
+				Size:     input.Size,
+				Upload: &storage.PresignedURLResult{
+					URL:       "https://storage.example/upload",
+					Method:    "PUT",
+					ExpiresAt: time.Now().Add(time.Minute),
+				},
+			}, nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret, handler.WithPublicDirectTransfer(true, time.Minute))
+	router := setupPublicRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/s/reverse-share/upload/initiate", strings.NewReader(`{"filename":"test.txt","size":1}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Share-Token", generateTestShareToken(shareID))
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+}
+
 // TestPublicHandler_ViewShare_PasswordProtected_ExpiredToken tests viewing with expired token.
 func TestPublicHandler_ViewShare_PasswordProtected_ExpiredToken(t *testing.T) {
 	shareID := "share-123"
@@ -1332,6 +1404,81 @@ func TestPublicHandler_UploadToReverseShare_Success(t *testing.T) {
 	}
 }
 
+func TestPublicHandler_UploadToReverseShare_PasswordProtected_WithoutToken(t *testing.T) {
+	share := newPublicTestShare("share-123", "test-share")
+	share.IsReverseShare = true
+	passwordHash := "hash"
+	share.PasswordHash = &passwordHash
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn:      func(ctx context.Context, slug string) (*model.Share, error) { return share, nil },
+		validateAccessFn: func(ctx context.Context, s *model.Share) error { return nil },
+	}
+	mockFile := &mockPublicFileService{
+		uploadFn: func(ctx context.Context, input service.UploadInput) (*model.File, error) {
+			t.Fatal("Upload should not be called without a share token")
+			return nil, nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret)
+	router := setupPublicRouter(h)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("files", "upload.txt")
+	_, _ = part.Write([]byte("file content"))
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/s/test-share/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusUnauthorized, w.Code, w.Body.String())
+	}
+}
+
+func TestPublicHandler_UploadToReverseShare_PasswordProtected_WithValidToken(t *testing.T) {
+	shareID := "share-123"
+	share := newPublicTestShare(shareID, "test-share")
+	share.IsReverseShare = true
+	passwordHash := "hash"
+	share.PasswordHash = &passwordHash
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn:      func(ctx context.Context, slug string) (*model.Share, error) { return share, nil },
+		validateAccessFn: func(ctx context.Context, s *model.Share) error { return nil },
+	}
+	mockFile := &mockPublicFileService{
+		uploadFn: func(ctx context.Context, input service.UploadInput) (*model.File, error) {
+			return newPublicTestFile("new-file-id", shareID, input.Filename), nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret)
+	router := setupPublicRouter(h)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("files", "upload.txt")
+	_, _ = part.Write([]byte("file content"))
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/s/test-share/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("X-Share-Token", generateTestShareToken(shareID))
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
+	}
+}
+
 // TestPublicHandler_UploadToReverseShare_NotReverseShare tests upload to regular share.
 func TestPublicHandler_UploadToReverseShare_NotReverseShare(t *testing.T) {
 	share := newPublicTestShare("share-123", "test-share")
@@ -1497,6 +1644,79 @@ func TestPublicHandler_UploadToReverseShare_ShareExpired(t *testing.T) {
 
 	if w.Code != http.StatusGone {
 		t.Errorf("expected status %d, got %d", http.StatusGone, w.Code)
+	}
+}
+
+func TestPublicHandler_FinalizeReverseShareUpload_PasswordProtected_WithoutToken(t *testing.T) {
+	share := newPublicTestShare("share-123", "reverse-share")
+	share.IsReverseShare = true
+	passwordHash := "hash"
+	share.PasswordHash = &passwordHash
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn:      func(ctx context.Context, slug string) (*model.Share, error) { return share, nil },
+		validateAccessFn: func(ctx context.Context, share *model.Share) error { return nil },
+	}
+	mockFile := &mockPublicFileService{
+		finalizeFn: func(ctx context.Context, uploadID string) (*model.File, error) {
+			t.Fatal("FinalizeDirectUpload should not be called without a share token")
+			return nil, nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret, handler.WithPublicDirectTransfer(true, time.Minute))
+	router := setupPublicRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/s/reverse-share/upload/upload-123/finalize", strings.NewReader(`{"token":"finalize-token"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusUnauthorized, w.Code, w.Body.String())
+	}
+}
+
+func TestPublicHandler_FinalizeReverseShareUpload_PasswordProtected_WithValidToken(t *testing.T) {
+	shareID := "share-123"
+	share := newPublicTestShare(shareID, "reverse-share")
+	share.IsReverseShare = true
+	passwordHash := "hash"
+	share.PasswordHash = &passwordHash
+
+	mockShare := &mockPublicShareService{
+		getBySlugFn:      func(ctx context.Context, slug string) (*model.Share, error) { return share, nil },
+		validateAccessFn: func(ctx context.Context, share *model.Share) error { return nil },
+	}
+	mockFile := &mockPublicFileService{
+		finalizeFn: func(ctx context.Context, uploadID string) (*model.File, error) {
+			return newPublicTestFile("file-123", shareID, "test.txt"), nil
+		},
+	}
+
+	h := handler.NewPublicHandler(mockShare, mockFile, testJWTSecret, handler.WithPublicDirectTransfer(true, time.Minute))
+	router := setupPublicRouter(h)
+
+	// Generate a valid finalize token
+	finalizeClaims := jwt.MapClaims{
+		"upload_id": "upload-123",
+		"share_id":  shareID,
+		"public":    true,
+		"exp":       time.Now().Add(time.Hour).Unix(),
+		"iat":       time.Now().Unix(),
+		"nbf":       time.Now().Unix(),
+	}
+	finalizeToken := jwt.NewWithClaims(jwt.SigningMethodHS256, finalizeClaims)
+	finalizeTokenStr, _ := finalizeToken.SignedString(testJWTSecret)
+
+	req := httptest.NewRequest(http.MethodPost, "/s/reverse-share/upload/upload-123/finalize", strings.NewReader(`{"token":"`+finalizeTokenStr+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Share-Token", generateTestShareToken(shareID))
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
 	}
 }
 

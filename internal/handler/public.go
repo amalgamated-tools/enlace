@@ -626,6 +626,13 @@ func (h *PublicHandler) UploadToReverseShare(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if share.HasPassword() {
+		if err := h.validateShareToken(r, share.ID); err != nil {
+			Error(w, http.StatusUnauthorized, "password verification required")
+			return
+		}
+	}
+
 	// Verify share is a reverse share
 	if !share.IsReverseShare {
 		Error(w, http.StatusForbidden, "share does not accept uploads")
@@ -773,6 +780,12 @@ func (h *PublicHandler) InitiateReverseShareUpload(w http.ResponseWriter, r *htt
 		h.handleAccessError(w, err)
 		return
 	}
+	if share.HasPassword() {
+		if err := h.validateShareToken(r, share.ID); err != nil {
+			Error(w, http.StatusUnauthorized, "password verification required")
+			return
+		}
+	}
 	if !share.IsReverseShare {
 		Error(w, http.StatusForbidden, "share does not accept uploads")
 		return
@@ -896,6 +909,12 @@ func (h *PublicHandler) FinalizeReverseShareUpload(w http.ResponseWriter, r *htt
 	if err := h.shareService.ValidateAccess(r.Context(), share); err != nil {
 		h.handleAccessError(w, err)
 		return
+	}
+	if share.HasPassword() {
+		if err := h.validateShareToken(r, share.ID); err != nil {
+			Error(w, http.StatusUnauthorized, "password verification required")
+			return
+		}
 	}
 	if !share.IsReverseShare {
 		Error(w, http.StatusForbidden, "share does not accept uploads")
