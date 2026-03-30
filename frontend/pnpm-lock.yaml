@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       svelte-spa-router:
-        specifier: ^4.0.1
-        version: 4.0.1
+        specifier: ^5.0.0
+        version: 5.0.0
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.1
@@ -1044,8 +1044,8 @@ packages:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: '>=5.0.0'
 
-  svelte-spa-router@4.0.1:
-    resolution: {integrity: sha512-2JkmUQ2f9jRluijL58LtdQBIpynSbem2eBGp4zXdi7aDY1znbR6yjw0KsonD0aq2QLwf4Yx4tBJQjxIjgjXHKg==}
+  svelte-spa-router@5.0.0:
+    resolution: {integrity: sha512-4F2irDGf2CkPxAz/tr/GwnAErZuG9l8J3ClHo2QfKPh0Ul4j9K9R3q91RaoekXZzJW90NHMY+dKLM9eF6vdcyA==}
 
   svelte@5.53.7:
     resolution: {integrity: sha512-uxck1KI7JWtlfP3H6HOWi/94soAl23jsGJkBzN2BAWcQng0+lTrRNhxActFqORgnO9BHVd1hKJhG+ljRuIUWfQ==}
@@ -2045,7 +2045,7 @@ snapshots:
     transitivePeerDependencies:
       - picomatch
 
-  svelte-spa-router@4.0.1:
+  svelte-spa-router@5.0.0:
     dependencies:
       regexparam: 2.0.2
 

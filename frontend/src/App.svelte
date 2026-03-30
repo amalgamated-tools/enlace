@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Router, { location } from "svelte-spa-router";
+  import Router, { router } from "svelte-spa-router";
   import routes from "./routes";
   import { Toast } from "./lib/components";
   import {
@@ -29,18 +29,18 @@
 
   // Pages that should NOT show the authenticated layout
   $: isPublicPage =
-    $location === "/login" ||
-    $location === "/register" ||
-    $location === "/auth/callback" ||
-    $location === "/auth/2fa" ||
-    $location.startsWith("/s/");
+    router.location === "/login" ||
+    router.location === "/register" ||
+    router.location === "/auth/callback" ||
+    router.location === "/auth/2fa" ||
+    router.location.startsWith("/s/");
   $: showLayout = $auth.initialized && $isAuthenticated && !isPublicPage;
 
-  // Active nav link helpers (reactive so Svelte tracks $location dependency)
-  $: dashboardActive = $location === "/";
-  $: sharesActive = $location.startsWith("/shares");
-  $: settingsActive = $location.startsWith("/settings");
-  $: adminActive = $location.startsWith("/admin");
+  // Active nav link helpers (reactive so Svelte tracks router.location dependency)
+  $: dashboardActive = router.location === "/";
+  $: sharesActive = router.location.startsWith("/shares");
+  $: settingsActive = router.location.startsWith("/settings");
+  $: adminActive = router.location.startsWith("/admin");
 </script>
 
 {#if !$auth.initialized}
