@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { push, querystring } from "svelte-spa-router";
+  import { push, router } from "svelte-spa-router";
   import { Button, Input, SettingsNav } from "../../lib/components";
   import { auth, isAuthenticated, toast } from "../../lib/stores";
   import { api, getOIDCConfig, getOIDCLinkURL, totpApi } from "../../lib/api";
@@ -58,7 +58,7 @@
 
   onMount(async () => {
     // Check for oidc=linked query param (from successful OIDC linking)
-    const params = new URLSearchParams($querystring);
+    const params = new URLSearchParams(router.querystring);
     if (params.get("oidc") === "linked") {
       toast.success("SSO account linked successfully");
       push("/settings/security");

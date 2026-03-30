@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { push, querystring } from "svelte-spa-router";
+  import { push, router } from "svelte-spa-router";
   import { Button, Input } from "../lib/components";
   import { auth, isAuthenticated, toast } from "../lib/stores";
   import { getOIDCConfig, getOIDCLoginURL } from "../lib/api";
@@ -17,7 +17,7 @@
 
   onMount(async () => {
     // Check for error query param (e.g., from failed OIDC login)
-    const params = new URLSearchParams($querystring);
+    const params = new URLSearchParams(router.querystring);
     const error = params.get("error");
     if (error) {
       toast.error(decodeURIComponent(error));

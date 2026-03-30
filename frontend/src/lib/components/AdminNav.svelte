@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { location } from "svelte-spa-router";
+  import { router } from "svelte-spa-router";
 
   const tabs = [
     { label: "Users", href: "#/admin/users", path: "/admin/users" },
@@ -14,7 +14,7 @@
   {#each tabs as tab}
     <a
       href={tab.href}
-      class="px-3 py-1.5 text-sm rounded-md transition-colors {$location ===
+      class="px-3 py-1.5 text-sm rounded-md transition-colors {router.location ===
       tab.path
         ? 'text-text bg-surface-muted font-medium'
         : 'text-muted hover:text-text hover:bg-surface-subtle'}"

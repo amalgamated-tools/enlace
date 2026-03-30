@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { push, querystring } from "svelte-spa-router";
+  import { push, router } from "svelte-spa-router";
   import { Button, Input } from "../lib/components";
   import { auth, toast } from "../lib/stores";
   import { totpApi } from "../lib/api";
@@ -11,7 +11,7 @@
   let errors: Record<string, string> = {};
 
   // Get pending token from sessionStorage (primary) or query string (fallback)
-  $: params = new URLSearchParams($querystring);
+  $: params = new URLSearchParams(router.querystring);
   $: pendingToken =
     sessionStorage.getItem("pending2FAToken") || params.get("token") || "";
 
