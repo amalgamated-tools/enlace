@@ -19,7 +19,7 @@ Open <http://localhost:8080> and register your first user.
 
 ## Admin Panel
 
-The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has six tabs:
+The admin panel is accessible at `/#/admin/users` and is visible only to accounts with admin privileges. It has five tabs:
 
 ### Users tab (`/#/admin/users`)
 
@@ -72,7 +72,23 @@ Configure file upload restrictions that apply to all uploads (authenticated and 
 
 > **Note:** The nginx `client_max_body_size` directive must be at least as large as the configured max file size. See [Reverse Proxy](#reverse-proxy) for an example.
 
-### API Keys tab (`/#/admin/api-keys`)
+## User Settings
+
+User-specific settings are accessible at `/#/settings` and are available to all authenticated users. The settings panel has three tabs:
+
+### Profile tab (`/#/settings/profile`)
+
+Update your display name and email address.
+
+### Security tab (`/#/settings/security`)
+
+Manage your password, two-factor authentication (TOTP), and linked SSO identity.
+
+- **Change password** — update your account password.
+- **Two-factor authentication** — enable TOTP-based 2FA with an authenticator app. On setup, Enlace shows a QR code and a manual entry key. After confirming a code, ten recovery codes are generated; store them securely — each can be used once if you lose access to your authenticator. You can regenerate recovery codes at any time by supplying your current password. Disable 2FA by supplying your current password.
+- **Single Sign-On** — link or unlink an external OIDC identity provider. The section is shown only when OIDC is enabled by the server. Unlinking requires a local password to be set first.
+
+### API Keys tab (`/#/settings/api-keys`)
 
 Create and revoke long-lived API keys for programmatic access without user credentials.
 
