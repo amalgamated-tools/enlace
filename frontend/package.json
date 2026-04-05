@@ -33,6 +33,6 @@
     "vitest": "^4.1.0"
   },
   "dependencies": {
-    "svelte-spa-router": "^5.0.0"
+    "svelte-spa-router": "^5.0.1"
   }
 }
