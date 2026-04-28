@@ -11,11 +11,21 @@
   } from "./lib/stores";
   import { push } from "svelte-spa-router";
   import { onDestroy, onMount } from "svelte";
+  import { writable } from "svelte/store";
+
+  // Writable store for the current path — updated on hashchange so that
+  // reactive `$:` declarations in this legacy-mode component can subscribe
+  // to location changes via the `$` prefix (guaranteed in Svelte 5 legacy mode).
+  const currentPath = writable(router.location);
 
   onMount(() => {
     initTheme();
     auth.init();
     loadFeatures();
+
+    const onHashChange = () => currentPath.set(router.location);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
   });
 
   onDestroy(() => {
@@ -29,18 +39,18 @@
 
   // Pages that should NOT show the authenticated layout
   $: isPublicPage =
-    router.location === "/login" ||
-    router.location === "/register" ||
-    router.location === "/auth/callback" ||
-    router.location === "/auth/2fa" ||
-    router.location.startsWith("/s/");
+    $currentPath === "/login" ||
+    $currentPath === "/register" ||
+    $currentPath === "/auth/callback" ||
+    $currentPath === "/auth/2fa" ||
+    $currentPath.startsWith("/s/");
   $: showLayout = $auth.initialized && $isAuthenticated && !isPublicPage;
 
-  // Active nav link helpers (reactive so Svelte tracks router.location dependency)
-  $: dashboardActive = router.location === "/";
-  $: sharesActive = router.location.startsWith("/shares");
-  $: settingsActive = router.location.startsWith("/settings");
-  $: adminActive = router.location.startsWith("/admin");
+  // Active nav link helpers
+  $: dashboardActive = $currentPath === "/";
+  $: sharesActive = $currentPath.startsWith("/shares");
+  $: settingsActive = $currentPath.startsWith("/settings");
+  $: adminActive = $currentPath.startsWith("/admin");
 </script>
 
 {#if !$auth.initialized}
