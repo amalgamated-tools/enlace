@@ -756,7 +756,7 @@ Returns HTTP 403 if the share does not accept uploads (`is_reverse_share: false`
 
 ---
 
-**`POST /s/{slug}/upload/{uploadId}/finalize`** — finalize a reverse-share direct upload after the file has been PUT to object storage. No user account is required. **If the share is password-protected**, include the `X-Share-Token: <token>` header or the `share_token` cookie. Requires `DIRECT_TRANSFER_ENABLED=true`.
+**`POST /s/{slug}/upload/{uploadId}/finalize`** — finalize a reverse-share direct upload after the file has been PUT to object storage. No user account is required. **If the share is password-protected**, include the `X-Share-Token: <token>` header or the `share_token` cookie; omitting or supplying an invalid token returns HTTP 401. Requires `DIRECT_TRANSFER_ENABLED=true`.
 
 Path parameter: `uploadId` — the `upload_id` returned by the initiate endpoint.
 
