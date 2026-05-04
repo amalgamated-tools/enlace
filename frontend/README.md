@@ -36,12 +36,20 @@ The compiled `dist/` directory is embedded into the Go binary at build time via 
 ```
 src/
   lib/
-    api/          # typed API client (auth, shares, files, OIDC) and shared utilities
-                  # dateToRFC3339(date) converts HTML date inputs (YYYY-MM-DD) to RFC3339
+    api/          # typed API client modules: auth, shares, files, OIDC, TOTP,
+                  # webhooks, file restrictions, API keys, and shared utilities.
+                  # dateToRFC3339(date) converts HTML date inputs (YYYY-MM-DD) to RFC3339.
     components/   # shared UI components (FileList, FileUploader, ShareCard, …)
-    stores/       # Svelte stores for auth and toast notifications
+    stores/       # Svelte stores:
+                  #   auth    — current user and authentication lifecycle
+                  #   features — runtime feature flags (e.g. emailConfigured) loaded from /health
+                  #   theme   — three-way dark-mode preference (system / light / dark)
+                  #   toast   — ephemeral notification queue
   routes/         # page components (Login, Dashboard, Shares, ShareDetail, …)
-  App.svelte      # root component with client-side router
+  App.svelte      # root component with client-side router. Maintains a `currentPath`
+                  # writable store updated on every hashchange so that legacy-mode $:
+                  # declarations can subscribe to route changes (required for
+                  # svelte-spa-router 5.1.0+ Svelte 5 rune compatibility).
   main.ts         # application entry point
   routes.ts       # route definitions
 ```
