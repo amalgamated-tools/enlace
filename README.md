@@ -18,6 +18,7 @@ A self-hosted file-sharing application with a Go backend and Svelte frontend. Cr
 - **Dark mode** — three-way theme toggle (system, light, dark) with preference persisted in the browser
 - **Embeds frontend** — single binary ships the compiled Svelte app
 
+change
 ## Screenshots
 
 <table>
