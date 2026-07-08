@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
-
-	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/amalgamated-tools/enlace/internal/middleware"
 	"golang.org/x/time/rate"
@@ -803,7 +802,15 @@ func TestRateLimiter_RealIPMiddlewareUnderminesProtection(t *testing.T) {
 	// This half of the test documents the bypass so no one re-adds RealIP.
 	rlDangerous := middleware.NewRateLimiter(rate.Every(time.Second), 1)
 	defer rlDangerous.Stop()
-	dangerousChain := chiMiddleware.RealIP(rlDangerous.Limit(handler))
+	dangerousBase := rlDangerous.Limit(handler)
+	dangerousChain := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			if first := strings.TrimSpace(strings.Split(xff, ",")[0]); first != "" {
+				r.RemoteAddr = first
+			}
+		}
+		dangerousBase.ServeHTTP(w, r)
+	})
 
 	for i := range 3 {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
