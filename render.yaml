@@ -9,8 +9,6 @@ services:
       mountPath: /var/data
       sizeGB: 1
     envVars:
-      - key: PORT
-        value: "8080"
       - key: BASE_URL
         fromService:
           type: web
