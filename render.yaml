@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: enlace
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    disk:
+      name: enlace-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: BASE_URL
+        fromService:
+          type: web
+          name: enlace
+          property: url
+      - key: DATABASE_PATH
+        value: /var/data/enlace.db
+      - key: DATA_DIR
+        value: /var/data
+      - key: STORAGE_TYPE
+        value: local
+      - key: STORAGE_LOCAL_PATH
+        value: /var/data/uploads
