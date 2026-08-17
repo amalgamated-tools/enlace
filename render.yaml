@@ -10,10 +10,6 @@ services:
       sizeGB: 1
     envVars:
       - key: BASE_URL
-        fromService:
-          type: web
-          name: enlace
-          property: url
       - key: DATABASE_PATH
         value: /var/data/enlace.db
       - key: DATA_DIR
