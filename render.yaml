@@ -10,6 +10,7 @@ services:
       sizeGB: 1
     envVars:
       - key: BASE_URL
+        value: enlace.veverka.net
       - key: DATABASE_PATH
         value: /var/data/enlace.db
       - key: DATA_DIR
